@@ -23,15 +23,9 @@
 		<PackageReference Include="Swashbuckle.AspNetCore.Swagger" Version="6.8.1" />
 	</ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Controllers\" />
-    <Folder Include="Middleware\" />
-    <Folder Include="Extension\" />
-  </ItemGroup>
-
 	<ItemGroup>
-		<ProjectReference Include="..\EduSystem.DataAccess\EduSystem.DataAccess.csproj" />
-		<ProjectReference Include="..\EduSystem.Services\EduSystem.Services.csproj" />
+		<ProjectReference Include="..\AttaEduSystem.DataAccess\AttaEduSystem.DataAccess.csproj" />
+		<ProjectReference Include="..\AttaEduSystem.Services\AttaEduSystem.Services.csproj" />
 	</ItemGroup>
 
 </Project>
