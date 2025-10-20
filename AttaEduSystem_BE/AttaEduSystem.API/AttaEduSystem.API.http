@@ -1,0 +1,6 @@
+@AttaEduSystem.API_HostAddress = http://localhost:5226
+
+GET {{AttaEduSystem.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
