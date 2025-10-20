@@ -7,11 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Folder Include="DBContext\" />
-    <Folder Include="IRepositories\" />
     <Folder Include="Migrations\" />
-    <Folder Include="Seed\" />
-    <Folder Include="Repositories\" />
   </ItemGroup>
 
 	<ItemGroup>
@@ -32,7 +28,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<ProjectReference Include="..\EduSystem.Models\EduSystem.Models.csproj" />
+		<ProjectReference Include="..\AttaEduSystem.Models\AttaEduSystem.Models.csproj" />
 	</ItemGroup>
 
 </Project>
