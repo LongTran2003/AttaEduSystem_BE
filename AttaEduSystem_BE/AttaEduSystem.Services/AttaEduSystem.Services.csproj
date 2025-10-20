@@ -6,13 +6,6 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
-  <ItemGroup>
-    <Folder Include="Helpers\" />
-    <Folder Include="IServices\" />
-    <Folder Include="Mapping\" />
-    <Folder Include="Services\" />
-  </ItemGroup>
-
 	<ItemGroup>
 		<PackageReference Include="AutoMapper" Version="14.0.0" />
 		<PackageReference Include="CloudinaryDotNet" Version="1.27.2" />
@@ -22,8 +15,8 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<ProjectReference Include="..\EduSystem.DataAccess\EduSystem.DataAccess.csproj" />
-		<ProjectReference Include="..\EduSystem.Models\EduSystem.Models.csproj" />
+		<ProjectReference Include="..\AttaEduSystem.DataAccess\AttaEduSystem.DataAccess.csproj" />
+		<ProjectReference Include="..\AttaEduSystem.Models\AttaEduSystem.Models.csproj" />
 	</ItemGroup>
 
 </Project>
