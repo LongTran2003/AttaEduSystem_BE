@@ -9,6 +9,7 @@ using AutoMapper;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System.Security.Claims;
+using System.Text.Json;
 
 namespace AttaEduSystem.Services.Services
 {
@@ -20,14 +21,16 @@ namespace AttaEduSystem.Services.Services
         private readonly IConfiguration _configuration;
         private readonly ILogger<ExamScanningService> _logger;
         private readonly IOcrService _ocrService;
+        private readonly IExamFormatParser _examFormatParser;
 
         public ExamScanningService(
             IUnitOfWork unitOfWork, 
-            IMapper mapper, 
-            ICloudinaryService cloudinaryService, 
-            IConfiguration configuration, 
+            IMapper mapper,
+            ICloudinaryService cloudinaryService,
+            IConfiguration configuration,
             ILogger<ExamScanningService> logger,
-            IOcrService ocrService)
+            IOcrService ocrService,
+            IExamFormatParser examFormatParser)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
@@ -35,6 +38,7 @@ namespace AttaEduSystem.Services.Services
             _configuration = configuration;
             _logger = logger;
             _ocrService = ocrService;
+            _examFormatParser = examFormatParser;
         }
 
         public async Task<ResponseDto> GetExamPaperById(Guid examPaperId)
@@ -207,10 +211,12 @@ namespace AttaEduSystem.Services.Services
                         statusCode: StaticOperationStatus.StatusCode.InternalServerError);
                 }
 
+                var schema = _examFormatParser.Parse(scannedText);
                 var examPaper = _mapper.Map<ExamPaper>(uploadDto);
                 examPaper.ExamPaperId = Guid.NewGuid();
                 examPaper.OriginalImageUrl = imageUrl;
                 examPaper.ScannedText = scannedText;
+                examPaper.ExamFormat = JsonSerializer.Serialize(schema);
                 examPaper.CreatedBy = userId;
                 examPaper.CreatedTime = StaticOperationStatus.Timezone.Vietnam;
                 examPaper.Status = StaticOperationStatus.ExamPaper.Ready;
