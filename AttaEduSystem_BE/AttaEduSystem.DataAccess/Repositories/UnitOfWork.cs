@@ -11,12 +11,15 @@ namespace AttaEduSystem.DataAccess.Repositories
         private readonly ApplicationDBContext _context;
         public IStudentRepository Student { get; private set; }
         public ITeacherRepository Teacher { get; private set; }
+        public IExamPaperRepository ExamPaper { get; private set; }
+
 
         public UnitOfWork(ApplicationDBContext context, UserManager<ApplicationUser> userManager)
         {
             _context = context;
             Student = new StudentRepository(_context);
             Teacher = new TeacherRepository(_context);
+            ExamPaper = new ExamPaperRepository(_context);
         }
 
 

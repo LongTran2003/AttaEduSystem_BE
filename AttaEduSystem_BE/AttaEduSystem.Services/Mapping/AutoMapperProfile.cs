@@ -1,6 +1,8 @@
 ﻿using AttaEduSystem.Models.DTOs.Authentication;
+using AttaEduSystem.Models.DTOs.ExamPaper;
 using AttaEduSystem.Models.DTOs.Student;
 using AttaEduSystem.Models.Entities;
+using AttaEduSystem.Utilities.Constants;
 using AutoMapper;
 
 namespace AttaEduSystem.Services.Mapping
@@ -60,6 +62,26 @@ namespace AttaEduSystem.Services.Mapping
 
 
             ////// Add more mappings as needed
+
+            // ExamPaper mapping
+            CreateMap<UploadExamPaperDto, ExamPaper>()
+                .ForMember(dest => dest.ExamPaperId, opt => opt.Ignore())
+                .ForMember(dest => dest.OriginalImageUrl, opt => opt.Ignore())
+                .ForMember(dest => dest.ScannedText, opt => opt.Ignore())
+                .ForMember(dest => dest.ExamFormat, opt => opt.Ignore())
+                .ForMember(dest => dest.CreatedBy, opt => opt.Ignore())
+                .ForMember(dest => dest.CreatedTime, opt => opt.Ignore())
+                .ForMember(dest => dest.UpdatedBy, opt => opt.Ignore())
+                .ForMember(dest => dest.UpdatedTime, opt => opt.Ignore())
+                .ForMember(dest => dest.Status, opt => opt.Ignore());
+
+            CreateMap<ExamPaper, ScanExamPaperResponseDto>()
+                .ForMember(dest => dest.ExamPaperId, opt => opt.MapFrom(src => src.ExamPaperId))
+                .ForMember(dest => dest.ImageUrl, opt => opt.MapFrom(src => src.OriginalImageUrl))
+                .ForMember(dest => dest.ScannedAt, opt => opt.MapFrom(src => src.CreatedTime ?? StaticOperationStatus.Timezone.Vietnam));
+
+            CreateMap<ExamPaper, GetExamPaperDto>()
+                .ForMember(dest => dest.CreatedTime, opt => opt.MapFrom(src => src.CreatedTime ?? StaticOperationStatus.Timezone.Vietnam));
         }
     }
 }

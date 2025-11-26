@@ -32,7 +32,7 @@ namespace AttaEduSystem.API.Extension
             services.AddScoped<IManageUserAccountService, ManageUserAccountService>();
 
             // add services here
-
+            services.AddScoped<IExamScanningService, ExamScanningService>();
 
 
             return services;
