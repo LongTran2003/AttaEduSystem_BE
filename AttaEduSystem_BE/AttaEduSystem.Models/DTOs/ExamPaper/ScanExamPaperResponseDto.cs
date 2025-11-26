@@ -12,6 +12,6 @@ namespace AttaEduSystem.Models.DTOs.ExamPaper
         public ExamFormatSchema? ExamFormatParsed { get; set; }
         public string? Subject { get; set; }
         public string? ScannedBy { get; set; }
-        public DateTime ScannedTime { get; set; }
+        public DateTime ScannedAt { get; set; }
     }
 }

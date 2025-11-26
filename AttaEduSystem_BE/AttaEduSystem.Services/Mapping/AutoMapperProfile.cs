@@ -85,7 +85,7 @@ namespace AttaEduSystem.Services.Mapping
                 .ForMember(dest => dest.ExamFormatParsed,
                         opt => opt.MapFrom(src => DeserializeExamFormat(src.ExamFormat)))
                 .ForMember(dest => dest.ScannedBy, opt => opt.MapFrom(src => src.CreatedBy))
-                .ForMember(dest => dest.ScannedTime, opt => opt.MapFrom(src => src.CreatedTime ?? StaticOperationStatus.Timezone.Vietnam));
+                .ForMember(dest => dest.ScannedAt, opt => opt.MapFrom(src => src.CreatedTime ?? StaticOperationStatus.Timezone.Vietnam));
 
             CreateMap<ExamPaper, GetExamPaperDto>()
                 .ForMember(dest => dest.ExamPaperId, opt => opt.MapFrom(src => src.ExamPaperId))
