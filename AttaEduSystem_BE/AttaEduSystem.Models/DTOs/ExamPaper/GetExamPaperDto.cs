@@ -1,4 +1,6 @@
-﻿namespace AttaEduSystem.Models.DTOs.ExamPaper
+﻿using AttaEduSystem.Models.DTOs.ExamFormat;
+
+namespace AttaEduSystem.Models.DTOs.ExamPaper
 {
     public class GetExamPaperDto
     {
@@ -7,7 +9,8 @@
         public string? Description { get; set; }
         public string OriginalImageUrl { get; set; } = null!;
         public string? ScannedText { get; set; }
-        public string? ExamFormat { get; set; }
+        public string? ExamFormat { get; set; }          // JSON string
+        public ExamFormatSchema? ExamFormatParsed { get; set; }
         public string? Subject { get; set; }
         public string CreatedBy { get; set; } = null!;
         public DateTime CreatedTime { get; set; }

@@ -34,6 +34,8 @@ namespace AttaEduSystem.API.Extension
             // add services here
             services.AddScoped<IExamScanningService, ExamScanningService>();
             services.AddScoped<IOcrService, GoogleVisionOcrService>();
+            services.AddScoped<IExamFormatParser, RegexExamFormatParser>();
+
 
             return services;
         }
