@@ -78,10 +78,13 @@ namespace AttaEduSystem.Services.Mapping
             CreateMap<ExamPaper, ScanExamPaperResponseDto>()
                 .ForMember(dest => dest.ExamPaperId, opt => opt.MapFrom(src => src.ExamPaperId))
                 .ForMember(dest => dest.ImageUrl, opt => opt.MapFrom(src => src.OriginalImageUrl))
-                .ForMember(dest => dest.ScannedAt, opt => opt.MapFrom(src => src.CreatedTime ?? StaticOperationStatus.Timezone.Vietnam));
+                .ForMember(dest => dest.ScannedBy, opt => opt.MapFrom(src => src.CreatedBy))
+                .ForMember(dest => dest.ScannedTime, opt => opt.MapFrom(src => src.CreatedTime ?? StaticOperationStatus.Timezone.Vietnam));
 
             CreateMap<ExamPaper, GetExamPaperDto>()
+                .ForMember(dest => dest.CreatedBy, opt => opt.MapFrom(src => src.CreatedBy != null ? src.CreatedBy : string.Empty))
                 .ForMember(dest => dest.CreatedTime, opt => opt.MapFrom(src => src.CreatedTime ?? StaticOperationStatus.Timezone.Vietnam));
+
         }
     }
 }

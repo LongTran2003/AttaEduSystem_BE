@@ -19,7 +19,7 @@ namespace AttaEduSystem.Models.Entities
 
         public string? ScannedText { get; set; }
 
-        public string? ExamFormat { get; set; } // JSON format
+        public string? ExamFormat { get; set; } = "JSON";
 
         [StringLength(100)]
         public string? Subject { get; set; }

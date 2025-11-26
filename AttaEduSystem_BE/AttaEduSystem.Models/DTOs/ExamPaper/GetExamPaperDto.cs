@@ -9,6 +9,7 @@
         public string? ScannedText { get; set; }
         public string? ExamFormat { get; set; }
         public string? Subject { get; set; }
+        public string CreatedBy { get; set; } = null!;
         public DateTime CreatedTime { get; set; }
     }
 }
