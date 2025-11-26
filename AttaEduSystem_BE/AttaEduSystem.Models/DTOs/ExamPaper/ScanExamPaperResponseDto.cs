@@ -8,6 +8,7 @@
         public string ImageUrl { get; set; } = null!;
         public string? ExamFormat { get; set; }
         public string? Subject { get; set; }
-        public DateTime ScannedAt { get; set; }
+        public string? ScannedBy { get; set; }
+        public DateTime ScannedTime { get; set; }
     }
 }
