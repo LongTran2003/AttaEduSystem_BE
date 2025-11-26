@@ -1,0 +1,14 @@
+﻿namespace AttaEduSystem.Models.DTOs.ExamPaper
+{
+    public class GetExamPaperDto
+    {
+        public Guid ExamPaperId { get; set; }
+        public string Title { get; set; } = null!;
+        public string? Description { get; set; }
+        public string OriginalImageUrl { get; set; } = null!;
+        public string? ScannedText { get; set; }
+        public string? ExamFormat { get; set; }
+        public string? Subject { get; set; }
+        public DateTime CreatedTime { get; set; }
+    }
+}

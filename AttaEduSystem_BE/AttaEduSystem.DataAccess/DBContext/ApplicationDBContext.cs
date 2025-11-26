@@ -14,6 +14,7 @@ namespace AttaEduSystem.DataAccess.DBContext
         // DbSet các entity, sắp xếp A-Z
         public DbSet<Student> Students { get; set; }
         public DbSet<Teacher> Teachers { get; set; }
+        public DbSet<ExamPaper> ExamPapers { get; set; }
 
 
 
@@ -36,6 +37,10 @@ namespace AttaEduSystem.DataAccess.DBContext
             // Teacher
             modelBuilder.Entity<Teacher>()
                 .HasKey(t => t.TeacherId);
+
+            // ExamPaper
+            modelBuilder.Entity<ExamPaper>()
+            .HasKey(e => e.ExamPaperId);
         }
     }
 }
