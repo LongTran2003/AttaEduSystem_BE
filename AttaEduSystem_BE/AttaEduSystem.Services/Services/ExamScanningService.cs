@@ -1,5 +1,6 @@
 ﻿using AttaEduSystem.DataAccess.IRepositories;
 using AttaEduSystem.Models.DTOs;
+using AttaEduSystem.Models.DTOs.ExamFormat;
 using AttaEduSystem.Models.DTOs.ExamPaper;
 using AttaEduSystem.Models.Entities;
 using AttaEduSystem.Services.Helpers.Responses;
@@ -184,6 +185,7 @@ namespace AttaEduSystem.Services.Services
                         statusCode: StaticOperationStatus.StatusCode.BadRequest);
                 }
 
+                // Upload Cloudinary
                 var folderPath = $"exam-papers/{userId}";
                 string imageUrl;
                 try
@@ -198,6 +200,7 @@ namespace AttaEduSystem.Services.Services
                         statusCode: StaticOperationStatus.StatusCode.InternalServerError);
                 }
 
+                // OCR  
                 string scannedText;
                 try
                 {
@@ -211,35 +214,41 @@ namespace AttaEduSystem.Services.Services
                         statusCode: StaticOperationStatus.StatusCode.InternalServerError);
                 }
 
-                var schema = _examFormatParser.Parse(scannedText);
+                // Parse format
+                ExamFormatSchema? schema = null;
+                string? examFormatJson = null;
+                try
+                {
+                    schema = _examFormatParser.Parse(scannedText);
+                    examFormatJson = JsonSerializer.Serialize(schema);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to parse exam format, continuing with raw OCR text");
+                }
+
                 var examPaper = _mapper.Map<ExamPaper>(uploadDto);
                 examPaper.ExamPaperId = Guid.NewGuid();
+                examPaper.Title = string.IsNullOrWhiteSpace(examPaper.Title)
+                    ? $"Exam Paper - {StaticOperationStatus.Timezone.Vietnam:yyyy-MM-dd HH:mm}"
+                    : examPaper.Title;
                 examPaper.OriginalImageUrl = imageUrl;
                 examPaper.ScannedText = scannedText;
-                examPaper.ExamFormat = JsonSerializer.Serialize(schema);
+                examPaper.ExamFormat = examFormatJson;
                 examPaper.CreatedBy = userId;
                 examPaper.CreatedTime = StaticOperationStatus.Timezone.Vietnam;
-                examPaper.Status = StaticOperationStatus.ExamPaper.Ready;
+                examPaper.Status = StaticOperationStatus.ExamPaper.Draft;
 
                 await _unitOfWork.ExamPaper.AddAsync(examPaper);
                 await _unitOfWork.SaveAsync();
 
-                var response = new ScanExamPaperResponseDto
-                {
-                    ExamPaperId = examPaper.ExamPaperId,
-                    Title = examPaper.Title,
-                    ScannedText = examPaper.ScannedText ?? string.Empty,
-                    ImageUrl = examPaper.OriginalImageUrl,
-                    ExamFormat = examPaper.ExamFormat,
-                    Subject = examPaper.Subject,
-                    ScannedBy = examPaper.CreatedBy ?? string.Empty,
-                    ScannedTime = examPaper.CreatedTime ?? StaticOperationStatus.Timezone.Vietnam
-                };
+                var responseDto = _mapper.Map<ScanExamPaperResponseDto>(examPaper);
+                responseDto.ExamFormatParsed ??= schema; // fallback nếu mapper null
 
                 return SuccessResponse.Build(
                     message: "Exam paper scanned successfully",
                     statusCode: StaticOperationStatus.StatusCode.Created,
-                    result: response);
+                    result: responseDto);
             }
             catch (Exception ex)
             {
