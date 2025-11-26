@@ -1,6 +1,7 @@
 ﻿using AttaEduSystem.Models.DTOs;
 using AttaEduSystem.Models.DTOs.ExamPaper;
 using AttaEduSystem.Services.IServices;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 
@@ -28,8 +29,6 @@ namespace AttaEduSystem.API.Controllers
         [SwaggerOperation(
             Summary = "Scan exam paper",
             Description = "Uploads an exam paper image, stores it, and performs OCR to extract text")]
-        [ProducesResponseType(typeof(ResponseDto), StatusCodes.Status201Created)]
-        [ProducesResponseType(typeof(ResponseDto), StatusCodes.Status400BadRequest)]
         public async Task<ActionResult<ResponseDto>> ScanExamPaper([FromForm] UploadExamPaperDto dto)
         {
             if (!ModelState.IsValid)
@@ -54,11 +53,28 @@ namespace AttaEduSystem.API.Controllers
         [SwaggerOperation(
             Summary = "Get exam paper details",
             Description = "Returns the stored exam paper metadata and OCR text")]
-        [ProducesResponseType(typeof(ResponseDto), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(ResponseDto), StatusCodes.Status404NotFound)]
         public async Task<ActionResult<ResponseDto>> GetExamPaper(Guid id)
         {
             var result = await _examScanningService.GetExamPaperById(id);
+            return StatusCode(result.StatusCode, result);
+        }
+
+        /// <summary>
+        /// Returns all scanned exam papers that are marked as Ready (paginated).
+        /// </summary>
+        [HttpGet("ready")]
+        [AllowAnonymous] // hoặc [Authorize] tùy yêu cầu
+        [SwaggerOperation(
+            Summary = "List get all ready exam papers",
+            Description = "Provides a paginated list of exam papers whose status is Ready")]
+        public async Task<ActionResult<ResponseDto>> GetReadyExamPapers(
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 10,
+            [FromQuery] string? filterOn = null,
+            [FromQuery] string? filterQuery = null,
+            [FromQuery] string? sortBy = null)
+        {
+            var result = await _examScanningService.GetAllReadyExamPapers(pageNumber, pageSize, filterOn, filterQuery, sortBy);
             return StatusCode(result.StatusCode, result);
         }
 
@@ -70,8 +86,6 @@ namespace AttaEduSystem.API.Controllers
         [SwaggerOperation(
             Summary = "Get scanned text",
             Description = "Returns the OCR text extracted from the exam paper image")]
-        [ProducesResponseType(typeof(ResponseDto), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(ResponseDto), StatusCodes.Status404NotFound)]
         public async Task<ActionResult<ResponseDto>> GetScannedText(Guid id)
         {
             var result = await _examScanningService.GetScannedText(id);
@@ -85,10 +99,31 @@ namespace AttaEduSystem.API.Controllers
         [SwaggerOperation(
             Summary = "List current user's exam papers",
             Description = "Returns all exam papers that the authenticated user uploaded")]
-        [ProducesResponseType(typeof(ResponseDto), StatusCodes.Status200OK)]
         public async Task<ActionResult<ResponseDto>> GetMyExamPapers()
         {
             var result = await _examScanningService.GetExamPapersByUser(User);
+            return StatusCode(result.StatusCode, result);
+        }
+
+        /// <summary>
+        /// Get the Cloudinary URL of the exam paper image by ID.
+        /// </summary>
+        [HttpGet("{id:guid}/image")]
+        [SwaggerOperation(Summary = "Get exam paper image URL", Description = "Returns the stored Cloudinary URL of the exam paper image")]
+        public async Task<ActionResult<ResponseDto>> GetExamPaperImage(Guid id)
+        {
+            var result = await _examScanningService.GetExamPaperImage(id);
+            return StatusCode(result.StatusCode, result);
+        }
+
+        /// <summary>
+        /// Updates the status of an exam paper (e.g., confirmed, removed).
+        /// </summary>
+        [HttpPut("{id:guid}/status")]
+        [SwaggerOperation(Summary = "Update exam paper status", Description = "Allows teachers to confirm or remove scanned exam papers")]
+        public async Task<ActionResult<ResponseDto>> UpdateExamPaperStatus(Guid id, [FromBody] UpdateExamPaperStatusDto dto)
+        {
+            var result = await _examScanningService.UpdateExamPaperStatus(id, dto.Status, User);
             return StatusCode(result.StatusCode, result);
         }
     }

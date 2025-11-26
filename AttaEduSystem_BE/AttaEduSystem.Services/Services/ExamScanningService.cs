@@ -6,13 +6,9 @@ using AttaEduSystem.Services.Helpers.Responses;
 using AttaEduSystem.Services.IServices;
 using AttaEduSystem.Utilities.Constants;
 using AutoMapper;
-using Google.Cloud.Vision.V1;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System.Security.Claims;
-using System.Text;
-using System.Text.Json;
 
 namespace AttaEduSystem.Services.Services
 {
@@ -23,14 +19,22 @@ namespace AttaEduSystem.Services.Services
         private readonly ICloudinaryService _cloudinaryService;
         private readonly IConfiguration _configuration;
         private readonly ILogger<ExamScanningService> _logger;
+        private readonly IOcrService _ocrService;
 
-        public ExamScanningService(IUnitOfWork unitOfWork, IMapper mapper, ICloudinaryService cloudinaryService, IConfiguration configuration, ILogger<ExamScanningService> logger)
+        public ExamScanningService(
+            IUnitOfWork unitOfWork, 
+            IMapper mapper, 
+            ICloudinaryService cloudinaryService, 
+            IConfiguration configuration, 
+            ILogger<ExamScanningService> logger,
+            IOcrService ocrService)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
             _cloudinaryService = cloudinaryService;
             _configuration = configuration;
             _logger = logger;
+            _ocrService = ocrService;
         }
 
         public async Task<ResponseDto> GetExamPaperById(Guid examPaperId)
@@ -49,6 +53,69 @@ namespace AttaEduSystem.Services.Services
                 message: "Exam paper retrieved successfully",
                 statusCode: StaticOperationStatus.StatusCode.Ok,
                 result: dto);
+        }
+
+        public async Task<ResponseDto> GetAllReadyExamPapers(
+            int pageNumber = 1,
+            int pageSize = 10,
+            string? filterOn = null,
+            string? filterQuery = null,
+            string? sortBy = null)
+        {
+            try
+            {
+                var (papers, totalCount) = await _unitOfWork.ExamPaper.GetExamPapersAsync(
+                    pageNumber,
+                    pageSize,
+                    filterOn,
+                    filterQuery,
+                    sortBy,
+                    includeProperties: null,
+                    status: StaticOperationStatus.ExamPaper.Ready);
+
+                if (!papers.Any())
+                {
+                    var emptyResult = new
+                    {
+                        Data = Enumerable.Empty<GetExamPaperDto>(),
+                        CurrentPage = pageNumber,
+                        PageSize = pageSize,
+                        TotalCount = 0,
+                        TotalPages = 0,
+                        HasPreviousPage = false,
+                        HasNextPage = false
+                    };
+
+                    return SuccessResponse.Build(
+                        message: StaticResponseMessage.ExamPaper.Found,
+                        statusCode: StaticOperationStatus.StatusCode.Ok,
+                        result: emptyResult); 
+                }
+
+                var dtos = _mapper.Map<IEnumerable<GetExamPaperDto>>(papers);
+                var payload = new
+                {
+                    Data = dtos,
+                    CurrentPage = pageNumber,
+                    PageSize = pageSize,
+                    TotalCount = totalCount,
+                    TotalPages = (int)Math.Ceiling((double)totalCount / pageSize),
+                    HasPreviousPage = pageNumber > 1,
+                    HasNextPage = pageNumber * pageSize < totalCount
+                };
+
+                return SuccessResponse.Build(
+                    message: "Ready exam papers retrieved successfully",
+                    statusCode: StaticOperationStatus.StatusCode.Ok,
+                    result: payload);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving ready exam papers");
+                return ErrorResponse.Build(
+                    message: "Failed to retrieve ready exam papers",
+                    statusCode: StaticOperationStatus.StatusCode.InternalServerError);
+            }
         }
 
         public async Task<ResponseDto> GetExamPapersByUser(ClaimsPrincipal user)
@@ -130,7 +197,7 @@ namespace AttaEduSystem.Services.Services
                 string scannedText;
                 try
                 {
-                    scannedText = await PerformOcr(uploadDto.ExamImage);
+                    scannedText = await _ocrService.ExtractText(uploadDto.ExamImage);
                 }
                 catch (Exception ex)
                 {
@@ -146,7 +213,7 @@ namespace AttaEduSystem.Services.Services
                 examPaper.ScannedText = scannedText;
                 examPaper.CreatedBy = userId;
                 examPaper.CreatedTime = StaticOperationStatus.Timezone.Vietnam;
-                examPaper.Status = StaticOperationStatus.ExamPaper.Draft;
+                examPaper.Status = StaticOperationStatus.ExamPaper.Ready;
 
                 await _unitOfWork.ExamPaper.AddAsync(examPaper);
                 await _unitOfWork.SaveAsync();
@@ -159,7 +226,8 @@ namespace AttaEduSystem.Services.Services
                     ImageUrl = examPaper.OriginalImageUrl,
                     ExamFormat = examPaper.ExamFormat,
                     Subject = examPaper.Subject,
-                    ScannedAt = examPaper.CreatedTime ?? StaticOperationStatus.Timezone.Vietnam
+                    ScannedBy = examPaper.CreatedBy ?? string.Empty,
+                    ScannedTime = examPaper.CreatedTime ?? StaticOperationStatus.Timezone.Vietnam
                 };
 
                 return SuccessResponse.Build(
@@ -176,76 +244,46 @@ namespace AttaEduSystem.Services.Services
             }
         }
 
-        private async Task<string> PerformOcr(IFormFile imageFile)
+        public async Task<ResponseDto> GetExamPaperImage(Guid examPaperId)
         {
-            var apiKey = _configuration["GoogleCloudVision:ApiKey"];
-            if (!string.IsNullOrEmpty(apiKey))
+            var examPaper = await _unitOfWork.ExamPaper.GetAsync(e => e.ExamPaperId == examPaperId);
+            if (examPaper == null)
             {
-                return await PerformOcrWithApiKey(imageFile, apiKey);
+                return ErrorResponse.Build("Exam paper not found", 404);
             }
 
-            var credentialsPath = _configuration["GoogleCloudVision:CredentialsPath"];
-            if (!string.IsNullOrEmpty(credentialsPath) && File.Exists(credentialsPath))
+            return SuccessResponse.Build("Image URL retrieved successfully", 200,
+                new { examPaper.OriginalImageUrl });
+        }
+
+        public async Task<ResponseDto> UpdateExamPaperStatus(Guid examPaperId, string status, ClaimsPrincipal user)
+        {
+            var allowed = new[] { StaticOperationStatus.ExamPaper.Draft, StaticOperationStatus.ExamPaper.Ready, StaticOperationStatus.ExamPaper.Removed };
+            if (!allowed.Contains(status))
             {
-                Environment.SetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS", credentialsPath);
+                return ErrorResponse.Build("Invalid status value", 400);
             }
 
-            var client = await new ImageAnnotatorClientBuilder().BuildAsync();
-            using var memoryStream = new MemoryStream();
-            await imageFile.CopyToAsync(memoryStream);
-            var image = Image.FromBytes(memoryStream.ToArray());
-
-            var response = await client.DetectTextAsync(image);
-            return string.Join("\n", response.Select(annotation => annotation.Description));
-        }
-
-        private async Task<string> PerformOcrWithApiKey(IFormFile imageFile, string apiKey)
-        {
-            using var httpClient = new HttpClient();
-            using var memoryStream = new MemoryStream();
-            await imageFile.CopyToAsync(memoryStream);
-
-            var base64Image = Convert.ToBase64String(memoryStream.ToArray());
-            var requestBody = new
+            var examPaper = await _unitOfWork.ExamPaper.GetAsync(e => e.ExamPaperId == examPaperId);
+            if (examPaper == null)
             {
-                requests = new[]
-                {
-                    new
-                    {
-                        image = new { content = base64Image },
-                        features = new[]
-                        {
-                            new { type = "TEXT_DETECTION", maxResults = 1 }
-                        }
-                    }
-                }
-            };
+                return ErrorResponse.Build("Exam paper not found", 404);
+            }
 
-            var content = new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json");
-            var response = await httpClient.PostAsync(
-                $"https://vision.googleapis.com/v1/images:annotate?key={apiKey}", content);
+            // Optional: check user role or ownership before allowing change
+            var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId))
+            {
+                return ErrorResponse.Build(StaticOperationStatus.User.UserNotFound, 401);
+            }
 
-            response.EnsureSuccessStatusCode();
+            examPaper.Status = status;
+            examPaper.UpdatedBy = userId;
+            examPaper.UpdatedTime = StaticOperationStatus.Timezone.Vietnam;
 
-            var responseJson = await response.Content.ReadAsStringAsync();
-            var result = JsonSerializer.Deserialize<GoogleVisionResponse>(responseJson);
+            await _unitOfWork.SaveAsync();
 
-            return result?.responses?.FirstOrDefault()?.textAnnotations?.FirstOrDefault()?.description ?? string.Empty;
-        }
-
-        private class GoogleVisionResponse
-        {
-            public List<ResponseItem>? responses { get; set; }
-        }
-
-        private class ResponseItem
-        {
-            public List<TextAnnotation>? textAnnotations { get; set; }
-        }
-
-        private class TextAnnotation
-        {
-            public string? description { get; set; }
+            return SuccessResponse.Build("Status updated successfully", 200);
         }
     }
 }
