@@ -1,6 +1,7 @@
 ﻿using AttaEduSystem.Models.DTOs;
 using AttaEduSystem.Models.DTOs.ExamPaper;
 using AttaEduSystem.Services.IServices;
+using AttaEduSystem.Services.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
@@ -15,10 +16,12 @@ namespace AttaEduSystem.API.Controllers
     {
 
         private readonly IExamScanningService _examScanningService;
+        private readonly IAiExamGenerationService _aiExamGenerationService;
 
-        public ExamPaperController(IExamScanningService examScanningService)
+        public ExamPaperController(IExamScanningService examScanningService, IAiExamGenerationService aiExamGenerationService)
         {
             _examScanningService = examScanningService;
+            _aiExamGenerationService = aiExamGenerationService;
         }
 
         /// <summary>
@@ -126,5 +129,32 @@ namespace AttaEduSystem.API.Controllers
             var result = await _examScanningService.UpdateExamPaperStatus(id, dto.Status, User);
             return StatusCode(result.StatusCode, result);
         }
+
+        [HttpPost("{id:guid}/generate")]
+        [Authorize(Roles = "TEACHER, ADMIN")]
+        public async Task<ActionResult<ResponseDto>> GenerateExam(Guid id, [FromBody] GenerateExamRequestDto dto)
+        {
+            dto.OriginalExamPaperId = id;
+            var result = await _aiExamGenerationService.GenerateExamAsync(dto, User);
+            return StatusCode(result.StatusCode, result);
+        }
+
+        [HttpGet("{id:guid}/generated-exams")]
+        [Authorize]
+        public async Task<ActionResult<ResponseDto>> GetGeneratedExams(Guid id)
+        {
+            var result = await _aiExamGenerationService.GetGeneratedExamsByOriginalAsync(id, User);
+            return StatusCode(result.StatusCode, result);
+        }
+
+        [HttpGet("generated/{generatedId:guid}")]
+        [Authorize]
+        public async Task<ActionResult<ResponseDto>> GetGeneratedExam(Guid generatedId)
+        {
+            var result = await _aiExamGenerationService.GetGeneratedExamAsync(generatedId, User);
+            return StatusCode(result.StatusCode, result);
+        }
+
+
     }
 }

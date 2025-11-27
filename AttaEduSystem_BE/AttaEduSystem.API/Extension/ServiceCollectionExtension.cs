@@ -35,6 +35,10 @@ namespace AttaEduSystem.API.Extension
             services.AddScoped<IExamScanningService, ExamScanningService>();
             services.AddScoped<IOcrService, GoogleVisionOcrService>();
             services.AddScoped<IExamFormatParser, RegexExamFormatParser>();
+            services.AddScoped<IAiExamGenerationService, AiExamGenerationService>();
+
+            // add HttpClient 
+            services.AddHttpClient("OpenAi");
 
 
             return services;
