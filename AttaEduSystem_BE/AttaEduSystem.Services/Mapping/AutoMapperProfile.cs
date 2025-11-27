@@ -82,16 +82,16 @@ namespace AttaEduSystem.Services.Mapping
                 .ForMember(dest => dest.ExamPaperId, opt => opt.MapFrom(src => src.ExamPaperId))
                 .ForMember(dest => dest.ImageUrl, opt => opt.MapFrom(src => src.OriginalImageUrl))
                 .ForMember(dest => dest.ExamFormat, opt => opt.MapFrom(src => src.ExamFormat))
-                .ForMember(dest => dest.ExamFormatParsed,
-                        opt => opt.MapFrom(src => DeserializeExamFormat(src.ExamFormat)))
+                //.ForMember(dest => dest.ExamFormatParsed,
+                //        opt => opt.MapFrom(src => DeserializeExamFormat(src.ExamFormat)))
                 .ForMember(dest => dest.ScannedBy, opt => opt.MapFrom(src => src.CreatedBy))
                 .ForMember(dest => dest.ScannedAt, opt => opt.MapFrom(src => src.CreatedTime ?? StaticOperationStatus.Timezone.Vietnam));
 
             CreateMap<ExamPaper, GetExamPaperDto>()
                 .ForMember(dest => dest.ExamPaperId, opt => opt.MapFrom(src => src.ExamPaperId))
                 .ForMember(dest => dest.ExamFormat, opt => opt.MapFrom(src => src.ExamFormat))
-                .ForMember(dest => dest.ExamFormatParsed,
-                        opt => opt.MapFrom(src => DeserializeExamFormat(src.ExamFormat)))
+                //.ForMember(dest => dest.ExamFormatParsed,
+                //        opt => opt.MapFrom(src => DeserializeExamFormat(src.ExamFormat)))
                 .ForMember(dest => dest.CreatedBy,
                         opt => opt.MapFrom(src => src.CreatedBy ?? string.Empty))
                 .ForMember(dest => dest.CreatedTime,
@@ -110,18 +110,20 @@ namespace AttaEduSystem.Services.Mapping
                 .ForMember(dest => dest.GeneratedAt, opt => opt.MapFrom(src => src.CreatedTime ?? StaticOperationStatus.Timezone.Vietnam));
         }
 
-        private static ExamFormatSchema? DeserializeExamFormat(string? json)
-            {
-                if (string.IsNullOrWhiteSpace(json)) return null;
-                    try
-                    {
-                        return JsonSerializer.Deserialize<ExamFormatSchema>(json);
-                    }
-                    catch
-                    {
-                        return null; // tránh vỡ DTO nếu JSON lỗi
-                    }
-            }
+
+            //private static ExamFormatSchema? DeserializeExamFormat(string? json)
+            //{
+            //    if (string.IsNullOrWhiteSpace(json)) return null;
+            //        try
+            //        {
+            //            return JsonSerializer.Deserialize<ExamFormatSchema>(json);
+            //        }
+            //        catch
+            //        {
+            //            return null; // tránh vỡ DTO nếu JSON lỗi
+            //        }
+            //}
+
 
     }
 }
