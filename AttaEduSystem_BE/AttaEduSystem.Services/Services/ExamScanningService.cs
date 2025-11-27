@@ -214,18 +214,20 @@ namespace AttaEduSystem.Services.Services
                         statusCode: StaticOperationStatus.StatusCode.InternalServerError);
                 }
 
-                // Parse format
-                ExamFormatSchema? schema = null;
-                string? examFormatJson = null;
-                try
-                {
-                    schema = _examFormatParser.Parse(scannedText);
-                    examFormatJson = JsonSerializer.Serialize(schema);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Failed to parse exam format, continuing with raw OCR text");
-                }
+                // Tạm thời bỏ Parse format vì chưa ổn định được format đề thi  
+
+                //// Parse format
+                //ExamFormatSchema? schema = null;
+                //string? examFormatJson = null;
+                //try
+                //{
+                //    schema = _examFormatParser.Parse(scannedText);
+                //    examFormatJson = JsonSerializer.Serialize(schema);
+                //}
+                //catch (Exception ex)
+                //{
+                //    _logger.LogWarning(ex, "Failed to parse exam format, continuing with raw OCR text");
+                //}
 
                 var examPaper = _mapper.Map<ExamPaper>(uploadDto);
                 examPaper.ExamPaperId = Guid.NewGuid();
@@ -234,7 +236,7 @@ namespace AttaEduSystem.Services.Services
                     : examPaper.Title;
                 examPaper.OriginalImageUrl = imageUrl;
                 examPaper.ScannedText = scannedText;
-                examPaper.ExamFormat = examFormatJson;
+                //examPaper.ExamFormat = examFormatJson;
                 examPaper.CreatedBy = userId;
                 examPaper.CreatedTime = StaticOperationStatus.Timezone.Vietnam;
                 examPaper.Status = StaticOperationStatus.ExamPaper.Draft;
@@ -243,7 +245,7 @@ namespace AttaEduSystem.Services.Services
                 await _unitOfWork.SaveAsync();
 
                 var responseDto = _mapper.Map<ScanExamPaperResponseDto>(examPaper);
-                responseDto.ExamFormatParsed ??= schema; // fallback nếu mapper null
+                //responseDto.ExamFormatParsed ??= schema; // fallback nếu mapper null
 
                 return SuccessResponse.Build(
                     message: "Exam paper scanned successfully",
