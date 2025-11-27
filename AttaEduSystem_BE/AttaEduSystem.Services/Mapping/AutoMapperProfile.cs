@@ -97,10 +97,20 @@ namespace AttaEduSystem.Services.Mapping
                 .ForMember(dest => dest.CreatedTime,
                         opt => opt.MapFrom(src => src.CreatedTime ?? StaticOperationStatus.Timezone.Vietnam));
 
+            // GeneratedExamPaper mapping
+            CreateMap<GeneratedExamPaper, GenerateExamResponseDto>()
+                .ForMember(dest => dest.GeneratedExamId, opt => opt.MapFrom(src => src.GeneratedExamPaperId))
+                .ForMember(dest => dest.GeneratedContent, opt => opt.MapFrom(src => src.GeneratedContent))
+                .ForMember(dest => dest.AiModelUsed, opt => opt.MapFrom(src => src.AiModelUsed))
+                .ForMember(dest => dest.PromptSnapshot, opt => opt.MapFrom(src => src.PromptSnapshot))
+                .ForMember(dest => dest.GeneratedAt, opt => opt.MapFrom(src => src.CreatedTime ?? StaticOperationStatus.Timezone.Vietnam));
 
-
-
+            CreateMap<GeneratedExamPaper, GeneratedExamDto>() // nếu bạn muốn DTO riêng để list/view
+                .ForMember(dest => dest.GeneratedExamId, opt => opt.MapFrom(src => src.GeneratedExamPaperId))
+                .ForMember(dest => dest.GeneratedAt, opt => opt.MapFrom(src => src.CreatedTime ?? StaticOperationStatus.Timezone.Vietnam));
         }
+
+
             //private static ExamFormatSchema? DeserializeExamFormat(string? json)
             //{
             //    if (string.IsNullOrWhiteSpace(json)) return null;
@@ -113,6 +123,7 @@ namespace AttaEduSystem.Services.Mapping
             //            return null; // tránh vỡ DTO nếu JSON lỗi
             //        }
             //}
+
 
     }
 }

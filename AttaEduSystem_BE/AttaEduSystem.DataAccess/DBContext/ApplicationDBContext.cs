@@ -15,7 +15,7 @@ namespace AttaEduSystem.DataAccess.DBContext
         public DbSet<Student> Students { get; set; }
         public DbSet<Teacher> Teachers { get; set; }
         public DbSet<ExamPaper> ExamPapers { get; set; }
-
+        public DbSet<GeneratedExamPaper> GeneratedExamPapers { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -41,6 +41,16 @@ namespace AttaEduSystem.DataAccess.DBContext
             // ExamPaper
             modelBuilder.Entity<ExamPaper>()
             .HasKey(e => e.ExamPaperId);
+
+            // GeneratedExamPaper
+            modelBuilder.Entity<GeneratedExamPaper>()
+                .HasKey(g => g.GeneratedExamPaperId);
+
+            modelBuilder.Entity<GeneratedExamPaper>()
+                .HasOne(g => g.OriginalExamPaper)
+                .WithMany()
+                .HasForeignKey(g => g.OriginalExamPaperId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }
