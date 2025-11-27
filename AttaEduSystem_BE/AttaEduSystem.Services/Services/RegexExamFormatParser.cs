@@ -10,7 +10,8 @@ namespace AttaEduSystem.Services.Services
     {
         private static readonly Regex TitleRegex = new(@"^(ĐỀ .+|KIỂM TRA .+|BÀI KIỂM TRA .+)", RegexOptions.Multiline | RegexOptions.IgnoreCase);
         private static readonly Regex SectionRegex = new(@"(?<=\n)(I{1,4}|V|VI|VII)\.\s*(.+)", RegexOptions.IgnoreCase);
-        private static readonly Regex QuestionRegex = new(@"(?<=\n)(Câu\s*\d+|Question\s*\d+)\s*(\([\d,\.]+\s*(điểm|diem)\))?(.*)", RegexOptions.IgnoreCase);
+        private static readonly Regex QuestionRegex = new(@"(?<=\n)(Câu\s*\d+|Question\s*\d+)\s*(\([\d,\.]+\s*(điểm|diem)\))?(.*)",
+            RegexOptions.IgnoreCase | RegexOptions.Singleline);     // bật Singleline để dấu chấm ăn được newline
         private static readonly Regex SubQuestionRegex = new(@"(\d\.\d|\([a-z]\))\s*(.+)");
         private static readonly Regex PointRegex = new(@"\(?([\d,\.]+)\s*(điểm|diem)\)?", RegexOptions.IgnoreCase);
         private static readonly Regex TimeRegex = new(@"Thời gian:?\s*(.+)", RegexOptions.IgnoreCase);
@@ -113,18 +114,23 @@ namespace AttaEduSystem.Services.Services
         private IEnumerable<ExamQuestion> ExtractQuestions(string text)
         {
             var matches = QuestionRegex.Matches(text);
-            foreach (Match match in matches)
+            for (int i = 0; i < matches.Count; i++)
             {
-                var code = match.Groups[1].Value.Trim();
-                var remainder = match.Groups[4].Value.Trim();
-                var subQuestions = ExtractSubQuestions(remainder);
+                var start = matches[i].Index;
+                var end = i + 1 < matches.Count ? matches[i + 1].Index : text.Length;
+                var block = text.Substring(start, end - start).Trim();
+
+                var headerLength = matches[i].Length;
+                var remainder = block.Length > headerLength ? block[headerLength..].Trim() : string.Empty;
+
+                var subParts = ExtractSubQuestions(remainder);
 
                 yield return new ExamQuestion
                 {
-                    Code = code,
-                    Points = ParsePoint(match.Value),
-                    Requirement = subQuestions.MainRequirement,
-                    SubRequirement = subQuestions.SubRequirement
+                    Code = matches[i].Groups[1].Value.Trim(),
+                    Points = ParsePoint(matches[i].Value),
+                    Requirement = subParts.MainRequirement,
+                    SubRequirement = subParts.SubRequirement
                 };
             }
         }
