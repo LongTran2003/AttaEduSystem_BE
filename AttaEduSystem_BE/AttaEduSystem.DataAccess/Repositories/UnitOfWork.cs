@@ -12,7 +12,7 @@ namespace AttaEduSystem.DataAccess.Repositories
         public IStudentRepository Student { get; private set; }
         public ITeacherRepository Teacher { get; private set; }
         public IExamPaperRepository ExamPaper { get; private set; }
-
+        public IGeneratedExamPaperRepository GeneratedExamPaper { get; private set; }
 
         public UnitOfWork(ApplicationDBContext context, UserManager<ApplicationUser> userManager)
         {
@@ -20,6 +20,7 @@ namespace AttaEduSystem.DataAccess.Repositories
             Student = new StudentRepository(_context);
             Teacher = new TeacherRepository(_context);
             ExamPaper = new ExamPaperRepository(_context);
+            GeneratedExamPaper = new GeneratedExamPaperRepository(_context);
         }
 
 
