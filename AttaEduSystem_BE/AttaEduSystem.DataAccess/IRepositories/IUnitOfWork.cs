@@ -7,7 +7,7 @@ namespace AttaEduSystem.DataAccess.IRepositories
         IStudentRepository Student { get; }
         ITeacherRepository Teacher { get; }
         IExamPaperRepository ExamPaper { get; }
-
+        IGeneratedExamPaperRepository GeneratedExamPaper { get; }
 
         Task<int> SaveAsync();
 
