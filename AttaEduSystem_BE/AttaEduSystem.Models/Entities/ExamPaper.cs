@@ -23,5 +23,7 @@ namespace AttaEduSystem.Models.Entities
 
         [StringLength(100)]
         public string? Subject { get; set; }
+
+        public virtual ICollection<ExamQuestion> Questions { get; set; } = new List<ExamQuestion>();
     }
 }

@@ -15,7 +15,7 @@ namespace AttaEduSystem.Models.Entities
         public ExamPaper OriginalExamPaper { get; set; } = null!;
 
         [Required]
-        public string GeneratedContent { get; set; } = null!;
+        public string GeneratedContentJson { get; set; } = null!;
 
         [StringLength(100)]
         public string AiModelUsed { get; set; } = null!;

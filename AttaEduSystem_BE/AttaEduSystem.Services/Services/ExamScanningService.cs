@@ -1,6 +1,7 @@
 ﻿using AttaEduSystem.DataAccess.IRepositories;
 using AttaEduSystem.Models.DTOs;
 using AttaEduSystem.Models.DTOs.ExamPaper;
+using AttaEduSystem.Models.DTOs.GeminiAi;
 using AttaEduSystem.Models.Entities;
 using AttaEduSystem.Services.Helpers.Responses;
 using AttaEduSystem.Services.IServices;
@@ -9,6 +10,7 @@ using AutoMapper;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System.Security.Claims;
+using System.Text.Json;
 
 namespace AttaEduSystem.Services.Services
 {
@@ -262,6 +264,35 @@ namespace AttaEduSystem.Services.Services
                 examPaper.Status = StaticOperationStatus.ExamPaper.Ready;
 
                 await _unitOfWork.ExamPaper.AddAsync(examPaper);
+
+                // 4. PARSE JSON VÀ LƯU VÀO BẢNG EXAM_QUESTION (Logic Mới)
+                try
+                {
+                    var parsedData = JsonSerializer.Deserialize<ExamStructureResponse>(aiResponseJson, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+                    if (parsedData?.Questions != null)
+                    {
+                        // SỨC MẠNH CỦA AUTOMAPPER Ở ĐÂY:
+                        // Tự động map List<QuestionItem> sang List<ExamQuestion>
+                        // Tự động tách Options nhờ hàm MapOptions trong Profile
+                        var questionEntities = _mapper.Map<List<ExamQuestion>>(parsedData.Questions);
+
+                        // Gán FK thủ công vì Mapper không biết ExamPaperId vừa tạo
+                        foreach (var q in questionEntities)
+                        {
+                            q.ExamPaperId = examPaper.ExamPaperId;
+                            // Gán OrderIndex
+                            q.OrderIndex = questionEntities.IndexOf(q) + 1;
+                        }
+
+                        await _unitOfWork.ExamQuestion.AddRangeAsync(questionEntities);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning("Failed to parse structure to entities: " + ex.Message);
+                }
+
                 await _unitOfWork.SaveAsync();
 
                 var responseDto = _mapper.Map<ScanExamPaperResponseDto>(examPaper);
