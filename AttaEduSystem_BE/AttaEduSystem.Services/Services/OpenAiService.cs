@@ -15,7 +15,7 @@ using System.Text;
 
 namespace AttaEduSystem.Services.Services
 {
-    public class OpenAiService : IAiExamGenerationService
+    public class OpenAiService : IOpenAiService
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IHttpClientFactory _httpClientFactory;
