@@ -10,7 +10,6 @@ using AutoMapper;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System.Security.Claims;
-using System.Text.Json;
 
 namespace AttaEduSystem.Services.Services
 {
