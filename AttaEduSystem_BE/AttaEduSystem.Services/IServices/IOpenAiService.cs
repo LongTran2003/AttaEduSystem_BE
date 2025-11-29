@@ -1,5 +1,5 @@
 ﻿using AttaEduSystem.Models.DTOs;
-using AttaEduSystem.Models.DTOs.ExamPaper;
+using AttaEduSystem.Models.DTOs.Openai;
 using System.Security.Claims;
 
 namespace AttaEduSystem.Services.IServices
