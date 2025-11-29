@@ -4,7 +4,7 @@ using System.Security.Claims;
 
 namespace AttaEduSystem.Services.IServices
 {
-    public interface IAiExamGenerationService
+    public interface IOpenAiService
     {
         Task<ResponseDto> GenerateExamAsync(GenerateExamRequestDto requestDto, ClaimsPrincipal user);
         Task<ResponseDto> GetGeneratedExamAsync(Guid generatedExamId, ClaimsPrincipal user);
