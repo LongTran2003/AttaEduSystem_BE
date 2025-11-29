@@ -65,7 +65,7 @@ namespace AttaEduSystem.Services.Services
             {
                 GeneratedExamPaperId = Guid.NewGuid(),
                 OriginalExamPaperId = original.ExamPaperId,
-                GeneratedContent = generatedContent,
+                GeneratedContentJson = generatedContent,
                 AiModelUsed = aiModel,
                 PromptSnapshot = prompt,
                 CreatedBy = userId,

@@ -1,6 +1,7 @@
 ﻿using AttaEduSystem.Models.DTOs.Authentication;
 using AttaEduSystem.Models.DTOs.ExamFormat;
 using AttaEduSystem.Models.DTOs.ExamPaper;
+using AttaEduSystem.Models.DTOs.GeminiAi;
 using AttaEduSystem.Models.DTOs.Openai;
 using AttaEduSystem.Models.DTOs.Student;
 using AttaEduSystem.Models.Entities;
@@ -101,7 +102,7 @@ namespace AttaEduSystem.Services.Mapping
             // GeneratedExamPaper mapping
             CreateMap<GeneratedExamPaper, GenerateExamResponseDto>()
                 .ForMember(dest => dest.GeneratedExamId, opt => opt.MapFrom(src => src.GeneratedExamPaperId))
-                .ForMember(dest => dest.GeneratedContent, opt => opt.MapFrom(src => src.GeneratedContent))
+                .ForMember(dest => dest.GeneratedContent, opt => opt.MapFrom(src => src.GeneratedContentJson))
                 .ForMember(dest => dest.AiModelUsed, opt => opt.MapFrom(src => src.AiModelUsed))
                 .ForMember(dest => dest.PromptSnapshot, opt => opt.MapFrom(src => src.PromptSnapshot))
                 .ForMember(dest => dest.GeneratedAt, opt => opt.MapFrom(src => src.CreatedTime ?? StaticOperationStatus.Timezone.Vietnam));
@@ -109,21 +110,55 @@ namespace AttaEduSystem.Services.Mapping
             CreateMap<GeneratedExamPaper, GeneratedExamDto>() // nếu bạn muốn DTO riêng để list/view
                 .ForMember(dest => dest.GeneratedExamId, opt => opt.MapFrom(src => src.GeneratedExamPaperId))
                 .ForMember(dest => dest.GeneratedAt, opt => opt.MapFrom(src => src.CreatedTime ?? StaticOperationStatus.Timezone.Vietnam));
+
+            // Map từ QuestionItem -> Entity ExamQuestion
+            CreateMap<QuestionItem, Models.Entities.ExamQuestion>()
+                .ForMember(dest => dest.QuestionId, opt => opt.MapFrom(src => Guid.NewGuid()))
+                .ForMember(dest => dest.QuestionIdLabel, opt => opt.MapFrom(src => src.Id))
+                .ForMember(dest => dest.Content, opt => opt.MapFrom(src => src.Content))
+                .ForMember(dest => dest.Points, opt => opt.MapFrom(src => src.Points))
+                .ForMember(dest => dest.QuestionType, opt => opt.MapFrom(src => (src.Options != null && src.Options.Any()) ? "MultipleChoice" : "Essay"))
+                .ForMember(dest => dest.Options, opt => opt.MapFrom(src => MapOptions(src.Options)));
+
+            // ExamSolution mapping
+            CreateMap<ExamSolution, ExamSolutionResponseDto>()
+                .ForMember(dest => dest.SolvedAt, opt => opt.MapFrom(src => src.CreatedTime));
+
         }
 
 
-            //private static ExamFormatSchema? DeserializeExamFormat(string? json)
-            //{
-            //    if (string.IsNullOrWhiteSpace(json)) return null;
-            //        try
-            //        {
-            //            return JsonSerializer.Deserialize<ExamFormatSchema>(json);
-            //        }
-            //        catch
-            //        {
-            //            return null; // tránh vỡ DTO nếu JSON lỗi
-            //        }
-            //}
+        // --- Helper để tách chuỗi Options: "A. Nội dung" -> Label: A, Content: Nội dung ---
+        private List<QuestionOption> MapOptions(List<string>? sourceOptions)
+        {
+            var result = new List<QuestionOption>();
+            if (sourceOptions == null) return result;
+
+            foreach (var optStr in sourceOptions)
+            {
+                var parts = optStr.Split(new[] { '.', ')' }, 2);
+                result.Add(new QuestionOption
+                {
+                    OptionId = Guid.NewGuid(),
+                    Label = parts.Length > 0 ? parts[0].Trim() : "",
+                    Content = parts.Length > 1 ? parts[1].Trim() : optStr,
+                    IsCorrect = false // Mặc định false, user sẽ chỉnh sau
+                });
+            }
+            return result;
+        }
+
+        //private static ExamFormatSchema? DeserializeExamFormat(string? json)
+        //{
+        //    if (string.IsNullOrWhiteSpace(json)) return null;
+        //        try
+        //        {
+        //            return JsonSerializer.Deserialize<ExamFormatSchema>(json);
+        //        }
+        //        catch
+        //        {
+        //            return null; // tránh vỡ DTO nếu JSON lỗi
+        //        }
+        //}
 
 
     }

@@ -13,6 +13,9 @@ namespace AttaEduSystem.DataAccess.Repositories
         public ITeacherRepository Teacher { get; private set; }
         public IExamPaperRepository ExamPaper { get; private set; }
         public IGeneratedExamPaperRepository GeneratedExamPaper { get; private set; }
+        public IExamQuestionRepository ExamQuestion { get; private set; }
+        public IQuestionOptionRepository QuestionOption { get; private set; }
+        public IExamSolutionRepository ExamSolution { get; private set; }
 
         public UnitOfWork(ApplicationDBContext context, UserManager<ApplicationUser> userManager)
         {
@@ -21,6 +24,9 @@ namespace AttaEduSystem.DataAccess.Repositories
             Teacher = new TeacherRepository(_context);
             ExamPaper = new ExamPaperRepository(_context);
             GeneratedExamPaper = new GeneratedExamPaperRepository(_context);
+            ExamQuestion = new ExamQuestionRepository(_context);
+            QuestionOption = new QuestionOptionRepository(_context);
+            ExamSolution = new ExamSolutionRepository(_context);
         }
 
 

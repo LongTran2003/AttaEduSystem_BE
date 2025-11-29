@@ -7,7 +7,7 @@ namespace AttaEduSystem.API.Controllers
 {
     [ApiController]
     [Route("api/gemini-ai")]
-    [SwaggerTag("Gemini AI Integration APIs (hiện tại chưa tích hợp vô app, chỉ để tesing)")]
+    [SwaggerTag("Gemini AI Integration APIs")]
 
     public class GeminiAiController : ControllerBase
     {

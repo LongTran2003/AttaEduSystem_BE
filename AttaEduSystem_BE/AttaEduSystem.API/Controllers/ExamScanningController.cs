@@ -9,16 +9,16 @@ using Swashbuckle.AspNetCore.Annotations;
 namespace AttaEduSystem.API.Controllers
 {
     [ApiController]
-    [Route("api/exam-paper")]
-    [SwaggerTag("Exam Paper Management APIs")]
+    [Route("api/exam-scanning")]
+    [SwaggerTag("Exam Scanning Management APIs (Gemini AI)")]
 
-    public class ExamPaperController : ControllerBase
+    public class ExamScanningController : ControllerBase
     {
 
         private readonly IExamScanningService _examScanningService;
         
 
-        public ExamPaperController(IExamScanningService examScanningService)
+        public ExamScanningController(IExamScanningService examScanningService)
         {
             _examScanningService = examScanningService;
         }
