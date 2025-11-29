@@ -15,19 +15,19 @@ using System.Text;
 
 namespace AttaEduSystem.Services.Services
 {
-    public class AiExamGenerationService : IAiExamGenerationService
+    public class OpenAiService : IAiExamGenerationService
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly IConfiguration _configuration;
-        private readonly ILogger<AiExamGenerationService> _logger;
+        private readonly ILogger<OpenAiService> _logger;
         private readonly IMapper _mapper;
 
-        public AiExamGenerationService(
+        public OpenAiService(
             IUnitOfWork unitOfWork,
             IHttpClientFactory httpClientFactory,
             IConfiguration configuration,
-            ILogger<AiExamGenerationService> logger,
+            ILogger<OpenAiService> logger,
             IMapper mapper)
         {
             _unitOfWork = unitOfWork;
