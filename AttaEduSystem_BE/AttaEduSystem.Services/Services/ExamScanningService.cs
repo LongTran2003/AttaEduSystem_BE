@@ -1,6 +1,5 @@
 ﻿using AttaEduSystem.DataAccess.IRepositories;
 using AttaEduSystem.Models.DTOs;
-using AttaEduSystem.Models.DTOs.ExamFormat;
 using AttaEduSystem.Models.DTOs.ExamPaper;
 using AttaEduSystem.Models.Entities;
 using AttaEduSystem.Services.Helpers.Responses;
@@ -22,6 +21,7 @@ namespace AttaEduSystem.Services.Services
         private readonly ILogger<ExamScanningService> _logger;
         private readonly IOcrService _ocrService;
         private readonly IExamFormatParser _examFormatParser;
+        private readonly IGeminiAiService _geminiAiService;
 
         public ExamScanningService(
             IUnitOfWork unitOfWork, 
@@ -30,7 +30,8 @@ namespace AttaEduSystem.Services.Services
             IConfiguration configuration,
             ILogger<ExamScanningService> logger,
             IOcrService ocrService,
-            IExamFormatParser examFormatParser)
+            IExamFormatParser examFormatParser,
+            IGeminiAiService geminiAiService)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
@@ -39,6 +40,7 @@ namespace AttaEduSystem.Services.Services
             _logger = logger;
             _ocrService = ocrService;
             _examFormatParser = examFormatParser;
+            _geminiAiService = geminiAiService;
         }
 
         public async Task<ResponseDto> GetExamPaperById(Guid examPaperId)
@@ -184,6 +186,14 @@ namespace AttaEduSystem.Services.Services
                         statusCode: StaticOperationStatus.StatusCode.BadRequest);
                 }
 
+                // Convert ảnh sang base64
+                string base64Image;
+                await using (var ms = new MemoryStream())
+                {
+                    await uploadDto.ExamImage.CopyToAsync(ms);
+                    base64Image = Convert.ToBase64String(ms.ToArray());
+                }
+
                 // Upload Cloudinary
                 var folderPath = $"exam-papers/{userId}";
                 string imageUrl;
@@ -213,6 +223,20 @@ namespace AttaEduSystem.Services.Services
                         statusCode: StaticOperationStatus.StatusCode.InternalServerError);
                 }
 
+                // Gọi Gemini
+                string aiResponseJson;
+                try
+                {
+                    aiResponseJson = await _geminiAiService.AnalyzeExamStructure(
+                        base64Image,
+                        uploadDto.ExamImage.ContentType ?? "image/jpeg");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error calling Gemini API");
+                    return ErrorResponse.Build("AI Service Unreachable: " + ex.Message, 500);
+                }
+
                 // Tạm thời bỏ Parse format vì chưa ổn định được format đề thi  
 
                 //// Parse format
@@ -234,11 +258,11 @@ namespace AttaEduSystem.Services.Services
                     ? $"Exam Paper - {StaticOperationStatus.Timezone.Vietnam:yyyy-MM-dd HH:mm}"
                     : examPaper.Title;
                 examPaper.OriginalImageUrl = imageUrl;
-                examPaper.ScannedText = scannedText;
+                examPaper.ScannedText = aiResponseJson;
                 //examPaper.ExamFormat = examFormatJson;
                 examPaper.CreatedBy = userId;
                 examPaper.CreatedTime = StaticOperationStatus.Timezone.Vietnam;
-                examPaper.Status = StaticOperationStatus.ExamPaper.Draft;
+                examPaper.Status = StaticOperationStatus.ExamPaper.Ready;
 
                 await _unitOfWork.ExamPaper.AddAsync(examPaper);
                 await _unitOfWork.SaveAsync();
