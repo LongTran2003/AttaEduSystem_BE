@@ -1,4 +1,4 @@
-﻿namespace AttaEduSystem.Models.DTOs.ExamPaper
+﻿namespace AttaEduSystem.Models.DTOs.Openai
 {
     public class GeneratedExamDto
     {

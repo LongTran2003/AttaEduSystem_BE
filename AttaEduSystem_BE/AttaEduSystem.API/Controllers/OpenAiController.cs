@@ -1,5 +1,5 @@
 ﻿using AttaEduSystem.Models.DTOs;
-using AttaEduSystem.Models.DTOs.ExamPaper;
+using AttaEduSystem.Models.DTOs.Openai;
 using AttaEduSystem.Services.IServices;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

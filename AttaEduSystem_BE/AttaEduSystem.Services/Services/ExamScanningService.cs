@@ -20,7 +20,6 @@ namespace AttaEduSystem.Services.Services
         private readonly IConfiguration _configuration;
         private readonly ILogger<ExamScanningService> _logger;
         private readonly IOcrService _ocrService;
-        private readonly IExamFormatParser _examFormatParser;
         private readonly IGeminiAiService _geminiAiService;
 
         public ExamScanningService(
@@ -30,7 +29,6 @@ namespace AttaEduSystem.Services.Services
             IConfiguration configuration,
             ILogger<ExamScanningService> logger,
             IOcrService ocrService,
-            IExamFormatParser examFormatParser,
             IGeminiAiService geminiAiService)
         {
             _unitOfWork = unitOfWork;
@@ -39,7 +37,6 @@ namespace AttaEduSystem.Services.Services
             _configuration = configuration;
             _logger = logger;
             _ocrService = ocrService;
-            _examFormatParser = examFormatParser;
             _geminiAiService = geminiAiService;
         }
 

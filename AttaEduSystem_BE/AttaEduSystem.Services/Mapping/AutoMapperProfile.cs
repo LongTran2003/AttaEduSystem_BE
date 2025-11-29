@@ -1,6 +1,7 @@
 ﻿using AttaEduSystem.Models.DTOs.Authentication;
 using AttaEduSystem.Models.DTOs.ExamFormat;
 using AttaEduSystem.Models.DTOs.ExamPaper;
+using AttaEduSystem.Models.DTOs.Openai;
 using AttaEduSystem.Models.DTOs.Student;
 using AttaEduSystem.Models.Entities;
 using AttaEduSystem.Services.IServices;

@@ -1,6 +1,6 @@
 ﻿using AttaEduSystem.DataAccess.IRepositories;
 using AttaEduSystem.Models.DTOs;
-using AttaEduSystem.Models.DTOs.ExamPaper;
+using AttaEduSystem.Models.DTOs.Openai;
 using AttaEduSystem.Models.Entities;
 using AttaEduSystem.Services.Helpers.Responses;
 using AttaEduSystem.Services.IServices;
