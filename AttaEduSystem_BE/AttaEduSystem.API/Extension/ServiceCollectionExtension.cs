@@ -63,6 +63,15 @@ namespace AttaEduSystem.API.Extension
             // 6. Payment Services
             services.AddScoped<IPayOsService, PayOsService>();
 
+            // 7. Usage Tracker Service
+            services.AddScoped<ISubscriptionService, SubscriptionService>();
+            services.AddScoped<IUsageTrackerService, UsageTrackerService>();
+
+
+
+
+
+
             return services;
         }
     }

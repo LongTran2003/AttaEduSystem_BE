@@ -19,5 +19,11 @@ namespace AttaEduSystem.DataAccess.Repositories
             return await _context.UserUsages.FirstOrDefaultAsync(x =>
                 x.UserId == userId && x.PeriodStart <= now && now <= x.PeriodEnd);
         }
+
+        public void Update(UserUsage userUsage)
+        {
+            _context.UserUsages.Attach(userUsage);
+            _context.Entry(userUsage).State = EntityState.Modified;
+        }
     }
 }

@@ -21,17 +21,20 @@ namespace AttaEduSystem.Services.Services
         private readonly PayOS _payOs;
         private readonly IMapper _mapper;
         private readonly ILogger<PayOsService> _logger;
+        private readonly ISubscriptionService _subscriptionService;
 
         public PayOsService(
             IUnitOfWork unitOfWork,
             PayOS payOs,
             IMapper mapper,
-            ILogger<PayOsService> logger)
+            ILogger<PayOsService> logger,
+            ISubscriptionService subscriptionService)
         {
             _unitOfWork = unitOfWork;
             _payOs = payOs;
             _mapper = mapper;
             _logger = logger;
+            _subscriptionService = subscriptionService;
         }
 
         public async Task<ResponseDto> CreatePayOsPaymentLink(ClaimsPrincipal user, CreatePaymentLinkDto createPaymentLinkDto)
@@ -179,7 +182,7 @@ namespace AttaEduSystem.Services.Services
                     order.UpdatedTime = StaticOperationStatus.Timezone.Vietnam;
 
                     // TODO: tại đây bạn gọi SubscriptionService để activate/gia hạn gói
-                    // await _subscriptionService.ActivateFromOrderAsync(order, payment);
+                    await _subscriptionService.ActivateFromOrder(order.OrderId);
                 }
                 else if (transactionInfo.status == "CANCELLED")
                 {

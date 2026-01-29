@@ -1,4 +1,5 @@
 ﻿using AttaEduSystem.Models.DTOs.Authentication;
+using AttaEduSystem.Models.DTOs.Billing;
 using AttaEduSystem.Models.DTOs.ExamFormat;
 using AttaEduSystem.Models.DTOs.ExamPaper;
 using AttaEduSystem.Models.DTOs.GeminiAi;
@@ -134,6 +135,11 @@ namespace AttaEduSystem.Services.Mapping
                 .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()))
                 .ForMember(dest => dest.CreatedAt, opt => opt.MapFrom(src => src.CreatedAt));
 
+            // SubscriptionPlan mapping
+            CreateMap<SubscriptionPlan, GetSubscriptionPlanDto>();
+
+            CreateMap<UserSubscription, GetUserSubscriptionDto>()
+                .ForMember(dest => dest.Plan, opt => opt.MapFrom(src => src.Plan));
         }
 
 
