@@ -16,6 +16,12 @@ namespace AttaEduSystem.DataAccess.Repositories
         public IExamQuestionRepository ExamQuestion { get; private set; }
         public IQuestionOptionRepository QuestionOption { get; private set; }
         public IExamSolutionRepository ExamSolution { get; private set; }
+        public ISubscriptionPlanRepository SubscriptionPlan { get; private set; }
+        public IUserSubscriptionRepository UserSubscription { get; private set; }
+        public IUserUsageRepository UserUsage { get; private set; }
+        public IOrderRepository Order { get; private set; }
+        public IPaymentRepository Payment { get; private set; }
+
 
         public UnitOfWork(ApplicationDBContext context, UserManager<ApplicationUser> userManager)
         {
@@ -27,6 +33,11 @@ namespace AttaEduSystem.DataAccess.Repositories
             ExamQuestion = new ExamQuestionRepository(_context);
             QuestionOption = new QuestionOptionRepository(_context);
             ExamSolution = new ExamSolutionRepository(_context);
+            SubscriptionPlan = new SubscriptionPlanRepository(_context);
+            UserSubscription = new UserSubscriptionRepository(_context);
+            UserUsage = new UserUsageRepository(_context);
+            Order = new OrderRepository(_context);
+            Payment = new PaymentRepository(_context);
         }
 
 
