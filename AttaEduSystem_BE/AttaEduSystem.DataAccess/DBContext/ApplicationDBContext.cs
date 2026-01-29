@@ -19,6 +19,7 @@ namespace AttaEduSystem.DataAccess.DBContext
         public DbSet<QuestionOption> QuestionOptions { get; set; }
         public DbSet<ExamSolution> ExamSolutions { get; set; }
         public DbSet<GeneratedExamPaper> GeneratedExamPapers { get; set; }
+        public DbSet<SubscriptionPlan> SubscriptionPlans { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -80,6 +81,14 @@ namespace AttaEduSystem.DataAccess.DBContext
                 .WithMany()
                 .HasForeignKey(g => g.OriginalExamPaperId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            // SubscriptionPlan
+            modelBuilder.Entity<SubscriptionPlan>()
+            .HasKey(p => p.SubscriptionPlanId);
+
+            modelBuilder.Entity<SubscriptionPlan>()
+                .HasIndex(p => p.Code)
+                .IsUnique(); // mỗi gói 1 code duy nhất, dễ query
         }
     }
 }
