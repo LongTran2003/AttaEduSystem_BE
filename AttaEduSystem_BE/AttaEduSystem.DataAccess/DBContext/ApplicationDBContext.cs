@@ -20,6 +20,8 @@ namespace AttaEduSystem.DataAccess.DBContext
         public DbSet<ExamSolution> ExamSolutions { get; set; }
         public DbSet<GeneratedExamPaper> GeneratedExamPapers { get; set; }
         public DbSet<SubscriptionPlan> SubscriptionPlans { get; set; }
+        public DbSet<UserSubscription> UserSubscriptions { get; set; }
+        public DbSet<UserUsage> UserUsages { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -84,11 +86,44 @@ namespace AttaEduSystem.DataAccess.DBContext
 
             // SubscriptionPlan
             modelBuilder.Entity<SubscriptionPlan>()
-            .HasKey(p => p.SubscriptionPlanId);
+                .HasKey(p => p.SubscriptionPlanId);
 
             modelBuilder.Entity<SubscriptionPlan>()
                 .HasIndex(p => p.Code)
                 .IsUnique(); // mỗi gói 1 code duy nhất, dễ query
+
+            // UserSubscription
+            modelBuilder.Entity<UserSubscription>()
+                .HasKey(us => us.UserSubscriptionId);
+
+            modelBuilder.Entity<UserSubscription>()
+                .HasOne(us => us.User)
+                .WithMany() // hoặc WithMany(x => x.Subscriptions) nếu bạn thêm collection vào ApplicationUser
+                .HasForeignKey(us => us.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<UserSubscription>()
+                .HasOne(us => us.Plan)
+                .WithMany()
+                .HasForeignKey(us => us.SubscriptionPlanId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<UserSubscription>() // Chỉ cho phép 1 subscription active tại 1 thời điểm (tùy chọn, enforce bằng logic service)
+                .HasIndex(us => new { us.UserId, us.Status });
+
+            // UserUsage
+            modelBuilder.Entity<UserUsage>()
+                .HasKey(uu => uu.UserUsageId);
+
+            modelBuilder.Entity<UserUsage>()
+                .HasOne(uu => uu.User)
+                .WithMany()
+                .HasForeignKey(uu => uu.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<UserUsage>()
+                .HasIndex(uu => new { uu.UserId, uu.PeriodStart, uu.PeriodEnd })
+                .IsUnique();
         }
     }
 }
