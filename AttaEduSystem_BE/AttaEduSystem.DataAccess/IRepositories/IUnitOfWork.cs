@@ -11,6 +11,11 @@ namespace AttaEduSystem.DataAccess.IRepositories
         IExamQuestionRepository ExamQuestion { get; }
         IQuestionOptionRepository QuestionOption { get; }
         IExamSolutionRepository ExamSolution { get; }
+        ISubscriptionPlanRepository SubscriptionPlan { get; }
+        IUserSubscriptionRepository UserSubscription { get; }
+        IUserUsageRepository UserUsage { get; }
+        IOrderRepository Order { get; }
+        IPaymentRepository Payment { get; }
 
         Task<int> SaveAsync();
 
