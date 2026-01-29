@@ -5,5 +5,6 @@ namespace AttaEduSystem.DataAccess.IRepositories
     public interface IUserSubscriptionRepository : IRepository<UserSubscription>
     {
         Task<UserSubscription?> GetActiveByUserIdAsync(string userId);
+        void Update(UserSubscription userSubscription);
     }
 }

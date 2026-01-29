@@ -20,5 +20,11 @@ namespace AttaEduSystem.DataAccess.Repositories
                 .Include(x => x.Plan)
                 .FirstOrDefaultAsync(x => x.UserId == userId && x.Status == "Active");
         }
+
+        public void Update(UserSubscription userSubscription)
+        {
+            _context.UserSubscriptions.Attach(userSubscription);
+            _context.Entry(userSubscription).State = EntityState.Modified;
+        }
     }
 }
