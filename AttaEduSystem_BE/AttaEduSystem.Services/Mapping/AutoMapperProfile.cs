@@ -3,6 +3,7 @@ using AttaEduSystem.Models.DTOs.ExamFormat;
 using AttaEduSystem.Models.DTOs.ExamPaper;
 using AttaEduSystem.Models.DTOs.GeminiAi;
 using AttaEduSystem.Models.DTOs.Openai;
+using AttaEduSystem.Models.DTOs.Payment;
 using AttaEduSystem.Models.DTOs.Student;
 using AttaEduSystem.Models.Entities;
 using AttaEduSystem.Services.IServices;
@@ -123,6 +124,15 @@ namespace AttaEduSystem.Services.Mapping
             // ExamSolution mapping
             CreateMap<ExamSolution, ExamSolutionResponseDto>()
                 .ForMember(dest => dest.SolvedAt, opt => opt.MapFrom(src => src.CreatedTime));
+
+            // Payment mapping
+            CreateMap<Payment, GetAllPaymentDto>()
+                .ForMember(dest => dest.PaymentTransactionId, opt => opt.MapFrom(src => src.PaymentTransactionId))
+                .ForMember(dest => dest.OrderNumber, opt => opt.MapFrom(src => (long?)src.OrderNumber))
+                .ForMember(dest => dest.Amount, opt => opt.MapFrom(src => src.Amount))
+                .ForMember(dest => dest.Description, opt => opt.MapFrom(src => src.Description))
+                .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()))
+                .ForMember(dest => dest.CreatedAt, opt => opt.MapFrom(src => src.CreatedAt));
 
         }
 

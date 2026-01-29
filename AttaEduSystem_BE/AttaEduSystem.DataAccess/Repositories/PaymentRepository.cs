@@ -15,20 +15,77 @@ namespace AttaEduSystem.DataAccess.Repositories
             _context = context;
         }
 
-        public async Task<Payment?> GetLatestPendingByOrderNumberAsync(long orderNumber)
+        public async Task<Payment?> GetPaymentByOrderNumberAsync(long orderNumber)
         {
             return await _context.Payments
-                .Where(p => p.OrderNumber == orderNumber && p.Status == PaymentStatus.Pending)
-                .OrderByDescending(p => p.CreatedAt)
-                .FirstOrDefaultAsync();
+                .Include(p => p.Order)
+                .FirstOrDefaultAsync(p => p.OrderNumber == orderNumber);
         }
 
-        public async Task<IEnumerable<Payment>> GetByOrderNumberAsync(long orderNumber)
+        public async Task<(List<Payment> Payments, int TotalPayments)> GetPaymentsAsync(
+            int pageNumber,
+            int pageSize,
+            string? filterOn,
+            string? filterQuery,
+            string? sortBy,
+            string? userId = null)
         {
-            return await _context.Payments
-                .Where(p => p.OrderNumber == orderNumber)
-                .OrderByDescending(p => p.CreatedAt)
+            var query = _context.Payments
+                .Include(p => p.Order)
+                .AsQueryable();
+
+            // Lọc theo user nếu cần (user chỉ thấy payment của mình)
+            if (!string.IsNullOrEmpty(userId))
+            {
+                query = query.Where(p => p.Order.UserId == userId);
+            }
+
+            // Filter
+            if (!string.IsNullOrEmpty(filterOn) && !string.IsNullOrEmpty(filterQuery))
+            {
+                switch (filterOn.ToLower())
+                {
+                    case "status":
+                        if (Enum.TryParse<PaymentStatus>(filterQuery, true, out var status))
+                            query = query.Where(p => p.Status == status);
+                        break;
+
+                    case "amount":
+                        if (decimal.TryParse(filterQuery, out var amount))
+                            query = query.Where(p => p.Amount == amount);
+                        break;
+
+                    case "ordernumber":
+                        if (long.TryParse(filterQuery, out var orderNo))
+                            query = query.Where(p => p.OrderNumber == orderNo);
+                        break;
+                }
+            }
+
+            var totalPayments = await query.CountAsync();
+
+            // Sort
+            query = sortBy?.ToLower() switch
+            {
+                "amount" => query.OrderBy(p => p.Amount),
+                "amount_desc" => query.OrderByDescending(p => p.Amount),
+                "status" => query.OrderBy(p => p.Status),
+                "createdat" => query.OrderBy(p => p.CreatedAt),
+                "createdat_desc" => query.OrderByDescending(p => p.CreatedAt),
+                _ => query.OrderByDescending(p => p.CreatedAt)
+            };
+
+            var payments = await query
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
                 .ToListAsync();
+
+            return (payments, totalPayments);
+        }
+
+        public void Update(Payment payment)
+        {
+            _context.Payments.Update(payment);
         }
     }
 }

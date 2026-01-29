@@ -4,7 +4,15 @@ namespace AttaEduSystem.DataAccess.IRepositories
 {
     public interface IPaymentRepository : IRepository<Payment>
     {
-        Task<Payment?> GetLatestPendingByOrderNumberAsync(long orderNumber);
-        Task<IEnumerable<Payment>> GetByOrderNumberAsync(long orderNumber);
+        Task<Payment?> GetPaymentByOrderNumberAsync(long orderNumber);
+        Task<(List<Payment> Payments, int TotalPayments)> GetPaymentsAsync(
+            int pageNumber,
+            int pageSize,
+            string? filterOn,
+            string? filterQuery,
+            string? sortBy,
+            string? userId = null);
+        void Update(Payment payment);
+
     }
 }
