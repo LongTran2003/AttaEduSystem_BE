@@ -1,4 +1,4 @@
-using AttaEduSystem.API.Extension;
+﻿using AttaEduSystem.API.Extension;
 using AttaEduSystem.API.Middleware;
 using AttaEduSystem.DataAccess.DBContext;
 using AttaEduSystem.Models.Entities;
@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Net.payOS;
 using System.Reflection;
 using System.Text;
 
@@ -31,7 +32,7 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>()
     .AddEntityFrameworkStores<ApplicationDBContext>()
     .AddDefaultTokenProviders();
 
-// Th�m d?ch v? Swagger  
+// Thêm d?ch v? Swagger  
 builder.Services.AddSwaggerGen(options =>
 {
     // B?o m?t Swagger v?i JWT
@@ -69,7 +70,7 @@ builder.Services.AddSwaggerGen(options =>
     });
     options.EnableAnnotations();
 
-    // ??c comment t? XML ?? hi?n th? tr�n Swagger
+    // ??c comment t? XML ?? hi?n th? trên Swagger
     var xmlFilename = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
     var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFilename);
     if (File.Exists(xmlPath)) options.IncludeXmlComments(xmlPath);
@@ -99,6 +100,20 @@ builder.Services.AddAuthentication(options =>
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+// Configure PayOS client (get data from appsettings or environment variables)
+
+var payOSClientId = builder.Configuration["PayOs:PAYOS_CLIENT_ID"]
+                    ?? throw new Exception("Cannot find PAYOS_CLIENT_ID");
+
+var payOSApiKey = builder.Configuration["PayOs:PAYOS_API_KEY"]
+                  ?? throw new Exception("Cannot find PAYOS_API_KEY");
+
+var payOSChecksumKey = builder.Configuration["PayOs:PAYOS_CHECKSUM_KEY"]
+                       ?? throw new Exception("Cannot find PAYOS_CHECKSUM_KEY");
+
+// Đăng ký PayOS
+builder.Services.AddSingleton(new PayOS(payOSClientId, payOSApiKey, payOSChecksumKey));
+
 // Register services from Extensions
 builder.Services.RegisterServices(builder.Configuration);
 
@@ -115,6 +130,11 @@ builder.Services.AddCors(options =>
                 .AllowCredentials();
         });
 });
+
+
+
+
+
 
 var app = builder.Build();
 

@@ -60,6 +60,9 @@ namespace AttaEduSystem.API.Extension
             // Nên dùng AddHttpClient<Interface, Class> để nó tự inject HttpClient vào
             services.AddHttpClient<IGeminiAiService, GeminiAiService>();
 
+            // 6. Payment Services
+            services.AddScoped<IPayOsService, PayOsService>();
+
             return services;
         }
     }
