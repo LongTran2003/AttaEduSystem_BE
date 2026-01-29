@@ -16,15 +16,18 @@ namespace AttaEduSystem.Services.Services
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
         private readonly ILogger<SubscriptionService> _logger;
+        private readonly IPayOsService _payOsService;
 
         public SubscriptionService(
             IUnitOfWork unitOfWork,
             IMapper mapper,
-            ILogger<SubscriptionService> logger)
+            ILogger<SubscriptionService> logger,
+            IPayOsService payOsService)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
             _logger = logger;
+            _payOsService = payOsService;
         }
 
         public async Task<ResponseDto> GetAvailablePlans()
@@ -134,6 +137,60 @@ namespace AttaEduSystem.Services.Services
             return SuccessResponse.Build(
                 message: "Subscription activated successfully",
                 statusCode: 200);
+        }
+
+        public async Task<ResponseDto> CreateCheckout(ClaimsPrincipal user, CreateCheckoutRequestDto request)
+        {
+            var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId))
+                return ErrorResponse.Build(StaticOperationStatus.User.UserNotFound, 401);
+
+            // 1. Lấy plan
+            var plan = await _unitOfWork.SubscriptionPlan.GetAsync(p => p.SubscriptionPlanId == request.SubscriptionPlanId);
+            if (plan == null || !plan.IsActive)
+                return ErrorResponse.Build("Subscription plan not found or inactive", 404);
+
+            // 2. Tạo Order
+            var order = new Order
+            {
+                OrderId = Guid.NewGuid(),
+                UserId = userId,
+                SubscriptionPlanId = plan.SubscriptionPlanId,
+                TotalPrice = plan.PricePerMonth,
+                CreatedBy = userId,
+                CreatedTime = DateTime.UtcNow,
+                Status = "Pending"
+            };
+
+            await _unitOfWork.Order.AddAsync(order);
+            await _unitOfWork.SaveAsync(); // để DB sinh OrderNumber
+
+            // 3. Gọi PayOS tạo link thanh toán
+            var createPaymentLinkDto = new CreatePaymentLinkDto
+            {
+                OrderNumber = order.OrderNumber,
+                CancelUrl = request.CancelUrl,
+                ReturnUrl = request.ReturnUrl
+            };
+
+            var paymentResult = await _payOsService.CreatePayOsPaymentLink(user, createPaymentLinkDto);
+
+            // 4. Gộp thông tin Order + checkoutUrl trả về FE
+            if (!paymentResult.IsSuccess)
+                return paymentResult;
+
+            return SuccessResponse.Build(
+                message: "Checkout session created successfully",
+                statusCode: 201,
+                result: new
+                {
+                    orderId = order.OrderId,
+                    orderNumber = order.OrderNumber,
+                    planCode = plan.Code,
+                    planName = plan.Name,
+                    amount = plan.PricePerMonth,
+                    payment = paymentResult.Result // chứa result từ PayOS (checkoutUrl,...)
+                });
         }
 
         public async Task<bool> CanUseAdvancedFeature(string userId, string featureName)
