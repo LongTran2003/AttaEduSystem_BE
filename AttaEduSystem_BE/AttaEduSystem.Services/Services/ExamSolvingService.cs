@@ -2,6 +2,7 @@
 using AttaEduSystem.Models.DTOs;
 using AttaEduSystem.Models.DTOs.GeminiAi;
 using AttaEduSystem.Models.Entities;
+using AttaEduSystem.Models.Enums;
 using AttaEduSystem.Services.Helpers.Responses;
 using AttaEduSystem.Services.IServices;
 using AttaEduSystem.Utilities.Constants;
@@ -17,13 +18,23 @@ namespace AttaEduSystem.Services.Services
         private readonly IGeminiAiService _geminiAiService;
         private readonly IMapper _mapper;
         private readonly ILogger<ExamSolvingService> _logger;
+        private readonly IUsageTrackerService _usageTracker;
+        private readonly ISubscriptionService _subscriptionService;
 
-        public ExamSolvingService(IUnitOfWork unitOfWork, IGeminiAiService geminiAiService, ILogger<ExamSolvingService> logger, IMapper mapper)
+        public ExamSolvingService(
+            IUnitOfWork unitOfWork, 
+            IGeminiAiService geminiAiService, 
+            ILogger<ExamSolvingService> logger, 
+            IMapper mapper, 
+            IUsageTrackerService usageTracker,
+            ISubscriptionService subscriptionService)
         {
             _unitOfWork = unitOfWork;
             _geminiAiService = geminiAiService;
             _logger = logger;
             _mapper = mapper;
+            _usageTracker = usageTracker;
+            _subscriptionService = subscriptionService;
         }
 
         public async Task<ResponseDto> SolveExamPaper(Guid examPaperId, ClaimsPrincipal user)
@@ -32,6 +43,25 @@ namespace AttaEduSystem.Services.Services
             {
                 var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
                 if (string.IsNullOrEmpty(userId)) return ErrorResponse.Build(StaticOperationStatus.User.UserNotFound, 401);
+
+                // ========== CHECK QUOTA ==========
+                if (!await _usageTracker.TryConsumeAsync(user, UsageType.Solve, 1))
+                {
+                    return ErrorResponse.Build(
+                        message: "Your solve quota has been reached. Please upgrade your subscription to continue.",
+                        statusCode: 402);
+                }
+                // ==================================
+
+                // ========== CHECK SUBSCRIPTION FOR ADVANCED FEATURE ==========
+                var canUseAdvanced = await _subscriptionService.CanUseAdvancedFeature(userId, "DetailedSolution");
+                if (!canUseAdvanced)
+                {
+                    return ErrorResponse.Build(
+                        message: "This feature is only available on Pro plan.",
+                        statusCode: 403);
+                }
+                // ============================================================
 
                 // 1. Lấy đề thi từ DB
                 var examPaper = await _unitOfWork.ExamPaper.GetAsync(e => e.ExamPaperId == examPaperId);

@@ -135,5 +135,14 @@ namespace AttaEduSystem.Services.Services
                 message: "Subscription activated successfully",
                 statusCode: 200);
         }
+
+        public async Task<bool> CanUseAdvancedFeature(string userId, string featureName)
+        {
+            var subscription = await _unitOfWork.UserSubscription.GetActiveByUserIdAsync(userId);
+            if (subscription == null) return false;
+
+            // Ví dụ: chỉ Pro plan mới có thể giải đề chi tiết
+            return subscription.Plan.Code == "PRO";
+        }
     }
 }

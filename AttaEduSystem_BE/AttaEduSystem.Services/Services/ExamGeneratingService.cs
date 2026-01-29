@@ -2,6 +2,7 @@
 using AttaEduSystem.Models.DTOs;
 using AttaEduSystem.Models.DTOs.Openai;
 using AttaEduSystem.Models.Entities;
+using AttaEduSystem.Models.Enums;
 using AttaEduSystem.Services.Helpers.Responses;
 using AttaEduSystem.Services.IServices;
 using AttaEduSystem.Utilities.Constants;
@@ -17,13 +18,19 @@ namespace AttaEduSystem.Services.Services
         private readonly IGeminiAiService _geminiAiService;
         private readonly IMapper _mapper;
         private readonly ILogger<ExamGeneratingService> _logger;
+        private readonly IUsageTrackerService _usageTracker;
 
-        public ExamGeneratingService(IUnitOfWork unitOfWork, IGeminiAiService geminiAiService, ILogger<ExamGeneratingService> logger, IMapper mapper)
+        public ExamGeneratingService(
+            IUnitOfWork unitOfWork, 
+            IGeminiAiService geminiAiService, 
+            ILogger<ExamGeneratingService> logger, 
+            IMapper mapper, IUsageTrackerService usageTracker)
         {
             _unitOfWork = unitOfWork;
             _geminiAiService = geminiAiService;
             _logger = logger;
             _mapper = mapper;
+            _usageTracker = usageTracker;
         }
 
         public async Task<ResponseDto> GenerateSimilarExam(Guid originalExamPaperId, ClaimsPrincipal user)
@@ -32,6 +39,15 @@ namespace AttaEduSystem.Services.Services
             {
                 var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
                 if (string.IsNullOrEmpty(userId)) return ErrorResponse.Build(StaticOperationStatus.User.UserNotFound, 401);
+
+                // ========== CHECK QUOTA ==========
+                if (!await _usageTracker.TryConsumeAsync(user, UsageType.GenerateExam, 1))
+                {
+                    return ErrorResponse.Build(
+                        message: "Your exam generation quota has been reached. Please upgrade your subscription to continue.",
+                        statusCode: 402);
+                }
+                // ==================================
 
                 // 1. Lấy đề thi gốc từ DB
                 var originalExam = await _unitOfWork.ExamPaper.GetAsync(e => e.ExamPaperId == originalExamPaperId);

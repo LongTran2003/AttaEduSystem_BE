@@ -3,6 +3,7 @@ using AttaEduSystem.Models.DTOs;
 using AttaEduSystem.Models.DTOs.ExamPaper;
 using AttaEduSystem.Models.DTOs.GeminiAi;
 using AttaEduSystem.Models.Entities;
+using AttaEduSystem.Models.Enums;
 using AttaEduSystem.Services.Helpers.Responses;
 using AttaEduSystem.Services.IServices;
 using AttaEduSystem.Utilities.Constants;
@@ -23,6 +24,7 @@ namespace AttaEduSystem.Services.Services
         private readonly ILogger<ExamScanningService> _logger;
         private readonly IOcrService _ocrService;
         private readonly IGeminiAiService _geminiAiService;
+        private readonly IUsageTrackerService _usageTracker;
 
         public ExamScanningService(
             IUnitOfWork unitOfWork, 
@@ -31,7 +33,8 @@ namespace AttaEduSystem.Services.Services
             IConfiguration configuration,
             ILogger<ExamScanningService> logger,
             IOcrService ocrService,
-            IGeminiAiService geminiAiService)
+            IGeminiAiService geminiAiService,
+            IUsageTrackerService usageTracker)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
@@ -40,6 +43,7 @@ namespace AttaEduSystem.Services.Services
             _logger = logger;
             _ocrService = ocrService;
             _geminiAiService = geminiAiService;
+            _usageTracker = usageTracker;
         }
 
         public async Task<ResponseDto> GetExamPaperById(Guid examPaperId)
@@ -169,6 +173,15 @@ namespace AttaEduSystem.Services.Services
                         message: StaticOperationStatus.User.UserNotFound,
                         statusCode: StaticOperationStatus.StatusCode.Unauthorized);
                 }
+
+                // ========== CHECK QUOTA ==========
+                if (!await _usageTracker.TryConsumeAsync(user, UsageType.Scan, 1))
+                {
+                    return ErrorResponse.Build(
+                        message: "Your scan quota has been reached. Please upgrade your subscription to continue.",
+                        statusCode: 402); // Payment Required
+                }
+                // ==================================
 
                 if (uploadDto.ExamImage == null || uploadDto.ExamImage.Length == 0)
                 {

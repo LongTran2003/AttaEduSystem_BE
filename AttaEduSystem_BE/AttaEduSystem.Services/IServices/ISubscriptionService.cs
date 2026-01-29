@@ -8,5 +8,6 @@ namespace AttaEduSystem.Services.IServices
         Task<ResponseDto> GetAvailablePlans();
         Task<ResponseDto> GetCurrentSubscription(ClaimsPrincipal user);
         Task<ResponseDto> ActivateFromOrder(Guid orderId);
+        Task<bool> CanUseAdvancedFeature(string userId, string featureName);
     }
 }
