@@ -22,6 +22,8 @@ namespace AttaEduSystem.DataAccess.DBContext
         public DbSet<SubscriptionPlan> SubscriptionPlans { get; set; }
         public DbSet<UserSubscription> UserSubscriptions { get; set; }
         public DbSet<UserUsage> UserUsages { get; set; }
+        public DbSet<Order> Orders { get; set; }
+        public DbSet<Payment> Payments { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -124,6 +126,25 @@ namespace AttaEduSystem.DataAccess.DBContext
             modelBuilder.Entity<UserUsage>()
                 .HasIndex(uu => new { uu.UserId, uu.PeriodStart, uu.PeriodEnd })
                 .IsUnique();
+
+            // Order
+            modelBuilder.Entity<Order>()
+                .HasKey(o => o.OrderId);
+
+            modelBuilder.Entity<Order>()
+                .HasIndex(o => o.OrderNumber)
+                .IsUnique();
+
+            // Payment
+            modelBuilder.Entity<Payment>()
+                .HasKey(p => p.PaymentTransactionId);
+
+            modelBuilder.Entity<Payment>()
+                .HasOne(p => p.Order)
+                .WithMany(o => o.Payments)
+                .HasForeignKey(p => p.OrderNumber)
+                .HasPrincipalKey(o => o.OrderNumber)
+                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }
