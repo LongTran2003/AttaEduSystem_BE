@@ -23,25 +23,31 @@ namespace AttaEduSystem.Services.Services
             _redisService = redisService;
         }
 
-        public async Task<string> GenerateJwtAccessTokenAsync(ApplicationUser user)
+        public async Task<string> GenerateJwtAccessTokenAsync(ApplicationUser user, IEnumerable<Claim>? extraClaims = null)
         {
             var userRoles = await _userManager.GetRolesAsync(user);
             var authClaims = new List<Claim>
         {
             new Claim(ClaimTypes.NameIdentifier, user.Id),
-            new Claim(ClaimTypes.Name, user.UserName),
-            new Claim(ClaimTypes.Email, user.Email),
+            new Claim(ClaimTypes.Name, user.UserName ?? string.Empty),
+            new Claim(ClaimTypes.Email, user.Email ?? string.Empty),
             new Claim("FullName", user.FullName),
-            new Claim("PhoneNumber", user.PhoneNumber),
-            new Claim("Address", user.Address),
-            new Claim("BirthDate", user.BirthDate.ToString()),
-            new Claim("ImageUrl", user.ImageUrl)
+            new Claim("PhoneNumber", user.PhoneNumber ?? string.Empty),
+            new Claim("Address", user.Address ?? string.Empty),
+            new Claim("BirthDate", user.BirthDate.ToString("0")),
+            new Claim("ImageUrl", user.ImageUrl ?? string.Empty)
         };
 
             // Thêm role của người dùng vào claims
             foreach (var role in userRoles)
             {
                 authClaims.Add(new Claim(ClaimTypes.Role, role));
+            }
+
+            // Extra claims (ví dụ: plan)
+            if (extraClaims != null)
+            {
+                authClaims.AddRange(extraClaims);
             }
 
             // Tạo security key và signing credentials

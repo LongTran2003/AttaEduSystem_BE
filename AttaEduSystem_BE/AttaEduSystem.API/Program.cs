@@ -96,6 +96,16 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("RequireProPlan", policy =>
+        policy.RequireClaim("plan", "PRO"));
+
+    // Ví dụ nếu muốn “paid plan” gồm nhiều gói:
+    // options.AddPolicy("RequirePaidPlan", policy =>
+    //     policy.RequireClaim("plan", "PRO", "PLUS"));
+});
+
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();

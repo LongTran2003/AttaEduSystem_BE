@@ -5,7 +5,7 @@ namespace AttaEduSystem.Services.IServices
 {
     public interface ITokenService
     {
-        Task<string> GenerateJwtAccessTokenAsync(ApplicationUser user);
+        Task<string> GenerateJwtAccessTokenAsync(ApplicationUser user, IEnumerable<Claim>? extraClaims = null);
         Task<string> GenerateJwtRefreshTokenAsync(ApplicationUser user);
         Task<bool> StoreRefreshToken(string userId, string refreshToken);
         Task<ClaimsPrincipal> GetPrincipalFromToken(string token);

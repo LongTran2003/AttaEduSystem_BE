@@ -1,5 +1,6 @@
 ﻿using AttaEduSystem.Models.DTOs;
 using AttaEduSystem.Services.IServices;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 
@@ -22,6 +23,7 @@ namespace AttaEduSystem.API.Controllers
         /// Generate a new similar exam based on an original exam paper's structure.
         /// </summary>
         /// <param name="originalExamId">The ID of the scanned exam paper to use as a template.</param>
+        [Authorize(Policy = "RequireProPlan")]
         [HttpPost("{originalExamId:guid}/generate-similar")]
         [SwaggerOperation(
             Summary = "Generate similar exam",

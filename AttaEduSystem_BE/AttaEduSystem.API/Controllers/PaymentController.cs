@@ -16,10 +16,12 @@ namespace AttaEduSystem.API.Controllers
     public class PaymentController : ControllerBase
     {
         private readonly IPayOsService _paymentService;
+        private readonly IConfiguration _configuration;
 
-        public PaymentController(IPayOsService paymentService)
+        public PaymentController(IPayOsService paymentService, IConfiguration configuration)
         {
             _paymentService = paymentService;
+            _configuration = configuration;
         }
 
         /// <summary>
@@ -98,6 +100,28 @@ namespace AttaEduSystem.API.Controllers
         {
             var result = await _paymentService.GetPaymentById(User, paymentId);
             return StatusCode(result.StatusCode, result);
+        }
+
+        [AllowAnonymous]
+        [HttpGet("payos/callback")]
+        public async Task<IActionResult> PayOsCallback(
+                [FromQuery(Name = "orderCode")] long orderCode,
+                [FromQuery] string status)
+        {
+            // Bạn có thể log thêm toàn bộ query nếu cần
+            var confirmDto = new ConfirmPaymentDto
+            {
+                OrderNumber = orderCode
+            };
+
+            var result = await _paymentService.ConfirmPayOsTransaction(confirmDto);
+
+            // Redirect về FE với kết quả: success/fail + orderCode
+            var frontendBaseUrl = _configuration["Frontend:PaymentResultUrl"]
+                         ?? "https://your-frontend-url.com/payment-result";
+            var redirectUrl = $"{frontendBaseUrl}?orderCode={orderCode}&status={(result.IsSuccess ? "success" : "fail")}";
+
+            return Redirect(redirectUrl);
         }
     }
 }

@@ -84,7 +84,19 @@ namespace AttaEduSystem.Services.Services
                     Result = null
                 };
 
-            var accessToken = await _tokenService.GenerateJwtAccessTokenAsync(user);
+            // 1) Lấy plan code từ DB (mặc định FREE nếu không có subscription)
+            var planCode = "FREE";
+            var sub = await _unitOfWork.UserSubscription.GetActiveByUserIdAsync(user.Id);
+            if (sub?.Plan != null && !string.IsNullOrWhiteSpace(sub.Plan.Code))
+            {
+                planCode = sub.Plan.Code;
+            }
+
+            // 2) Chuẩn bị extra claims cho token
+            var extraClaims = new List<Claim>{new Claim("plan", planCode)};
+
+            // 3) Sinh token kèm extra claims
+            var accessToken = await _tokenService.GenerateJwtAccessTokenAsync(user, extraClaims);
             var refreshToken = await _tokenService.GenerateJwtRefreshTokenAsync(user);
             await _tokenService.StoreRefreshToken(user.Id, refreshToken);
 
