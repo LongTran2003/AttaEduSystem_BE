@@ -1,5 +1,6 @@
 ﻿using AttaEduSystem.Models.DTOs;
 using AttaEduSystem.Services.IServices;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 
@@ -22,6 +23,7 @@ namespace AttaEduSystem.API.Controllers
         /// Trigger AI to solve a specific exam paper and save the solution.
         /// </summary>
         /// <param name="examPaperId">The ID of the exam paper to solve.</param>
+        [Authorize(Policy = "RequireProPlan")]
         [HttpPost("{examPaperId:guid}/solve")]
         [SwaggerOperation(
             Summary = "Solve an exam paper",

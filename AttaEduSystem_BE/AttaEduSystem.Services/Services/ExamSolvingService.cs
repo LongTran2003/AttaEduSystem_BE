@@ -19,22 +19,19 @@ namespace AttaEduSystem.Services.Services
         private readonly IMapper _mapper;
         private readonly ILogger<ExamSolvingService> _logger;
         private readonly IUsageTrackerService _usageTracker;
-        private readonly ISubscriptionService _subscriptionService;
 
         public ExamSolvingService(
             IUnitOfWork unitOfWork, 
             IGeminiAiService geminiAiService, 
             ILogger<ExamSolvingService> logger, 
             IMapper mapper, 
-            IUsageTrackerService usageTracker,
-            ISubscriptionService subscriptionService)
+            IUsageTrackerService usageTracker)
         {
             _unitOfWork = unitOfWork;
             _geminiAiService = geminiAiService;
             _logger = logger;
             _mapper = mapper;
             _usageTracker = usageTracker;
-            _subscriptionService = subscriptionService;
         }
 
         public async Task<ResponseDto> SolveExamPaper(Guid examPaperId, ClaimsPrincipal user)
@@ -52,16 +49,6 @@ namespace AttaEduSystem.Services.Services
                         statusCode: 402);
                 }
                 // ==================================
-
-                // ========== CHECK SUBSCRIPTION FOR ADVANCED FEATURE ==========
-                var canUseAdvanced = await _subscriptionService.CanUseAdvancedFeature(userId, "DetailedSolution");
-                if (!canUseAdvanced)
-                {
-                    return ErrorResponse.Build(
-                        message: "This feature is only available on Pro plan.",
-                        statusCode: 403);
-                }
-                // ============================================================
 
                 // 1. Lấy đề thi từ DB
                 var examPaper = await _unitOfWork.ExamPaper.GetAsync(e => e.ExamPaperId == examPaperId);

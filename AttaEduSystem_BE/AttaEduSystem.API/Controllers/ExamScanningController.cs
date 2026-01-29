@@ -27,6 +27,7 @@ namespace AttaEduSystem.API.Controllers
         /// Uploads an exam paper image and performs OCR scanning.
         /// </summary>
         /// <param name="dto">Upload payload with image and metadata.</param>
+        [Authorize]
         [HttpPost("scan")]
         [SwaggerOperation(
             Summary = "Scan exam paper",
