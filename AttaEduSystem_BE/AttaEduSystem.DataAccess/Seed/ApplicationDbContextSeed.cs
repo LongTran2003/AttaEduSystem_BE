@@ -65,5 +65,42 @@ namespace AttaEduSystem.DataAccess.Seed
                 });
             }
         }
+
+        public static void SeedSubscriptionPlans(ModelBuilder modelBuilder)
+        {
+            // 1. Gói FREE (Mặc định)
+            var freePlan = new SubscriptionPlan
+            {
+                SubscriptionPlanId = Guid.Parse("11111111-1111-1111-1111-111111111111"), // ID cố định để tránh duplicate khi chạy lại
+                Code = "FREE",
+                Name = "Gói Cơ Bản (Free)",
+                Description = "Dành cho người mới bắt đầu, giới hạn tính năng.",
+                PricePerMonth = 0, // Miễn phí
+                MaxScansPerMonth = 5, // Cho scan thử 5 lần
+                MaxGeneratedExamsPerMonth = 0, // Không cho tạo đề
+                // MaxTokensPerMonth = 1000, // (Nếu entity bạn có field này)
+                IsActive = true,
+                CreatedBy = "System",
+                CreatedTime = DateTime.UtcNow
+            };
+
+            // 2. Gói PRO (Giá sinh viên nghèo vượt khó: 2k VNĐ)
+            var proPlan = new SubscriptionPlan
+            {
+                SubscriptionPlanId = Guid.Parse("22222222-2222-2222-2222-222222222222"),
+                Code = "PRO",
+                Name = "Gói Nâng Cao (Pro)",
+                Description = "Mở khóa toàn bộ tính năng AI & Giải đề.",
+                PricePerMonth = 2000, // 2,000 VND (Rẻ hơn ly trà đá để test PayOS)
+                MaxScansPerMonth = 100, // Scan thoải mái
+                MaxGeneratedExamsPerMonth = 50, // Tạo đề thoải mái
+                // MaxTokensPerMonth = 100000, 
+                IsActive = true,
+                CreatedBy = "System",
+                CreatedTime = DateTime.UtcNow
+            };
+
+            modelBuilder.Entity<SubscriptionPlan>().HasData(freePlan, proPlan);
+        }
     }
 }

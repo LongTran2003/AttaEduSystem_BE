@@ -30,8 +30,10 @@ namespace AttaEduSystem.DataAccess.DBContext
         {
             base.OnModelCreating(modelBuilder);
 
-            // Seed admin account
-            ApplicationDbContextSeed.SeedAdminAccount(modelBuilder);
+            // Gọi seed data
+            ApplicationDbContextSeed.SeedAdminAccount(modelBuilder); // ADMIN
+            ApplicationDbContextSeed.SeedSubscriptionPlans(modelBuilder); // SUBSCRIPTION PLAN
+
 
             // Thêm các cấu hình khác nếu cần
             // Student
