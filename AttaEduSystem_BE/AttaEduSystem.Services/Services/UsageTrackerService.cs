@@ -34,7 +34,7 @@ namespace AttaEduSystem.Services.Services
             if (string.IsNullOrEmpty(userId))
                 return false;
 
-            // Lấy subscription hiện tại
+            // 1. Xử lý / Lấy subscription hiện tại
             var subscription = await _unitOfWork.UserSubscription.GetActiveByUserIdAsync(userId);
             if (subscription == null)
             {
@@ -59,10 +59,13 @@ namespace AttaEduSystem.Services.Services
                 await _unitOfWork.SaveAsync();
             }
 
-            // Lấy hoặc tạo usage record
+            // 2. Lấy hoặc tạo usage record
             var usage = await _unitOfWork.UserUsage.GetCurrentPeriodAsync(userId, DateTime.UtcNow);
+            bool isNewUsage = false; // <--- Biến cờ đánh dấu
+
             if (usage == null)
             {
+                isNewUsage = true; // Đánh dấu là mới
                 usage = new UserUsage
                 {
                     UserUsageId = Guid.NewGuid(),
@@ -70,12 +73,16 @@ namespace AttaEduSystem.Services.Services
                     PeriodStart = DateTime.UtcNow,
                     PeriodEnd = DateTime.UtcNow.AddMonths(1),
                     CreatedBy = userId,
-                    CreatedTime = DateTime.UtcNow
+                    CreatedTime = DateTime.UtcNow,
+                    // Khởi tạo các giá trị bằng 0 để tránh null
+                    TokensUsed = 0,
+                    ScansUsed = 0,
+                    GeneratedExamsUsed = 0
                 };
-                await _unitOfWork.UserUsage.AddAsync(usage);
+                //await _unitOfWork.UserUsage.AddAsync(usage); // ko addasync ở đây
             }
 
-            // Kiểm tra và trừ quota
+            // 3. Kiểm tra và trừ quota
             var plan = subscription.Plan;
             switch (type)
             {
@@ -100,10 +107,20 @@ namespace AttaEduSystem.Services.Services
                 default:
                     return false;
             }
-
+            // 4. Lưu thay đổi (QUAN TRỌNG: Tách luồng Add/Update)
             usage.UpdatedTime = DateTime.UtcNow;
-            _unitOfWork.UserUsage.Update(usage);
-            await _unitOfWork.SaveAsync();
+
+            if (isNewUsage)
+            {
+                // Nếu là mới -> Insert
+                await _unitOfWork.UserUsage.AddAsync(usage);
+            }
+            else
+            {
+                // Nếu là cũ -> Update
+                _unitOfWork.UserUsage.Update(usage);
+            }
+            await _unitOfWork.SaveAsync(); // Lúc này sẽ chạy đúng lệnh Insert hoặc Update
 
             return true;
         }

@@ -34,7 +34,7 @@ namespace AttaEduSystem.Services.Services
             new Claim("FullName", user.FullName),
             new Claim("PhoneNumber", user.PhoneNumber ?? string.Empty),
             new Claim("Address", user.Address ?? string.Empty),
-            new Claim("BirthDate", user.BirthDate.ToString("0")),
+            new Claim("BirthDate", user.BirthDate.ToString("yyyy-MM-dd")),
             new Claim("ImageUrl", user.ImageUrl ?? string.Empty)
         };
 

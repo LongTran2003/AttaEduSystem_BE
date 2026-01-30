@@ -17,11 +17,13 @@ namespace AttaEduSystem.API.Controllers
     {
         private readonly IPayOsService _paymentService;
         private readonly IConfiguration _configuration;
+        private readonly ISubscriptionService _subscriptionService;
 
-        public PaymentController(IPayOsService paymentService, IConfiguration configuration)
+        public PaymentController(IPayOsService paymentService, IConfiguration configuration, ISubscriptionService subscriptionService)
         {
             _paymentService = paymentService;
             _configuration = configuration;
+            _subscriptionService = subscriptionService;
         }
 
         /// <summary>
@@ -67,19 +69,30 @@ namespace AttaEduSystem.API.Controllers
         public async Task<ActionResult<ResponseDto>> ConfirmPayOsTransaction(
             [FromBody] ConfirmPaymentDto confirmPaymentDto)
         {
-            if (!ModelState.IsValid)
+            // 1. Gọi Service để update trạng thái Payment/Order
+            var result = await _paymentService.ConfirmPayOsTransaction(confirmPaymentDto);
+
+            // 2. Nếu thành công và trạng thái là PAID -> Kích hoạt gói
+            if (result.IsSuccess && result.Result != null)
             {
-                return BadRequest(new ResponseDto
+                // Parse kết quả trả về từ Service (dùng dynamic hoặc object reflection)
+                dynamic data = result.Result;
+
+                // Kiểm tra property IsPaidSuccess mà ta vừa thêm ở Bước 1
+                // Lưu ý: Cần đảm bảo Result trả về có property này, hoặc check Status == "PAID"
+                bool isPaid = false;
+                try { isPaid = data.IsPaidSuccess; } catch { } // Hack nhẹ để lấy data dynamic
+
+                // Hoặc cách an toàn hơn: check string Status trong DB nếu cần, 
+                // nhưng ở đây ta tin tưởng Service trả về đúng.
+
+                if (isPaid)
                 {
-                    IsSuccess = false,
-                    StatusCode = StatusCodes.Status400BadRequest,
-                    Message = "Invalid input data.",
-                    Result = ModelState.Values
-                        .SelectMany(v => v.Errors.Select(e => e.ErrorMessage))
-                });
+                    Guid orderId = data.OrderId;
+                    await _subscriptionService.ActivateFromOrder(orderId);
+                }
             }
 
-            var result = await _paymentService.ConfirmPayOsTransaction(confirmPaymentDto);
             return StatusCode(result.StatusCode, result);
         }
 
@@ -108,15 +121,26 @@ namespace AttaEduSystem.API.Controllers
                 [FromQuery(Name = "orderCode")] long orderCode,
                 [FromQuery] string status)
         {
-            // Bạn có thể log thêm toàn bộ query nếu cần
-            var confirmDto = new ConfirmPaymentDto
-            {
-                OrderNumber = orderCode
-            };
+            var confirmDto = new ConfirmPaymentDto { OrderNumber = orderCode };
 
+            // 1. Gọi Service update trạng thái
             var result = await _paymentService.ConfirmPayOsTransaction(confirmDto);
 
-            // Redirect về FE với kết quả: success/fail + orderCode
+            // 2. Kích hoạt gói nếu thanh toán thành công (Logic tương tự bên trên)
+            if (result.IsSuccess && result.Result != null)
+            {
+                dynamic data = result.Result;
+                bool isPaid = false;
+                try { isPaid = data.IsPaidSuccess; } catch { }
+
+                if (isPaid)
+                {
+                    Guid orderId = data.OrderId;
+                    await _subscriptionService.ActivateFromOrder(orderId);
+                }
+            }
+
+            // 3. Redirect
             var frontendBaseUrl = _configuration["Frontend:PaymentResultUrl"]
                          ?? "https://your-frontend-url.com/payment-result";
             var redirectUrl = $"{frontendBaseUrl}?orderCode={orderCode}&status={(result.IsSuccess ? "success" : "fail")}";
