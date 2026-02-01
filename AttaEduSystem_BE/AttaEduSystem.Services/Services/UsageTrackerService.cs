@@ -77,7 +77,8 @@ namespace AttaEduSystem.Services.Services
                     // Khởi tạo các giá trị bằng 0 để tránh null
                     TokensUsed = 0,
                     ScansUsed = 0,
-                    GeneratedExamsUsed = 0
+                    GeneratedExamsUsed = 0,
+                    SolvesUsed = 0
                 };
                 //await _unitOfWork.UserUsage.AddAsync(usage); // ko addasync ở đây
             }
@@ -97,7 +98,12 @@ namespace AttaEduSystem.Services.Services
                         return false;
                     usage.GeneratedExamsUsed += amount;
                     break;
-
+                
+                case UsageType.Solve:
+                    if (usage.SolvesUsed + amount > plan.MaxSolvesPerMonth) return false;
+                    usage.SolvesUsed += amount;
+                    break;
+                
                 case UsageType.Token:
                     if (usage.TokensUsed + amount > plan.MaxTokensPerMonth)
                         return false;
@@ -162,9 +168,11 @@ namespace AttaEduSystem.Services.Services
                 TokensUsed = usage.TokensUsed,
                 ScansUsed = usage.ScansUsed,
                 GeneratedExamsUsed = usage.GeneratedExamsUsed,
+                SolvesUsed = usage.SolvesUsed,
                 MaxTokens = plan.MaxTokensPerMonth,
                 MaxScans = plan.MaxScansPerMonth,
                 MaxGeneratedExams = plan.MaxGeneratedExamsPerMonth,
+                MaxSolves = plan.MaxSolvesPerMonth,
                 PeriodStart = usage.PeriodStart,
                 PeriodEnd = usage.PeriodEnd
             };
