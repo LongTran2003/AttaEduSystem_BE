@@ -16,8 +16,6 @@ namespace AttaEduSystem.Services.IServices
         Task<ResponseDto> ResetPassword(ResetPasswordDto resetPasswordDto);
         Task<ResponseDto> ChangePassword(ChangePasswordDto changePasswordDto, ClaimsPrincipal User);
         Task<ResponseDto> SendOTP(EmailDto sendOTPDto);
-        Task<ResponseDto> FetchUserByToken(ClaimsPrincipal user);
-        Task<ResponseDto> UpdateUserProfile(ClaimsPrincipal userPrincipal, UpdateUserProfileDto updateUserProfileDto);
         Task<ResponseDto> RefreshAccessToken(RefreshTokenDto refreshTokenDto);
     }
 }
