@@ -77,10 +77,19 @@ namespace AttaEduSystem.Services.Services
                 var totalPrice = items.Sum(i => i.price * i.quantity);
 
                 // 3. Tạo PaymentData cho PayOS
+
+                var description = $"Thanh toan {order.Plan.Code}";
+
+                // Cắt chuỗi nếu vẫn lỡ tay quá dài (Safety check)
+                if (description.Length > 25)
+                {
+                    description = description.Substring(0, 25);
+                }
+
                 var paymentData = new PaymentData(
                     createPaymentLinkDto.OrderNumber, // orderCode
                     totalPrice,
-                    $"Thanh toán gói {order.Plan.Name}",
+                    description,
                     items,
                     createPaymentLinkDto.CancelUrl,
                     createPaymentLinkDto.ReturnUrl
@@ -205,12 +214,12 @@ namespace AttaEduSystem.Services.Services
                     Message = "Payment status updated successfully",
                     IsSuccess = true,
                     StatusCode = 200,
-                    Result = new
+                    Result = new Dictionary<string, object>
                     {
-                        payment.OrderNumber,
-                        order.OrderId,
-                        payment.Status,
-                        transactionInfo.status
+                        { "orderNumber", payment.OrderNumber },
+                        { "orderId", order.OrderId },
+                        { "paymentStatus", payment.Status.ToString() },
+                        { "payOsStatus", transactionInfo.status } // Key quan trọng
                     }
                 };
             }
