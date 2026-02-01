@@ -10,6 +10,7 @@
         public int MaxTokensPerMonth { get; set; }
         public int MaxScansPerMonth { get; set; }
         public int MaxGeneratedExamsPerMonth { get; set; }
+        public int MaxSolvesPerMonth { get; set; }
         public bool IsActive { get; set; }
     }
 }
