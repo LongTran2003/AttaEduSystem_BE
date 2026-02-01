@@ -69,21 +69,31 @@ namespace AttaEduSystem.API.Controllers
             // 2. Nếu thành công và trạng thái là PAID -> Kích hoạt gói
             if (result.IsSuccess && result.Result != null)
             {
-                // Parse kết quả trả về từ Service (dùng dynamic hoặc object reflection)
-                dynamic data = result.Result;
-
-                // Kiểm tra property IsPaidSuccess mà ta vừa thêm ở Bước 1
-                // Lưu ý: Cần đảm bảo Result trả về có property này, hoặc check Status == "PAID"
-                bool isPaid = false;
-                try { isPaid = data.IsPaidSuccess; } catch { } // Hack nhẹ để lấy data dynamic
-
-                // Hoặc cách an toàn hơn: check string Status trong DB nếu cần, 
-                // nhưng ở đây ta tin tưởng Service trả về đúng.
-
-                if (isPaid)
+                try 
                 {
-                    Guid orderId = data.OrderId;
-                    await _subscriptionService.ActivateFromOrder(orderId);
+                    // 1. Ép kiểu sang Dictionary (An toàn hơn dynamic)
+                    var data = result.Result as Dictionary<string, object>;
+        
+                    // 2. Lấy status (Check null cho chắc)
+                    if (data != null && data.ContainsKey("payOsStatus"))
+                    {
+                        string payOsStatus = data["payOsStatus"]?.ToString();
+
+                        if (payOsStatus == "PAID")
+                        {
+                            // 3. Lấy OrderId
+                            if (data.ContainsKey("orderId") && Guid.TryParse(data["orderId"]?.ToString(), out Guid orderId))
+                            {
+                                // 4. Kích hoạt
+                                await _subscriptionService.ActivateFromOrder(orderId);
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // In lỗi ra console để debug nếu có sự cố
+                    Console.WriteLine("Error triggering activation: " + ex.Message);
                 }
             }
 
@@ -123,20 +133,37 @@ namespace AttaEduSystem.API.Controllers
             // 2. Kích hoạt gói nếu thanh toán thành công (Logic tương tự bên trên)
             if (result.IsSuccess && result.Result != null)
             {
-                dynamic data = result.Result;
-                bool isPaid = false;
-                try { isPaid = data.IsPaidSuccess; } catch { }
-
-                if (isPaid)
+                try 
                 {
-                    Guid orderId = data.OrderId;
-                    await _subscriptionService.ActivateFromOrder(orderId);
+                    // 1. Ép kiểu sang Dictionary (An toàn hơn dynamic)
+                    var data = result.Result as Dictionary<string, object>;
+        
+                    // 2. Lấy status (Check null cho chắc)
+                    if (data != null && data.ContainsKey("payOsStatus"))
+                    {
+                        string payOsStatus = data["payOsStatus"]?.ToString();
+
+                        if (payOsStatus == "PAID")
+                        {
+                            // 3. Lấy OrderId
+                            if (data.ContainsKey("orderId") && Guid.TryParse(data["orderId"]?.ToString(), out Guid orderId))
+                            {
+                                // 4. Kích hoạt
+                                await _subscriptionService.ActivateFromOrder(orderId);
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // In lỗi ra console để debug nếu có sự cố
+                    Console.WriteLine("Error triggering activation: " + ex.Message);
                 }
             }
 
-            // 3. Redirect
+            // 3. Redirect (Giữ nguyên)
             var frontendBaseUrl = _configuration["Frontend:PaymentResultUrl"]
-                         ?? "https://your-frontend-url.com/payment-result";
+                            ?? "https://your-frontend-url.com/payment-result";
             var redirectUrl = $"{frontendBaseUrl}?orderCode={orderCode}&status={(result.IsSuccess ? "success" : "fail")}";
 
             return Redirect(redirectUrl);
