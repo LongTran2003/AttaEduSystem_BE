@@ -76,20 +76,23 @@ namespace AttaEduSystem.API.Controllers
             if (result.IsSuccess && result.Result != null)
             {
                 // Parse kết quả trả về từ Service (dùng dynamic hoặc object reflection)
-                dynamic data = result.Result;
-
-                // Kiểm tra property IsPaidSuccess mà ta vừa thêm ở Bước 1
-                // Lưu ý: Cần đảm bảo Result trả về có property này, hoặc check Status == "PAID"
-                bool isPaid = false;
-                try { isPaid = data.IsPaidSuccess; } catch { } // Hack nhẹ để lấy data dynamic
-
-                // Hoặc cách an toàn hơn: check string Status trong DB nếu cần, 
-                // nhưng ở đây ta tin tưởng Service trả về đúng.
-
-                if (isPaid)
+                try
                 {
-                    Guid orderId = data.OrderId;
-                    await _subscriptionService.ActivateFromOrder(orderId);
+                    // Ép sang dynamic để đọc property "PayOsStatus" mà ta vừa thêm ở Service
+                    dynamic data = result.Result;
+                    string payOsStatus = data.PayOsStatus; // Lấy chuỗi "PAID"
+
+                    if (payOsStatus == "PAID")
+                    {
+                        Guid orderId = data.OrderId;
+                        // Gọi hàm kích hoạt gói
+                        await _subscriptionService.ActivateFromOrder(orderId);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // Log nhẹ nếu cần, nhưng đừng để crash API
+                    Console.WriteLine("Error activating subscription: " + ex.Message);
                 }
             }
 
@@ -129,20 +132,23 @@ namespace AttaEduSystem.API.Controllers
             // 2. Kích hoạt gói nếu thanh toán thành công (Logic tương tự bên trên)
             if (result.IsSuccess && result.Result != null)
             {
-                dynamic data = result.Result;
-                bool isPaid = false;
-                try { isPaid = data.IsPaidSuccess; } catch { }
-
-                if (isPaid)
+                try
                 {
-                    Guid orderId = data.OrderId;
-                    await _subscriptionService.ActivateFromOrder(orderId);
+                    dynamic data = result.Result;
+                    string payOsStatus = data.PayOsStatus; // Đọc trường PayOsStatus
+
+                    if (payOsStatus == "PAID")
+                    {
+                        Guid orderId = data.OrderId;
+                        await _subscriptionService.ActivateFromOrder(orderId);
+                    }
                 }
+                catch { }
             }
 
-            // 3. Redirect
+            // 3. Redirect (Giữ nguyên)
             var frontendBaseUrl = _configuration["Frontend:PaymentResultUrl"]
-                         ?? "https://your-frontend-url.com/payment-result";
+                            ?? "https://your-frontend-url.com/payment-result";
             var redirectUrl = $"{frontendBaseUrl}?orderCode={orderCode}&status={(result.IsSuccess ? "success" : "fail")}";
 
             return Redirect(redirectUrl);
