@@ -6,5 +6,6 @@
         Task<bool> SendVerificationEmailAsync(string toEmail, string emailConfirmationLink, string fullName);
         Task<bool> SendPasswordResetEmailAsync(string toEmail, string resetPasswordLink);
         Task<bool> SendChangePasswordEmailAsync(string toEmail, string changePasswordDto);
+        Task<bool> SendAccountVerificationOtpAsync(string toEmail, string otp, string userName);
     }
 }

@@ -107,6 +107,18 @@ namespace AttaEduSystem.Services.Services
             };
             return await SendEmailFromTemplateAsync(toEmail, new ChangePasswordTemplate(), placeholders);
         }
+        
+        public async Task<bool> SendAccountVerificationOtpAsync(string toEmail, string otp, string userName)
+        {
+            var placeholders = new Dictionary<string, string>
+            {
+                { "{{OTPnumbers}}", otp },
+                { "{{UserName}}", userName }
+            };
+            
+            // Sử dụng template mới tạo
+            return await SendEmailFromTemplateAsync(toEmail, new AccountVerificationOtpTemplate(), placeholders);
+        }
 
         private async Task<bool> SendEmailFromTemplateAsync(string toEmail,
             GenericEmailTemplate template,

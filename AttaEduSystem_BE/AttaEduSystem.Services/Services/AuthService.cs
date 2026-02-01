@@ -12,6 +12,7 @@ using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Web;
+using AttaEduSystem.Utilities.Template.Email;
 
 namespace AttaEduSystem.Services.Services
 {
@@ -143,18 +144,23 @@ namespace AttaEduSystem.Services.Services
 
             using (var transaction = await _unitOfWork.BeginTransactionAsync())
             {
-                // Thêm người dùng mới vào database
+                // 1. Sinh OTP kích hoạt ngay lúc tạo
+                var otp = GenerateOtp();
+                newUser.OtpCode = otp;
+                newUser.OtpExpiry = DateTime.UtcNow.AddMinutes(10); // Hết hạn sau 10 phút
+
                 var createUserResult = await _userManager.CreateAsync(newUser, signUpStudentDto.Password);
 
-                // Kiểm tra lỗi khi tạo
                 if (!createUserResult.Succeeded)
+                {
                     return new ResponseDto
                     {
                         Message = "Create user failed",
                         IsSuccess = false,
                         StatusCode = 400,
-                        Result = null
+                        Result = createUserResult.Errors
                     };
+                }
 
                 var customer = _mapper.Map<Student>(signUpStudentDto);
                 customer.UserId = newUser.Id;
@@ -163,8 +169,7 @@ namespace AttaEduSystem.Services.Services
 
                 if (!isRoleExist) await _roleManager.CreateAsync(new IdentityRole(StaticUserRoles.Student));
 
-
-                // Thêm role "Customer" cho người dùng
+                // Thêm role "Student" cho người dùng
                 var isRoleAdded = await _userManager.AddToRoleAsync(newUser, StaticUserRoles.Student);
 
                 if (!isRoleAdded.Succeeded)
@@ -181,10 +186,24 @@ namespace AttaEduSystem.Services.Services
                 await _unitOfWork.SaveAsync();
 
                 await transaction.CommitAsync();
-
+                
+                try 
+                {
+                    await _emailService.SendAccountVerificationOtpAsync(
+                        newUser.Email, 
+                        otp, 
+                        newUser.FullName
+                    );
+                }
+                catch (Exception ex)
+                {
+                    // Log lỗi nếu cần, nhưng không chặn return
+                    Console.WriteLine("Error sending OTP email: " + ex.Message);
+                }
+                
                 return new ResponseDto
                 {
-                    Message = "User created successfully",
+                    Message = "Sign up successfully. Please check email for verification",
                     IsSuccess = true,
                     StatusCode = 201,
                     Result = new
@@ -319,6 +338,45 @@ namespace AttaEduSystem.Services.Services
                 Result = null
             };
         }
+
+        public async Task<ResponseDto> VerifyOtp(VerifyOtpDto verifyOtpDto)
+        {
+            var user = await _userManager.FindByEmailAsync(verifyOtpDto.Email);
+            if (user == null)
+            {
+                return ErrorResponse.Build(StaticOperationStatus.User.UserNotFound, 404);
+            }
+
+            // Nếu đã xác thực rồi thì báo OK luôn
+            if (user.EmailConfirmed)
+            {
+                return SuccessResponse.Build("Account is already verified.", 200);
+            }
+
+            // Kiểm tra OTP
+            if (user.OtpCode != verifyOtpDto.OtpCode || user.OtpExpiry == null || user.OtpExpiry < DateTime.UtcNow)
+            {
+                return ErrorResponse.Build("Invalid or expired OTP code", 400);
+            }
+
+            // OTP Đúng -> Kích hoạt
+            user.EmailConfirmed = true; 
+            user.Status = "Active"; 
+    
+            // Xóa OTP
+            user.OtpCode = null;
+            user.OtpExpiry = null;
+
+            var result = await _userManager.UpdateAsync(user);
+
+            if (!result.Succeeded)
+            {
+                return ErrorResponse.Build("Failed to verify account", 500);
+            }
+
+            return SuccessResponse.Build("Account verified successfully.", 200);
+        }
+
         public async Task<ResponseDto> SendVerifyEmail(EmailDto emailDto)
         {
             {
@@ -530,13 +588,14 @@ namespace AttaEduSystem.Services.Services
                     Result = null
                 };
             }
-            // Sinh OTP ở AuthService
+            /*// Sinh OTP ở AuthService
             var randomGenerator = RandomNumberGenerator.Create();
             byte[] data = new byte[4];
             randomGenerator.GetBytes(data);
-            var randomNumber = BitConverter.ToUInt32(data, 0);
+            var randomNumber = BitConverter.ToUInt32(data, 0);*/
 
-            var otp = (randomNumber % 1000000).ToString("D6");
+            // Sinh OTP mới
+            var otp = GenerateOtp();
             user.OtpCode = otp;
             user.OtpExpiry = DateTime.UtcNow.AddMinutes(10);
             await _userManager.UpdateAsync(user);
@@ -558,6 +617,29 @@ namespace AttaEduSystem.Services.Services
                 StatusCode = 500,
                 Result = null
             };
+        }
+
+        public async Task<ResponseDto> ResendOTP(string email)
+        {
+            var user = await _userManager.FindByEmailAsync(email);
+            if (user == null) return ErrorResponse.Build("User not found", 404);
+
+            if (user.EmailConfirmed) return ErrorResponse.Build("Account already verified", 400);
+
+            // Sinh OTP mới
+            var otp = GenerateOtp();
+            user.OtpCode = otp;
+            user.OtpExpiry = DateTime.UtcNow.AddMinutes(10);
+            await _userManager.UpdateAsync(user);
+
+            // Gửi lại mail
+            await _emailService.SendAccountVerificationOtpAsync(
+                user.Email, 
+                otp, 
+                user.FullName
+            );
+
+            return SuccessResponse.Build("OTP resent successfully", 200);
         }
 
         /*public async Task<ResponseDto> FetchUserByToken(ClaimsPrincipal principal)
@@ -652,7 +734,7 @@ namespace AttaEduSystem.Services.Services
             };
         }*/
 
-        public async Task<ResponseDto> RefreshAccessToken(RefreshTokenDto refreshTokenDto)
+        /*public async Task<ResponseDto> RefreshAccessToken(RefreshTokenDto refreshTokenDto)
         {
             var principal = await _tokenService.GetPrincipalFromToken(refreshTokenDto.RefreshToken);
             if (principal is null)
@@ -681,6 +763,15 @@ namespace AttaEduSystem.Services.Services
                 StaticOperationStatus.Token.TokenRefreshed,
                 StaticOperationStatus.StatusCode.Ok,
                 newAccessToken);
+        }*/
+        
+        private string GenerateOtp()
+        {
+            var randomGenerator = RandomNumberGenerator.Create();
+            byte[] data = new byte[4];
+            randomGenerator.GetBytes(data);
+            var randomNumber = BitConverter.ToUInt32(data, 0);
+            return (randomNumber % 1000000).ToString("D6");
         }
     }
 }
