@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace AttaEduSystem.Models.DTOs.Authentication
+namespace AttaEduSystem.Models.DTOs.Profile
 {
     public class UpdateUserProfileDto
     {
