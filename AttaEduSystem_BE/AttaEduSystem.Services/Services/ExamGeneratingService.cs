@@ -74,7 +74,8 @@ namespace AttaEduSystem.Services.Services
                     GeneratedContentJson = newExamJson,
                     AiModelUsed = "gemini-2.5-flash",
                     CreatedBy = userId,
-                    CreatedTime = StaticOperationStatus.Timezone.Vietnam
+                    CreatedTime = StaticOperationStatus.Timezone.Vietnam,
+                    Status = "Draft"
                 };
 
                 await _unitOfWork.GeneratedExamPaper.AddAsync(generatedExam);
@@ -89,6 +90,27 @@ namespace AttaEduSystem.Services.Services
                 _logger.LogError(ex, "Error generating exam");
                 return ErrorResponse.Build("Internal Server Error", 500);
             }
+        }
+
+        public async Task<ResponseDto> UpdateStatus(Guid generatedExamId, string status, ClaimsPrincipal user)
+        {
+            var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId)) return ErrorResponse.Build(StaticOperationStatus.User.UserNotFound, 401);
+
+            var exam = await _unitOfWork.GeneratedExamPaper.GetAsync(x => x.GeneratedExamPaperId == generatedExamId);
+            if (exam == null) return ErrorResponse.Build("Generated exam not found", 404);
+
+            // Check quyền sở hữu
+            if (exam.CreatedBy != userId) return ErrorResponse.Build("You do not have permission to update this exam", 403);
+
+            exam.Status = status;
+            exam.UpdatedBy = userId;
+            exam.UpdatedTime = StaticOperationStatus.Timezone.Vietnam;
+
+            _unitOfWork.GeneratedExamPaper.Update(exam);
+            await _unitOfWork.SaveAsync();
+
+            return SuccessResponse.Build("Generated exam status updated successfully", 200);
         }
     }
 }

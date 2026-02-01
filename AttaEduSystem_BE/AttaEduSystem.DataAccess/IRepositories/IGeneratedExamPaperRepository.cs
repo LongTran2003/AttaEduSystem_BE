@@ -6,5 +6,6 @@ namespace AttaEduSystem.DataAccess.IRepositories
     {
         Task<IEnumerable<GeneratedExamPaper>> GetByOriginalExamAsync(Guid examPaperId);
         Task<IEnumerable<GeneratedExamPaper>> GetByUserAsync(string userId);
+        void Update (GeneratedExamPaper examPaper);
     }
 }

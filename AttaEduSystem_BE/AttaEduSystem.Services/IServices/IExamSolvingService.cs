@@ -7,5 +7,6 @@ namespace AttaEduSystem.Services.IServices
     {
         Task<ResponseDto> SolveExamPaper(Guid examPaperId, ClaimsPrincipal user);
         Task<ResponseDto> GetSolutionByExamId(Guid examPaperId);
+        Task<ResponseDto> UpdateStatus(Guid solutionId, string status, ClaimsPrincipal user);
     }
 }
