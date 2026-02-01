@@ -1,6 +1,5 @@
 ﻿using System.Security.Claims;
 using AttaEduSystem.Models.DTOs;
-using AttaEduSystem.Models.DTOs.Authentication;
 using AttaEduSystem.Models.DTOs.Profile;
 using AttaEduSystem.Models.Entities;
 using AttaEduSystem.Services.Helpers.Responses;
@@ -15,11 +14,13 @@ public class ProfileService : IProfileService
 {
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IMapper _mapper;
+    private readonly TokenService _tokenService;
 
-    public ProfileService(UserManager<ApplicationUser> userManager, IMapper mapper)
+    public ProfileService(UserManager<ApplicationUser> userManager, IMapper mapper, TokenService tokenService)
     {
         _userManager = userManager;
         _mapper = mapper;
+        _tokenService = tokenService;
     }
 
     public async Task<ResponseDto> GetUserProfile(ClaimsPrincipal userPrincipal)
@@ -108,4 +109,35 @@ public class ProfileService : IProfileService
                 Result = updatedUserDto
             };
         }
+    
+    public async Task<ResponseDto> RefreshAccessToken(RefreshTokenDto refreshTokenDto)
+    {
+        var principal = await _tokenService.GetPrincipalFromToken(refreshTokenDto.RefreshToken);
+        if (principal is null)
+            ErrorResponse.Build(
+                StaticOperationStatus.Token.TokenInvalid,
+                StaticOperationStatus.StatusCode.Unauthorized);
+
+        var userId = principal!.FindFirstValue(ClaimTypes.NameIdentifier);
+        var userFromDb = await _userManager.FindByIdAsync(userId);
+
+        if (userFromDb is null)
+            ErrorResponse.Build(
+                StaticOperationStatus.User.UserNotFound,
+                StaticOperationStatus.StatusCode.NotFound);
+
+        var storedRefreshToken = await _tokenService.RetrieveRefreshTokenAsync(userId);
+
+        if (storedRefreshToken != refreshTokenDto.RefreshToken)
+            ErrorResponse.Build(
+                StaticOperationStatus.Token.TokenInvalid,
+                StaticOperationStatus.StatusCode.Unauthorized);
+        // New access token creation
+        var newAccessToken = await _tokenService.GenerateJwtAccessTokenAsync(userFromDb);
+
+        return SuccessResponse.Build(
+            StaticOperationStatus.Token.TokenRefreshed,
+            StaticOperationStatus.StatusCode.Ok,
+            newAccessToken);
+    }
 }
