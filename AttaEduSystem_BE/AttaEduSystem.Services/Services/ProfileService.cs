@@ -14,9 +14,9 @@ public class ProfileService : IProfileService
 {
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IMapper _mapper;
-    private readonly TokenService _tokenService;
+    private readonly ITokenService _tokenService;
 
-    public ProfileService(UserManager<ApplicationUser> userManager, IMapper mapper, TokenService tokenService)
+    public ProfileService(UserManager<ApplicationUser> userManager, IMapper mapper, ITokenService tokenService)
     {
         _userManager = userManager;
         _mapper = mapper;
