@@ -77,7 +77,8 @@ namespace AttaEduSystem.Services.Services
                     ExamPaperId = examPaperId,
                     SolutionContentJson = solutionJson,
                     CreatedBy = userId,
-                    CreatedTime = StaticOperationStatus.Timezone.Vietnam
+                    CreatedTime = StaticOperationStatus.Timezone.Vietnam,
+                    Status = "Saved"
                 };
 
                 await _unitOfWork.ExamSolution.AddAsync(solution); 
@@ -103,6 +104,26 @@ namespace AttaEduSystem.Services.Services
             var responseDto = _mapper.Map<ExamSolutionResponseDto>(solution);
 
             return SuccessResponse.Build("Retrieved solution", 200, responseDto);
+        }
+
+        public async Task<ResponseDto> UpdateStatus(Guid solutionId, string status, ClaimsPrincipal user)
+        {
+            var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId)) return ErrorResponse.Build(StaticOperationStatus.User.UserNotFound, 401);
+
+            var solution = await _unitOfWork.ExamSolution.GetAsync(s => s.ExamSolutionId == solutionId);
+            if (solution == null) return ErrorResponse.Build("Solution not found", 404);
+
+            if (solution.CreatedBy != userId) return ErrorResponse.Build("You do not have permission to update this solution", 403);
+
+            solution.Status = status;
+            solution.UpdatedBy = userId;
+            solution.UpdatedTime = StaticOperationStatus.Timezone.Vietnam;
+
+            _unitOfWork.ExamSolution.Update(solution);
+            await _unitOfWork.SaveAsync();
+
+            return SuccessResponse.Build("Solution status updated successfully", 200);
         }
     }
 }

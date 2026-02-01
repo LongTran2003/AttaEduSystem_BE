@@ -1,4 +1,5 @@
 ﻿using AttaEduSystem.Models.DTOs;
+using AttaEduSystem.Models.DTOs.ExamPaper;
 using AttaEduSystem.Services.IServices;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -31,6 +32,15 @@ namespace AttaEduSystem.API.Controllers
         public async Task<ActionResult<ResponseDto>> GenerateSimilarExam(Guid originalExamId)
         {
             var result = await _examGeneratingService.GenerateSimilarExam(originalExamId, User);
+            return StatusCode(result.StatusCode, result);
+        }
+        
+        [HttpPut("{id:guid}/status")]
+        [SwaggerOperation(Summary = "Update generated exam status", Description = "Update status (Draft, Saved, Deleted).")]
+        public async Task<ActionResult<ResponseDto>> UpdateStatus(Guid id, [FromBody] UpdateGeneratedExamStatusDto dto)
+        {
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+            var result = await _examGeneratingService.UpdateStatus(id, dto.Status, User);
             return StatusCode(result.StatusCode, result);
         }
     }

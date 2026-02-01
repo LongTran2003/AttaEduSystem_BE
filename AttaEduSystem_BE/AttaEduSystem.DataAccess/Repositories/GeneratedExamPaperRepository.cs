@@ -29,5 +29,10 @@ namespace AttaEduSystem.DataAccess.Repositories
                 .OrderByDescending(g => g.CreatedTime)
                 .ToListAsync();
         }
+
+        public void Update(GeneratedExamPaper examPaper)
+        {
+            _context.GeneratedExamPapers.Update(examPaper);
+        }
     }   
 }

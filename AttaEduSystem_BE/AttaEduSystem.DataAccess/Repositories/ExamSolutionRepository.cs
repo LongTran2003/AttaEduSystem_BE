@@ -11,5 +11,10 @@ namespace AttaEduSystem.DataAccess.Repositories
         {
             _context = context;
         }
+
+        public void Update(ExamSolution examSolution)
+        {
+            _context.ExamSolutions.Update(examSolution);
+        }
     }
 }
