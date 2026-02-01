@@ -75,24 +75,31 @@ namespace AttaEduSystem.API.Controllers
             // 2. Nếu thành công và trạng thái là PAID -> Kích hoạt gói
             if (result.IsSuccess && result.Result != null)
             {
-                // Parse kết quả trả về từ Service (dùng dynamic hoặc object reflection)
-                try
+                try 
                 {
-                    // Ép sang dynamic để đọc property "PayOsStatus" mà ta vừa thêm ở Service
-                    dynamic data = result.Result;
-                    string payOsStatus = data.PayOsStatus; // Lấy chuỗi "PAID"
-
-                    if (payOsStatus == "PAID")
+                    // 1. Ép kiểu sang Dictionary (An toàn hơn dynamic)
+                    var data = result.Result as Dictionary<string, object>;
+        
+                    // 2. Lấy status (Check null cho chắc)
+                    if (data != null && data.ContainsKey("payOsStatus"))
                     {
-                        Guid orderId = data.OrderId;
-                        // Gọi hàm kích hoạt gói
-                        await _subscriptionService.ActivateFromOrder(orderId);
+                        string payOsStatus = data["payOsStatus"]?.ToString();
+
+                        if (payOsStatus == "PAID")
+                        {
+                            // 3. Lấy OrderId
+                            if (data.ContainsKey("orderId") && Guid.TryParse(data["orderId"]?.ToString(), out Guid orderId))
+                            {
+                                // 4. Kích hoạt
+                                await _subscriptionService.ActivateFromOrder(orderId);
+                            }
+                        }
                     }
                 }
                 catch (Exception ex)
                 {
-                    // Log nhẹ nếu cần, nhưng đừng để crash API
-                    Console.WriteLine("Error activating subscription: " + ex.Message);
+                    // In lỗi ra console để debug nếu có sự cố
+                    Console.WriteLine("Error triggering activation: " + ex.Message);
                 }
             }
 
@@ -132,18 +139,32 @@ namespace AttaEduSystem.API.Controllers
             // 2. Kích hoạt gói nếu thanh toán thành công (Logic tương tự bên trên)
             if (result.IsSuccess && result.Result != null)
             {
-                try
+                try 
                 {
-                    dynamic data = result.Result;
-                    string payOsStatus = data.PayOsStatus; // Đọc trường PayOsStatus
-
-                    if (payOsStatus == "PAID")
+                    // 1. Ép kiểu sang Dictionary (An toàn hơn dynamic)
+                    var data = result.Result as Dictionary<string, object>;
+        
+                    // 2. Lấy status (Check null cho chắc)
+                    if (data != null && data.ContainsKey("payOsStatus"))
                     {
-                        Guid orderId = data.OrderId;
-                        await _subscriptionService.ActivateFromOrder(orderId);
+                        string payOsStatus = data["payOsStatus"]?.ToString();
+
+                        if (payOsStatus == "PAID")
+                        {
+                            // 3. Lấy OrderId
+                            if (data.ContainsKey("orderId") && Guid.TryParse(data["orderId"]?.ToString(), out Guid orderId))
+                            {
+                                // 4. Kích hoạt
+                                await _subscriptionService.ActivateFromOrder(orderId);
+                            }
+                        }
                     }
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    // In lỗi ra console để debug nếu có sự cố
+                    Console.WriteLine("Error triggering activation: " + ex.Message);
+                }
             }
 
             // 3. Redirect (Giữ nguyên)
