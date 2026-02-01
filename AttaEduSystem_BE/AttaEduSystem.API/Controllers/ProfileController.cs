@@ -39,4 +39,13 @@ public class ProfileController : ControllerBase
         var responseDto = await _profileService.UpdateUserProfile(User, updateUserProfileDto);
         return StatusCode(responseDto.StatusCode, responseDto);
     }
+    
+    [HttpPost("token/refresh")]
+    [SwaggerOperation(Summary = "Refresh access token",
+        Description = "Refreshes access token using refresh token.")]
+    public async Task<IActionResult> RefreshAccessToken([FromBody] RefreshTokenDto refreshTokenDto)
+    {
+        var responseDto = await _profileService.RefreshAccessToken(refreshTokenDto);
+        return StatusCode(responseDto.StatusCode, responseDto);
+    }
 }
