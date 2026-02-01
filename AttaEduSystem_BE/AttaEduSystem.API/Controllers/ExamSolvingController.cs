@@ -1,4 +1,5 @@
 ﻿using AttaEduSystem.Models.DTOs;
+using AttaEduSystem.Models.DTOs.ExamPaper;
 using AttaEduSystem.Services.IServices;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -45,6 +46,15 @@ namespace AttaEduSystem.API.Controllers
         public async Task<ActionResult<ResponseDto>> GetSolution(Guid examPaperId)
         {
             var result = await _examSolvingService.GetSolutionByExamId(examPaperId);
+            return StatusCode(result.StatusCode, result);
+        }
+        
+        [HttpPut("{id:guid}/status")]
+        [SwaggerOperation(Summary = "Update solution status", Description = "Update status (Saved, Deleted).")]
+        public async Task<ActionResult<ResponseDto>> UpdateStatus(Guid id, [FromBody] UpdateSolutionStatusDto dto)
+        {
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+            var result = await _examSolvingService.UpdateStatus(id, dto.Status, User);
             return StatusCode(result.StatusCode, result);
         }
     }
