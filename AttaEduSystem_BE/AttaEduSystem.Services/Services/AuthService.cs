@@ -560,7 +560,7 @@ namespace AttaEduSystem.Services.Services
             };
         }
 
-        public async Task<ResponseDto> FetchUserByToken(ClaimsPrincipal principal)
+        /*public async Task<ResponseDto> FetchUserByToken(ClaimsPrincipal principal)
         {
             var userId = principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             var user = await _userManager.FindByIdAsync(userId!);
@@ -602,9 +602,9 @@ namespace AttaEduSystem.Services.Services
                 IsSuccess = true,
                 Result = userDto
             };
-        }
+        }*/
 
-        public async Task<ResponseDto> UpdateUserProfile(ClaimsPrincipal userPrincipal,
+        /*public async Task<ResponseDto> UpdateUserProfile(ClaimsPrincipal userPrincipal,
         UpdateUserProfileDto updateUserProfileDto)
         {
             // Lấy thông tin người dùng từ token JWT
@@ -650,7 +650,7 @@ namespace AttaEduSystem.Services.Services
                 IsSuccess = true,
                 Result = updatedUserDto
             };
-        }
+        }*/
 
         public async Task<ResponseDto> RefreshAccessToken(RefreshTokenDto refreshTokenDto)
         {

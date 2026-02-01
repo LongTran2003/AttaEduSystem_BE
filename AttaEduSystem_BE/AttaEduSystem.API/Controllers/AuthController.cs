@@ -118,23 +118,23 @@ namespace AttaEduSystem.API.Controllers
             return StatusCode(responseDto.StatusCode, responseDto);
         }
 
-        [HttpGet("user")]
+        /*[HttpGet("user")]
         [SwaggerOperation(Summary = "Get user info",
             Description = "Fetches user info from JWT token.")]
         public async Task<IActionResult> GetUserByToken()
         {
             var responseDto = await _authService.FetchUserByToken(User);
             return StatusCode(responseDto.StatusCode, responseDto);
-        }
+        }*/
 
-        [HttpPut("profile")]
+        /*[HttpPut("profile")]
         [SwaggerOperation(Summary = "Update user profile",
        Description = "Updates the logged-in user's profile.")]
         public async Task<IActionResult> UpdateUserProfile([FromBody] UpdateUserProfileDto updateUserProfileDto)
         {
             var responseDto = await _authService.UpdateUserProfile(User, updateUserProfileDto);
             return StatusCode(responseDto.StatusCode, responseDto);
-        }
+        }*/
 
         [HttpPost("token/refresh")]
         [SwaggerOperation(Summary = "Refresh access token",

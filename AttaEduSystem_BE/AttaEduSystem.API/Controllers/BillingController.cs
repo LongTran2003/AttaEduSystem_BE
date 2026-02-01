@@ -30,7 +30,6 @@ namespace AttaEduSystem.API.Controllers
         [HttpGet("plans")]
         [AllowAnonymous]
         [SwaggerOperation(Summary = "Get subscription plans", Description = "Returns all active subscription plans.")]
-        [ProducesResponseType(typeof(ResponseDto), StatusCodes.Status200OK)]
         public async Task<ActionResult<ResponseDto>> GetPlans()
         {
             var result = await _subscriptionService.GetAvailablePlans();
@@ -42,8 +41,6 @@ namespace AttaEduSystem.API.Controllers
         /// </summary>
         [HttpGet("subscription")]
         [SwaggerOperation(Summary = "Get current subscription", Description = "Returns the active subscription of current user.")]
-        [ProducesResponseType(typeof(ResponseDto), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(ResponseDto), StatusCodes.Status401Unauthorized)]
         public async Task<ActionResult<ResponseDto>> GetCurrentSubscription()
         {
             var result = await _subscriptionService.GetCurrentSubscription(User);
@@ -55,8 +52,6 @@ namespace AttaEduSystem.API.Controllers
         /// </summary>
         [HttpGet("usage")]
         [SwaggerOperation(Summary = "Get usage info", Description = "Returns current usage and limits based on subscription.")]
-        [ProducesResponseType(typeof(ResponseDto), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(ResponseDto), StatusCodes.Status401Unauthorized)]
         public async Task<ActionResult<ResponseDto>> GetUsage()
         {
             var result = await _usageTracker.GetUsageInfo(User);
@@ -70,10 +65,6 @@ namespace AttaEduSystem.API.Controllers
         [SwaggerOperation(
             Summary = "Create checkout session",
             Description = "Creates an order for selected subscription plan and returns PayOS checkout URL.")]
-        [ProducesResponseType(typeof(ResponseDto), StatusCodes.Status201Created)]
-        [ProducesResponseType(typeof(ResponseDto), StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(typeof(ResponseDto), StatusCodes.Status401Unauthorized)]
-        [ProducesResponseType(typeof(ResponseDto), StatusCodes.Status404NotFound)]
         public async Task<ActionResult<ResponseDto>> CreateCheckout([FromBody] CreateCheckoutRequestDto dto)
         {
             if (!ModelState.IsValid)
