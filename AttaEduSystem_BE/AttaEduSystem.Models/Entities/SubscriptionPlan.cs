@@ -25,6 +25,7 @@ namespace AttaEduSystem.Models.Entities
             public int MaxTokensPerMonth { get; set; }
             public int MaxScansPerMonth { get; set; }
             public int MaxGeneratedExamsPerMonth { get; set; }
+            public int MaxSolvesPerMonth { get; set; }
 
             // Bật/tắt các tính năng nâng cao (có thể parse JSON ở tầng service)
             public string? FeaturesJson { get; set; }

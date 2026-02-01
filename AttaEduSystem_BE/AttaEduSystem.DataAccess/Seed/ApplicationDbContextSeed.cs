@@ -78,6 +78,7 @@ namespace AttaEduSystem.DataAccess.Seed
                 PricePerMonth = 0, // Miễn phí
                 MaxScansPerMonth = 5, // Cho scan thử 5 lần
                 MaxGeneratedExamsPerMonth = 0, // Không cho tạo đề
+                MaxSolvesPerMonth = 0, // Free không được giải đề
                 // MaxTokensPerMonth = 1000, // (Nếu entity bạn có field này)
                 IsActive = true,
                 CreatedBy = "System",
@@ -94,6 +95,7 @@ namespace AttaEduSystem.DataAccess.Seed
                 PricePerMonth = 2000, // 2,000 VND (Rẻ hơn ly trà đá để test PayOS)
                 MaxScansPerMonth = 100, // Scan thoải mái
                 MaxGeneratedExamsPerMonth = 50, // Tạo đề thoải mái
+                MaxSolvesPerMonth = 100, // Solve tùm lum
                 // MaxTokensPerMonth = 100000, 
                 IsActive = true,
                 CreatedBy = "System",

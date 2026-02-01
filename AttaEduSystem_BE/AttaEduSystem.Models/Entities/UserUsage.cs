@@ -24,5 +24,6 @@ namespace AttaEduSystem.Models.Entities
         public int TokensUsed { get; set; }
         public int ScansUsed { get; set; }
         public int GeneratedExamsUsed { get; set; }
+        public int SolvesUsed { get; set; }
     }
 }
