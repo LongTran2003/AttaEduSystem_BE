@@ -123,7 +123,7 @@ namespace AttaEduSystem.API.Controllers
         /// Updates the status of an exam paper (e.g., confirmed, removed).
         /// </summary>
         [HttpPut("{id:guid}/status")]
-        [SwaggerOperation(Summary = "Update exam paper status", Description = "Allows teachers to confirm or remove scanned exam papers")]
+        [SwaggerOperation(Summary = "Update exam paper status", Description = "Allows user to confirm or remove scanned exam papers")]
         public async Task<ActionResult<ResponseDto>> UpdateExamPaperStatus(Guid id, [FromBody] UpdateExamPaperStatusDto dto)
         {
             var result = await _examScanningService.UpdateExamPaperStatus(id, dto.Status, User);
