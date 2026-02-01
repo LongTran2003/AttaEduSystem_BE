@@ -33,9 +33,6 @@ namespace AttaEduSystem.API.Controllers
         [SwaggerOperation(
             Summary = "Create PayOS payment link",
             Description = "Creates a PayOS payment link for the specified orderNumber.")]
-        [ProducesResponseType(typeof(ResponseDto), StatusCodes.Status201Created)]
-        [ProducesResponseType(typeof(ResponseDto), StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(typeof(ResponseDto), StatusCodes.Status404NotFound)]
         public async Task<ActionResult<ResponseDto>> CreatePayOsPaymentLink(
             [FromBody] CreatePaymentLinkDto createPaymentLinkDto)
         {
@@ -63,9 +60,6 @@ namespace AttaEduSystem.API.Controllers
         [SwaggerOperation(
             Summary = "Confirm PayOS transaction",
             Description = "Confirms payment status from PayOS for a given orderNumber.")]
-        [ProducesResponseType(typeof(ResponseDto), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(ResponseDto), StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(typeof(ResponseDto), StatusCodes.Status404NotFound)]
         public async Task<ActionResult<ResponseDto>> ConfirmPayOsTransaction(
             [FromBody] ConfirmPaymentDto confirmPaymentDto)
         {

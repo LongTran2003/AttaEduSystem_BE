@@ -11,6 +11,7 @@ using AttaEduSystem.Services.IServices;
 using AttaEduSystem.Utilities.Constants;
 using AutoMapper;
 using System.Text.Json;
+using AttaEduSystem.Models.DTOs.Profile;
 
 namespace AttaEduSystem.Services.Mapping
 {
