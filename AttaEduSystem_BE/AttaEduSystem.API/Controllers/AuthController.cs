@@ -20,10 +20,8 @@ namespace AttaEduSystem.API.Controllers
             _authService = authService;
         }
 
-        [HttpPost("students/register")]
+        [HttpPost("register/student")]
         [SwaggerOperation(Summary = "Register a new student account", Description = "Creates a new student account. Requires Guest or Teacher role.")]
-        [ProducesResponseType(typeof(ResponseDto), 201)]
-        [ProducesResponseType(typeof(ResponseDto), 400)]
         public async Task<ActionResult<ResponseDto>> SignUpStudent([FromBody] SignUpStudentDto signUpStudentDto)
         {
             if (!ModelState.IsValid)
@@ -40,7 +38,7 @@ namespace AttaEduSystem.API.Controllers
                 : BadRequest(result);
         }
 
-        [HttpPost("teacher/register")]
+        [HttpPost("register/teacher")]
         [SwaggerOperation(Summary = "Register a new teacher account", Description = "Creates a new teacher account. Requires Admin role.")]
         public async Task<ActionResult<ResponseDto>> SignUpTeacher([FromBody] SignUpTeacherDto signUpTeacherDto)
         {
@@ -58,7 +56,7 @@ namespace AttaEduSystem.API.Controllers
                 : BadRequest(result);
         }
 
-        [HttpPost("sign-in")]
+        [HttpPost("account/sign-in")]
         [SwaggerOperation(Summary = "Sign in user", Description = "Authenticates a user by email and password. Requires verified email.")]
         public async Task<ActionResult<ResponseDto>> SignIn([FromBody] SignInDto signInDto)
         {
@@ -66,23 +64,39 @@ namespace AttaEduSystem.API.Controllers
             return StatusCode(responseDto.StatusCode, responseDto);
         }
 
-        [HttpPost("email/verification/send")]
+        [HttpPost("verification/email")]
         [SwaggerOperation(Summary = "Send verification email", Description = "Sends a verification email to a registered email address.")]
         public async Task<ActionResult<ResponseDto>> SendVerifyEmail([FromBody] EmailDto emailDto)
         {
             var responseDto = await _authService.SendVerifyEmail(emailDto);
             return StatusCode(responseDto.StatusCode, responseDto);
         }
+        
+        [HttpPost("verification/otp")]
+        [SwaggerOperation(Summary = "Verify new account with OTP", Description = "Activates the newly registered student account using the OTP sent via email.")]
+        public async Task<IActionResult> SendVerifyOtp([FromBody] VerifyOtpDto verifyOtpDto)
+        {
+            var result = await _authService.VerifyOtp(verifyOtpDto);
+            return StatusCode(result.StatusCode, result);
+        }
 
-        [HttpPost("email/verification/confirm")]
+        [HttpPost("verification/confirm")]
         [SwaggerOperation(Summary = "Confirm email verification", Description = "Confirms a user's email verification code.")]
         public async Task<ActionResult<ResponseDto>> VerifyEmail([FromBody] VerifyEmailDto verifyEmailDto)
         {
             var responseDto = await _authService.VerifyEmail(verifyEmailDto);
             return StatusCode(responseDto.StatusCode, responseDto);
         }
+        
+        [HttpPost("verification/resend-otp")]
+        [SwaggerOperation(Summary = "Resend verification OTP", Description = "Resends a new OTP if the previous one expired.")]
+        public async Task<IActionResult> ResendAccountOTP([FromBody] EmailDto emailDto)
+        {
+            var result = await _authService.ResendOTP(emailDto.Email);
+            return StatusCode(result.StatusCode, result);
+        }
 
-        [HttpPost("passwords/forgot")]
+        [HttpPost("password/forgot")]
         [SwaggerOperation(Summary = "Send forgot password email",
         Description = "Sends a password reset email for an existing account.")]
         public async Task<IActionResult> ForgotPassword([FromBody] EmailDto forgotPasswordDto)
@@ -91,7 +105,7 @@ namespace AttaEduSystem.API.Controllers
             return StatusCode(responseDto.StatusCode, responseDto);
         }
 
-        [HttpPost("passwords/reset")]
+        [HttpPost("password/reset")]
         [SwaggerOperation(Summary = "Reset password",
             Description = "Resets password for an existing account.")]
         public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto resetPasswordDto)
@@ -100,7 +114,7 @@ namespace AttaEduSystem.API.Controllers
             return StatusCode(responseDto.StatusCode, responseDto);
         }
 
-        [HttpPost("passwords/otp")]
+        [HttpPost("password/otp")]
         [SwaggerOperation(Summary = "Send OTP for password change",
             Description = "Sends a one-time password (OTP) to change account password.")]
         public async Task<IActionResult> SendOTP([FromBody] EmailDto emailDto)
@@ -109,7 +123,7 @@ namespace AttaEduSystem.API.Controllers
             return StatusCode(responseDto.StatusCode, responseDto);
         }
 
-        [HttpPost("passwords/change")]
+        [HttpPost("password/change")]
         [SwaggerOperation(Summary = "Change password",
             Description = "Changes password for the currently logged-in user.")]
         public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDto changePasswordDto)
@@ -136,13 +150,13 @@ namespace AttaEduSystem.API.Controllers
             return StatusCode(responseDto.StatusCode, responseDto);
         }*/
 
-        [HttpPost("token/refresh")]
+        /*[HttpPost("token/refresh")]
         [SwaggerOperation(Summary = "Refresh access token",
         Description = "Refreshes access token using refresh token.")]
         public async Task<IActionResult> RefreshAccessToken([FromBody] RefreshTokenDto refreshTokenDto)
         {
             var responseDto = await _authService.RefreshAccessToken(refreshTokenDto);
             return StatusCode(responseDto.StatusCode, responseDto);
-        }
+        }*/
     }
 }
