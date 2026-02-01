@@ -80,9 +80,17 @@ namespace AttaEduSystem.Services.Services
             var existingSub = await _unitOfWork.UserSubscription.GetActiveByUserIdAsync(order.UserId);
             if (existingSub != null)
             {
-                // Gia hạn subscription hiện tại
-                existingSub.EndDate = existingSub.EndDate.AddMonths(1);
+                // 1. Cập nhật sang Plan mới (QUAN TRỌNG NHẤT)
+                existingSub.SubscriptionPlanId = order.SubscriptionPlanId; 
+        
+                // 2. Reset ngày bắt đầu và kết thúc theo gói mới
+                existingSub.StartDate = DateTime.UtcNow;
+                existingSub.EndDate = DateTime.UtcNow.AddMonths(1);
+        
+                // 3. Cập nhật trạng thái
+                existingSub.Status = "Active";
                 existingSub.UpdatedTime = DateTime.UtcNow;
+        
                 _unitOfWork.UserSubscription.Update(existingSub);
             }
             else
