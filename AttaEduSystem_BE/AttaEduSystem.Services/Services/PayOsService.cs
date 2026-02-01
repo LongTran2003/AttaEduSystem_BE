@@ -214,12 +214,12 @@ namespace AttaEduSystem.Services.Services
                     Message = "Payment status updated successfully",
                     IsSuccess = true,
                     StatusCode = 200,
-                    Result = new
+                    Result = new Dictionary<string, object>
                     {
-                        payment.OrderNumber,
-                        order.OrderId,
-                        PaymentStatus = payment.Status.ToString(),
-                        PayOsStatus = transactionInfo.status
+                        { "orderNumber", payment.OrderNumber },
+                        { "orderId", order.OrderId },
+                        { "paymentStatus", payment.Status.ToString() },
+                        { "payOsStatus", transactionInfo.status } // Key quan trọng
                     }
                 };
             }
