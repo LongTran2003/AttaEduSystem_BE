@@ -24,59 +24,52 @@ namespace AttaEduSystem.API.Controllers
             _usageTracker = usageTracker;
         }
 
-        /// <summary>
-        /// Get all available subscription plans.
-        /// </summary>
+        // Helper validate
+        private ActionResult<ResponseDto> ReturnInvalidInputResponse()
+        {
+            return StatusCode(400, new ResponseDto
+            {
+                IsSuccess = false,
+                StatusCode = 400,
+                Message = "Invalid input data.",
+                Result = ModelState.Values.SelectMany(v => v.Errors.Select(e => e.ErrorMessage))
+            });
+        }
+        
         [HttpGet("plans")]
         [AllowAnonymous]
-        [SwaggerOperation(Summary = "Get subscription plans", Description = "Returns all active subscription plans.")]
+        [SwaggerOperation(Summary = "List subscription plans", 
+            Description = "Returns all active subscription plans available for purchase.")]
         public async Task<ActionResult<ResponseDto>> GetPlans()
         {
             var result = await _subscriptionService.GetAvailablePlans();
             return StatusCode(result.StatusCode, result);
         }
 
-        /// <summary>
-        /// Get current user's active subscription.
-        /// </summary>
         [HttpGet("subscription")]
-        [SwaggerOperation(Summary = "Get current subscription", Description = "Returns the active subscription of current user.")]
+        [SwaggerOperation(Summary = "Get current subscription", 
+            Description = "Returns the active subscription details of the current user.")]
         public async Task<ActionResult<ResponseDto>> GetCurrentSubscription()
         {
             var result = await _subscriptionService.GetCurrentSubscription(User);
             return StatusCode(result.StatusCode, result);
         }
 
-        /// <summary>
-        /// Get current usage and limits for the user.
-        /// </summary>
         [HttpGet("usage")]
-        [SwaggerOperation(Summary = "Get usage info", Description = "Returns current usage and limits based on subscription.")]
+        [SwaggerOperation(Summary = "Get usage statistics", 
+            Description = "Returns current usage (scans, solves, etc.) vs limits of the plan.")]
         public async Task<ActionResult<ResponseDto>> GetUsage()
         {
             var result = await _usageTracker.GetUsageInfo(User);
             return StatusCode(result.StatusCode, result);
         }
 
-        /// <summary>
-        /// Create checkout session for a subscription plan (Order + PayOS link).
-        /// </summary>
         [HttpPost("checkout")]
-        [SwaggerOperation(
-            Summary = "Create checkout session",
-            Description = "Creates an order for selected subscription plan and returns PayOS checkout URL.")]
+        [SwaggerOperation(Summary = "Create checkout session", 
+            Description = "Creates a pending order and returns PayOS payment link.")]
         public async Task<ActionResult<ResponseDto>> CreateCheckout([FromBody] CreateCheckoutRequestDto dto)
         {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(new ResponseDto
-                {
-                    IsSuccess = false,
-                    StatusCode = StatusCodes.Status400BadRequest,
-                    Message = "Invalid input data.",
-                    Result = ModelState.Values.SelectMany(v => v.Errors.Select(e => e.ErrorMessage))
-                });
-            }
+            if (!ModelState.IsValid) return ReturnInvalidInputResponse();
 
             var result = await _subscriptionService.CreateCheckout(User, dto);
             return StatusCode(result.StatusCode, result);
