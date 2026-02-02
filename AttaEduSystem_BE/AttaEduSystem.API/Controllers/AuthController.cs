@@ -20,40 +20,38 @@ namespace AttaEduSystem.API.Controllers
             _authService = authService;
         }
 
+        private ActionResult<ResponseDto> ReturnInvalidInputResponse()
+        {
+            return StatusCode(400, new ResponseDto
+            {
+                IsSuccess = false,
+                StatusCode = 400,
+                Message = "Invalid input data.",
+                Result = ModelState.Values.SelectMany(v => v.Errors.Select(e => e.ErrorMessage))
+            });
+        }
+        
         [HttpPost("register/student")]
         [SwaggerOperation(Summary = "Register a new student account", Description = "Creates a new student account. Requires Guest or Teacher role.")]
         public async Task<ActionResult<ResponseDto>> SignUpStudent([FromBody] SignUpStudentDto signUpStudentDto)
         {
-            if (!ModelState.IsValid)
-                return BadRequest(new ResponseDto
-                {
-                    IsSuccess = false,
-                    Message = "Invalid input data.",
-                    Result = ModelState.Values.SelectMany(v => v.Errors.Select(e => e.ErrorMessage))
-                });
+            if (!ModelState.IsValid) return ReturnInvalidInputResponse(); // Hàm helper đã viết ở phần trước hoặc dùng BadRequest chuẩn
 
             var result = await _authService.SignUpStudent(signUpStudentDto);
-            return result.IsSuccess
-                ? CreatedAtAction(nameof(SignUpStudent), result.Result, result)
-                : BadRequest(result);
+    
+            // SỬA: Luôn dùng StatusCode lấy từ Service (201, 400, 500...)
+            // Thay vì CreatedAtAction hoặc BadRequest
+            return StatusCode(result.StatusCode, result);
         }
 
         [HttpPost("register/teacher")]
         [SwaggerOperation(Summary = "Register a new teacher account", Description = "Creates a new teacher account. Requires Admin role.")]
         public async Task<ActionResult<ResponseDto>> SignUpTeacher([FromBody] SignUpTeacherDto signUpTeacherDto)
         {
-            if (!ModelState.IsValid)
-                return BadRequest(new ResponseDto
-                {
-                    IsSuccess = false,
-                    Message = "Invalid input data.",
-                    Result = ModelState.Values.SelectMany(v => v.Errors.Select(e => e.ErrorMessage))
-                });
+            if (!ModelState.IsValid) return ReturnInvalidInputResponse();
 
             var result = await _authService.SignUpTeacher(signUpTeacherDto);
-            return result.IsSuccess
-                ? CreatedAtAction(nameof(SignUpTeacher), result.Result, result)
-                : BadRequest(result);
+            return StatusCode(result.StatusCode, result);
         }
 
         [HttpPost("account/sign-in")]
@@ -158,5 +156,7 @@ namespace AttaEduSystem.API.Controllers
             var responseDto = await _authService.RefreshAccessToken(refreshTokenDto);
             return StatusCode(responseDto.StatusCode, responseDto);
         }*/
+        
+        
     }
 }
