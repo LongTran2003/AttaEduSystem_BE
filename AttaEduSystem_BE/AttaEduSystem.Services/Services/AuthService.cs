@@ -47,43 +47,24 @@ namespace AttaEduSystem.Services.Services
         public async Task<ResponseDto> SignIn(SignInDto signInDto)
         {
             var user = await _userManager.FindByEmailAsync(signInDto.Email);
+            
+            // User không tồn tại -> Trả về 401 (Chuẩn bảo mật, không lộ email)
             if (user == null)
-                return new ResponseDto
-                {
-                    Message = "User does not exist!",
-                    Result = null,
-                    IsSuccess = false,
-                    StatusCode = 404
-                };
+                return ErrorResponse.Build("Incorrect email or password", 401);
 
             var isPasswordCorrect = await _userManager.CheckPasswordAsync(user, signInDto.Password);
 
+            // Sai mật khẩu -> Trả về 401 (Thay vì 400 Bad Request)
             if (!isPasswordCorrect)
-                return new ResponseDto
-                {
-                    Message = "Incorrect email or password",
-                    Result = null,
-                    IsSuccess = false,
-                    StatusCode = 400
-                };
-
+                return ErrorResponse.Build("Incorrect email or password", 401);
+            
+            // Check email chưa confirmed
             if (!user.EmailConfirmed)
-                return new ResponseDto
-                {
-                    Message = "You need to confirm email!",
-                    Result = null,
-                    IsSuccess = false,
-                    StatusCode = 401
-                };
-
-            if (user.LockoutEnd is not null)
-                return new ResponseDto
-                {
-                    Message = "User has been locked",
-                    IsSuccess = false,
-                    StatusCode = 403,
-                    Result = null
-                };
+                return ErrorResponse.Build("You need to confirm email!", 401);
+            
+            // Check user có bị ban acc
+            if (user.LockoutEnd is not null && user.LockoutEnd > DateTime.UtcNow)
+                return ErrorResponse.Build("User has been locked", 403);
 
             // 1) Lấy plan code từ DB (mặc định FREE nếu không có subscription)
             var planCode = "FREE";
@@ -101,17 +82,11 @@ namespace AttaEduSystem.Services.Services
             var refreshToken = await _tokenService.GenerateJwtRefreshTokenAsync(user);
             await _tokenService.StoreRefreshToken(user.Id, refreshToken);
 
-            return new ResponseDto
+            return SuccessResponse.Build("Sign in successfully", 200, new SignInResponseDto
             {
-                Result = new SignInResponseDto
-                {
-                    AccessToken = accessToken,
-                    RefreshToken = refreshToken
-                },
-                Message = "Sign in successfully",
-                IsSuccess = true,
-                StatusCode = 200
-            };
+                AccessToken = accessToken,
+                RefreshToken = refreshToken
+            });
         }
 
         public async Task<ResponseDto> SignUpStudent(SignUpStudentDto signUpStudentDto)
@@ -435,14 +410,9 @@ namespace AttaEduSystem.Services.Services
         {
             var user = await _userManager.FindByEmailAsync(forgotPasswordDto.Email);
 
+            // Không tìm thấy email -> Trả về 404 (Thay vì 400)
             if (user == null)
-                return new ResponseDto
-                {
-                    IsSuccess = true,
-                    Message = "No account found matching the provided email.",
-                    StatusCode = 400,
-                    Result = null
-                };
+                return ErrorResponse.Build("No account found matching the provided email.", 404);
 
             //token reset password
             var token = await _userManager.GeneratePasswordResetTokenAsync(user);
@@ -454,22 +424,10 @@ namespace AttaEduSystem.Services.Services
 
             var emailSent = await _emailService.SendPasswordResetEmailAsync(user.Email!, resetLink);
 
-            if (emailSent)
-                return new ResponseDto
-                {
-                    IsSuccess = true,
-                    Message = "Password reset email sent successfully.",
-                    StatusCode = 200,
-                    Result = null
-                };
+            if (emailSent) 
+                return SuccessResponse.Build("Password reset email sent successfully.", 200);
 
-            return new ResponseDto
-            {
-                IsSuccess = false,
-                Message = "Failed to send password reset email.",
-                StatusCode = 500,
-                Result = null
-            };
+            return ErrorResponse.Build("Failed to send password reset email.", 500);
         }
 
         public async Task<ResponseDto> ResetPassword(ResetPasswordDto resetPasswordDto)
