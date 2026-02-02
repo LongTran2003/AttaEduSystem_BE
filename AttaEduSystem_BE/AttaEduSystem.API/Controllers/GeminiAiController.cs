@@ -7,6 +7,7 @@ namespace AttaEduSystem.API.Controllers
 {
     [ApiController]
     [Route("api/gemini-ai")]
+    [ApiExplorerSettings(IgnoreApi = true)]
     [SwaggerTag("Gemini AI Integration APIs")]
 
     public class GeminiAiController : ControllerBase

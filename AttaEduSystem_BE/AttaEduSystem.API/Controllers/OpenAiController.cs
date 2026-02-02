@@ -9,6 +9,7 @@ namespace AttaEduSystem.API.Controllers
 {
     [ApiController]
     [Route("api/open-ai")]
+    [ApiExplorerSettings(IgnoreApi = true)]
     [SwaggerTag("OpenAI Integration APIs (broken)")]
 
     public class OpenAiController : ControllerBase
