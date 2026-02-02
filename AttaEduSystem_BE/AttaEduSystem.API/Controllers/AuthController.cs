@@ -19,7 +19,8 @@ namespace AttaEduSystem.API.Controllers
         {
             _authService = authService;
         }
-
+        
+        // Helper validate
         private ActionResult<ResponseDto> ReturnInvalidInputResponse()
         {
             return StatusCode(400, new ResponseDto
