@@ -20,29 +20,31 @@ namespace AttaEduSystem.API.Controllers
             _examSolvingService = examSolvingService;
         }
 
-        /// <summary>
-        /// Trigger AI to solve a specific exam paper and save the solution.
-        /// </summary>
-        /// <param name="examPaperId">The ID of the exam paper to solve.</param>
-        [Authorize(Policy = "RequireProPlan")]
+        // Helper validate
+        private ActionResult<ResponseDto> ReturnInvalidInputResponse()
+        {
+            return StatusCode(400, new ResponseDto
+            {
+                IsSuccess = false,
+                StatusCode = 400,
+                Message = "Invalid input data.",
+                Result = ModelState.Values.SelectMany(v => v.Errors.Select(e => e.ErrorMessage))
+            });
+        }
+        
         [HttpPost("{examPaperId:guid}/solve")]
-        [SwaggerOperation(
-            Summary = "Solve an exam paper",
-            Description = "Uses Gemini AI to generate step-by-step solutions for the scanned exam paper.")]
+        [Authorize(Policy = "RequireProPlan")]
+        [SwaggerOperation(Summary = "Solve an exam paper", 
+            Description = "Uses AI to generate step-by-step solutions.")]
         public async Task<ActionResult<ResponseDto>> SolveExam(Guid examPaperId)
         {
             var result = await _examSolvingService.SolveExamPaper(examPaperId, User);
             return StatusCode(result.StatusCode, result);
         }
 
-        /// <summary>
-        /// Retrieve the existing solution for an exam paper.
-        /// </summary>
-        /// <param name="examPaperId">The ID of the exam paper.</param>
         [HttpGet("{examPaperId:guid}")]
-        [SwaggerOperation(
-            Summary = "Get exam solution",
-            Description = "Retrieves the saved solution for a specific exam paper.")]
+        [SwaggerOperation(Summary = "Get solution for exam", 
+            Description = "Retrieves the saved AI solution for a specific exam.")]
         public async Task<ActionResult<ResponseDto>> GetSolution(Guid examPaperId)
         {
             var result = await _examSolvingService.GetSolutionByExamId(examPaperId);
@@ -50,10 +52,12 @@ namespace AttaEduSystem.API.Controllers
         }
         
         [HttpPut("{id:guid}/status")]
-        [SwaggerOperation(Summary = "Update solution status", Description = "Update status (Saved, Deleted).")]
+        [SwaggerOperation(Summary = "Update solution status", 
+            Description = "Update status (Saved, Deleted) for a solution.")]
         public async Task<ActionResult<ResponseDto>> UpdateStatus(Guid id, [FromBody] UpdateSolutionStatusDto dto)
         {
-            if (!ModelState.IsValid) return BadRequest(ModelState);
+            if (!ModelState.IsValid) return ReturnInvalidInputResponse();
+
             var result = await _examSolvingService.UpdateStatus(id, dto.Status, User);
             return StatusCode(result.StatusCode, result);
         }
