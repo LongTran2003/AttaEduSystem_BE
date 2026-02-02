@@ -20,15 +20,22 @@ namespace AttaEduSystem.API.Controllers
             _examGeneratingService = examGeneratingService;
         }
 
-        /// <summary>
-        /// Generate a new similar exam based on an original exam paper's structure.
-        /// </summary>
-        /// <param name="originalExamId">The ID of the scanned exam paper to use as a template.</param>
-        [Authorize(Policy = "RequireProPlan")]
+        // Helper validate
+        private ActionResult<ResponseDto> ReturnInvalidInputResponse()
+        {
+            return StatusCode(400, new ResponseDto
+            {
+                IsSuccess = false,
+                StatusCode = 400,
+                Message = "Invalid input data.",
+                Result = ModelState.Values.SelectMany(v => v.Errors.Select(e => e.ErrorMessage))
+            });
+        }
+        
         [HttpPost("{originalExamId:guid}/generate-similar")]
-        [SwaggerOperation(
-            Summary = "Generate similar exam",
-            Description = "Creates a new practice exam with different numbers/context but same structure as the original.")]
+        [Authorize(Policy = "RequireProPlan")]
+        [SwaggerOperation(Summary = "Generate similar exam", 
+            Description = "Uses AI to generate a new exam based on the structure of an original exam.")]
         public async Task<ActionResult<ResponseDto>> GenerateSimilarExam(Guid originalExamId)
         {
             var result = await _examGeneratingService.GenerateSimilarExam(originalExamId, User);
@@ -36,10 +43,12 @@ namespace AttaEduSystem.API.Controllers
         }
         
         [HttpPut("{id:guid}/status")]
-        [SwaggerOperation(Summary = "Update generated exam status", Description = "Update status (Draft, Saved, Deleted).")]
+        [SwaggerOperation(Summary = "Update generated exam status", 
+            Description = "Update status (Draft, Saved, Deleted) for a generated exam.")]
         public async Task<ActionResult<ResponseDto>> UpdateStatus(Guid id, [FromBody] UpdateGeneratedExamStatusDto dto)
         {
-            if (!ModelState.IsValid) return BadRequest(ModelState);
+            if (!ModelState.IsValid) return ReturnInvalidInputResponse();
+
             var result = await _examGeneratingService.UpdateStatus(id, dto.Status, User);
             return StatusCode(result.StatusCode, result);
         }
