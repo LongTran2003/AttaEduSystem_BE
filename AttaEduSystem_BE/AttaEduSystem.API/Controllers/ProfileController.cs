@@ -1,4 +1,5 @@
-﻿using AttaEduSystem.Models.DTOs.Profile;
+﻿using AttaEduSystem.Models.DTOs;
+using AttaEduSystem.Models.DTOs.Profile;
 using AttaEduSystem.Services.IServices;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -20,31 +21,46 @@ public class ProfileController : ControllerBase
         _profileService = profileService;
     }
 
+    // Helper validate
+    private ActionResult<ResponseDto> ReturnInvalidInputResponse()
+    {
+        return StatusCode(400, new ResponseDto
+        {
+            IsSuccess = false,
+            StatusCode = 400,
+            Message = "Invalid input data.",
+            Result = ModelState.Values.SelectMany(v => v.Errors.Select(e => e.ErrorMessage))
+        });
+    }
+    
     [HttpGet("me")]
-    [SwaggerOperation(
-        Summary = "Get current user profile",
+    [SwaggerOperation(Summary = "Get current user profile", 
         Description = "Fetches detailed profile information of the logged-in user.")]
-    public async Task<IActionResult> GetUserProfile()
+    public async Task<ActionResult<ResponseDto>> GetUserProfile()
     {
         var responseDto = await _profileService.GetUserProfile(User);
         return StatusCode(responseDto.StatusCode, responseDto);
     }
 
     [HttpPut("update")]
-    [SwaggerOperation(
-        Summary = "Update user profile",
+    [SwaggerOperation(Summary = "Update user profile", 
         Description = "Updates personal information (Full Name, Address, Phone, etc.) of the logged-in user.")]
-    public async Task<IActionResult> UpdateUserProfile([FromBody] UpdateUserProfileDto updateUserProfileDto)
+    public async Task<ActionResult<ResponseDto>> UpdateUserProfile([FromBody] UpdateUserProfileDto updateUserProfileDto)
     {
+        if (!ModelState.IsValid) return ReturnInvalidInputResponse();
+
         var responseDto = await _profileService.UpdateUserProfile(User, updateUserProfileDto);
         return StatusCode(responseDto.StatusCode, responseDto);
     }
-    
+
     [HttpPost("token/refresh")]
-    [SwaggerOperation(Summary = "Refresh access token",
-        Description = "Refreshes access token using refresh token.")]
-    public async Task<IActionResult> RefreshAccessToken([FromBody] RefreshTokenDto refreshTokenDto)
+    [AllowAnonymous] // Thường refresh token không cần Authorize bearer cũ (vì nó hết hạn rồi)
+    [SwaggerOperation(Summary = "Refresh access token", 
+        Description = "Generates a new access token using a valid refresh token.")]
+    public async Task<ActionResult<ResponseDto>> RefreshAccessToken([FromBody] RefreshTokenDto refreshTokenDto)
     {
+        if (!ModelState.IsValid) return ReturnInvalidInputResponse();
+
         var responseDto = await _profileService.RefreshAccessToken(refreshTokenDto);
         return StatusCode(responseDto.StatusCode, responseDto);
     }

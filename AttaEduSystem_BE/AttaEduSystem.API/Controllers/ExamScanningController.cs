@@ -22,54 +22,43 @@ namespace AttaEduSystem.API.Controllers
         {
             _examScanningService = examScanningService;
         }
+        
+        // Helper validate
+        private ActionResult<ResponseDto> ReturnInvalidInputResponse()
+        {
+            return StatusCode(400, new ResponseDto
+            {
+                IsSuccess = false,
+                StatusCode = 400,
+                Message = "Invalid input data.",
+                Result = ModelState.Values.SelectMany(v => v.Errors.Select(e => e.ErrorMessage))
+            });
+        }
 
-        /// <summary>
-        /// Uploads an exam paper image and performs OCR scanning.
-        /// </summary>
-        /// <param name="dto">Upload payload with image and metadata.</param>
-        [Authorize]
         [HttpPost("scan")]
-        [SwaggerOperation(
-            Summary = "Scan exam paper",
-            Description = "Uploads an exam paper image, stores it, and performs OCR to extract text")]
+        [SwaggerOperation(Summary = "Upload & Scan exam paper", 
+            Description = "Uploads an image, performs OCR, and extracts exam structure.")]
         public async Task<ActionResult<ResponseDto>> ScanExamPaper([FromForm] UploadExamPaperDto dto)
         {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(new ResponseDto
-                {
-                    IsSuccess = false,
-                    Message = "Invalid input data.",
-                    Result = ModelState.Values.SelectMany(v => v.Errors.Select(e => e.ErrorMessage))
-                });
-            }
+            if (!ModelState.IsValid) return ReturnInvalidInputResponse();
 
             var result = await _examScanningService.ScanExamPaper(dto, User);
             return StatusCode(result.StatusCode, result);
         }
 
-        /// <summary>
-        /// Gets full exam paper information by ID.
-        /// </summary>
-        /// <param name="id">Exam paper ID.</param>
         [HttpGet("{id:guid}")]
-        [SwaggerOperation(
-            Summary = "Get exam paper details",
-            Description = "Returns the stored exam paper metadata and OCR text")]
+        [SwaggerOperation(Summary = "Get exam paper details", 
+            Description = "Retrieves metadata and OCR content of a specific exam paper.")]
         public async Task<ActionResult<ResponseDto>> GetExamPaper(Guid id)
         {
             var result = await _examScanningService.GetExamPaperById(id);
             return StatusCode(result.StatusCode, result);
         }
 
-        /// <summary>
-        /// Returns all scanned exam papers that are marked as Ready (paginated).
-        /// </summary>
         [HttpGet("ready")]
-        [AllowAnonymous] // hoặc [Authorize] tùy yêu cầu
-        [SwaggerOperation(
-            Summary = "List get all ready exam papers",
-            Description = "Provides a paginated list of exam papers whose status is Ready")]
+        [AllowAnonymous]
+        [SwaggerOperation(Summary = "List ready exam papers", 
+            Description = "Get a paginated list of public exam papers marked as Ready.")]
         public async Task<ActionResult<ResponseDto>> GetReadyExamPapers(
             [FromQuery] int pageNumber = 1,
             [FromQuery] int pageSize = 10,
@@ -81,51 +70,40 @@ namespace AttaEduSystem.API.Controllers
             return StatusCode(result.StatusCode, result);
         }
 
-        /// <summary>
-        /// Gets only the OCR text of the specified exam paper.
-        /// </summary>
-        /// <param name="id">Exam paper ID.</param>
         [HttpGet("{id:guid}/scanned-text")]
-        [SwaggerOperation(
-            Summary = "Get scanned text",
-            Description = "Returns the OCR text extracted from the exam paper image")]
+        [SwaggerOperation(Summary = "Get scanned text only", 
+            Description = "Returns the raw OCR text extracted from the exam paper.")]
         public async Task<ActionResult<ResponseDto>> GetScannedText(Guid id)
         {
             var result = await _examScanningService.GetScannedText(id);
             return StatusCode(result.StatusCode, result);
         }
 
-        /// <summary>
-        /// Lists all exam papers uploaded by the current user.
-        /// </summary>
         [HttpGet("my-exams")]
-        [SwaggerOperation(
-            Summary = "List current user's exam papers",
-            Description = "Returns all exam papers that the authenticated user uploaded")]
+        [SwaggerOperation(Summary = "List my exam papers", 
+            Description = "Returns all exam papers uploaded by the current logged-in user.")]
         public async Task<ActionResult<ResponseDto>> GetMyExamPapers()
         {
             var result = await _examScanningService.GetExamPapersByUser(User);
             return StatusCode(result.StatusCode, result);
         }
 
-        /// <summary>
-        /// Get the Cloudinary URL of the exam paper image by ID.
-        /// </summary>
         [HttpGet("{id:guid}/image")]
-        [SwaggerOperation(Summary = "Get exam paper image URL", Description = "Returns the stored Cloudinary URL of the exam paper image")]
+        [SwaggerOperation(Summary = "Get exam image URL", 
+            Description = "Returns the Cloudinary URL of the uploaded exam image.")]
         public async Task<ActionResult<ResponseDto>> GetExamPaperImage(Guid id)
         {
             var result = await _examScanningService.GetExamPaperImage(id);
             return StatusCode(result.StatusCode, result);
         }
 
-        /// <summary>
-        /// Updates the status of an exam paper (e.g., confirmed, removed).
-        /// </summary>
         [HttpPut("{id:guid}/status")]
-        [SwaggerOperation(Summary = "Update exam paper status", Description = "Allows user to confirm or remove scanned exam papers")]
+        [SwaggerOperation(Summary = "Update exam paper status", 
+            Description = "Updates status (e.g., Removed) for a scanned exam paper.")]
         public async Task<ActionResult<ResponseDto>> UpdateExamPaperStatus(Guid id, [FromBody] UpdateExamPaperStatusDto dto)
         {
+            if (!ModelState.IsValid) return ReturnInvalidInputResponse();
+
             var result = await _examScanningService.UpdateExamPaperStatus(id, dto.Status, User);
             return StatusCode(result.StatusCode, result);
         }
