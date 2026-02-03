@@ -33,7 +33,8 @@ namespace AttaEduSystem.API.Controllers
         }
         
         [HttpPost("register/student")]
-        [SwaggerOperation(Summary = "Register a new student account", Description = "Creates a new student account. Requires Guest or Teacher role.")]
+        [SwaggerOperation(Summary = "Register a new student account", 
+            Description = "Creates a new student account. Requires Guest or Teacher role.")]
         public async Task<ActionResult<ResponseDto>> SignUpStudent([FromBody] SignUpStudentDto signUpStudentDto)
         {
             if (!ModelState.IsValid) return ReturnInvalidInputResponse(); // Hàm helper đã viết ở phần trước hoặc dùng BadRequest chuẩn
@@ -46,7 +47,8 @@ namespace AttaEduSystem.API.Controllers
         }
 
         [HttpPost("register/teacher")]
-        [SwaggerOperation(Summary = "Register a new teacher account", Description = "Creates a new teacher account. Requires Admin role.")]
+        [SwaggerOperation(Summary = "Register a new teacher account", 
+            Description = "Creates a new teacher account. Requires Admin role.")]
         public async Task<ActionResult<ResponseDto>> SignUpTeacher([FromBody] SignUpTeacherDto signUpTeacherDto)
         {
             if (!ModelState.IsValid) return ReturnInvalidInputResponse();
@@ -56,7 +58,8 @@ namespace AttaEduSystem.API.Controllers
         }
 
         [HttpPost("account/sign-in")]
-        [SwaggerOperation(Summary = "Sign in user", Description = "Authenticates a user by email and password. Requires verified email.")]
+        [SwaggerOperation(Summary = "Sign in user", 
+            Description = "Authenticates a user by email and password. Requires verified email.")]
         public async Task<ActionResult<ResponseDto>> SignIn([FromBody] SignInDto signInDto)
         {
             var responseDto = await _authService.SignIn(signInDto);
@@ -64,7 +67,8 @@ namespace AttaEduSystem.API.Controllers
         }
 
         [HttpPost("verification/email")]
-        [SwaggerOperation(Summary = "Send verification email", Description = "Sends a verification email to a registered email address.")]
+        [SwaggerOperation(Summary = "Send verification email", 
+            Description = "Sends a verification email to a registered email address.")]
         public async Task<ActionResult<ResponseDto>> SendVerifyEmail([FromBody] EmailDto emailDto)
         {
             var responseDto = await _authService.SendVerifyEmail(emailDto);
@@ -72,7 +76,8 @@ namespace AttaEduSystem.API.Controllers
         }
         
         [HttpPost("verification/otp")]
-        [SwaggerOperation(Summary = "Verify new account with OTP", Description = "Activates the newly registered student account using the OTP sent via email.")]
+        [SwaggerOperation(Summary = "Verify new account with OTP", 
+            Description = "Activates the newly registered student account using the OTP sent via email.")]
         public async Task<IActionResult> SendVerifyOtp([FromBody] VerifyOtpDto verifyOtpDto)
         {
             var result = await _authService.VerifyOtp(verifyOtpDto);
@@ -80,7 +85,9 @@ namespace AttaEduSystem.API.Controllers
         }
 
         [HttpPost("verification/confirm")]
-        [SwaggerOperation(Summary = "Confirm email verification", Description = "Confirms a user's email verification code.")]
+        [ApiExplorerSettings(IgnoreApi = true)]
+        [SwaggerOperation(Summary = "Confirm email verification", 
+            Description = "Confirms a user's email verification code.")]
         public async Task<ActionResult<ResponseDto>> VerifyEmail([FromBody] VerifyEmailDto verifyEmailDto)
         {
             var responseDto = await _authService.VerifyEmail(verifyEmailDto);
@@ -88,7 +95,8 @@ namespace AttaEduSystem.API.Controllers
         }
         
         [HttpPost("verification/resend-otp")]
-        [SwaggerOperation(Summary = "Resend verification OTP", Description = "Resends a new OTP if the previous one expired.")]
+        [SwaggerOperation(Summary = "Resend verification OTP", 
+            Description = "Resends a new OTP if the previous one expired.")]
         public async Task<IActionResult> ResendAccountOTP([FromBody] EmailDto emailDto)
         {
             var result = await _authService.ResendOTP(emailDto.Email);
@@ -97,7 +105,7 @@ namespace AttaEduSystem.API.Controllers
 
         [HttpPost("password/forgot")]
         [SwaggerOperation(Summary = "Send forgot password email",
-        Description = "Sends a password reset email for an existing account.")]
+            Description = "Sends a password reset email for an existing account.")]
         public async Task<IActionResult> ForgotPassword([FromBody] EmailDto forgotPasswordDto)
         {
             var responseDto = await _authService.ForgotPassword(forgotPasswordDto);
@@ -130,34 +138,5 @@ namespace AttaEduSystem.API.Controllers
             var responseDto = await _authService.ChangePassword(changePasswordDto, User);
             return StatusCode(responseDto.StatusCode, responseDto);
         }
-
-        /*[HttpGet("user")]
-        [SwaggerOperation(Summary = "Get user info",
-            Description = "Fetches user info from JWT token.")]
-        public async Task<IActionResult> GetUserByToken()
-        {
-            var responseDto = await _authService.FetchUserByToken(User);
-            return StatusCode(responseDto.StatusCode, responseDto);
-        }*/
-
-        /*[HttpPut("profile")]
-        [SwaggerOperation(Summary = "Update user profile",
-       Description = "Updates the logged-in user's profile.")]
-        public async Task<IActionResult> UpdateUserProfile([FromBody] UpdateUserProfileDto updateUserProfileDto)
-        {
-            var responseDto = await _authService.UpdateUserProfile(User, updateUserProfileDto);
-            return StatusCode(responseDto.StatusCode, responseDto);
-        }*/
-
-        /*[HttpPost("token/refresh")]
-        [SwaggerOperation(Summary = "Refresh access token",
-        Description = "Refreshes access token using refresh token.")]
-        public async Task<IActionResult> RefreshAccessToken([FromBody] RefreshTokenDto refreshTokenDto)
-        {
-            var responseDto = await _authService.RefreshAccessToken(refreshTokenDto);
-            return StatusCode(responseDto.StatusCode, responseDto);
-        }*/
-        
-        
     }
 }
