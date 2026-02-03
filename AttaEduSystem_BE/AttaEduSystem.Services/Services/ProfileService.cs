@@ -6,6 +6,7 @@ using AttaEduSystem.Services.Helpers.Responses;
 using AttaEduSystem.Services.IServices;
 using AttaEduSystem.Utilities.Constants;
 using AutoMapper;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 
 namespace AttaEduSystem.Services.Services;
@@ -15,12 +16,18 @@ public class ProfileService : IProfileService
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IMapper _mapper;
     private readonly ITokenService _tokenService;
+    private readonly ICloudinaryService _cloudinaryService;
 
-    public ProfileService(UserManager<ApplicationUser> userManager, IMapper mapper, ITokenService tokenService)
+    public ProfileService(
+        UserManager<ApplicationUser> userManager, 
+        IMapper mapper, 
+        ITokenService tokenService,  
+        ICloudinaryService cloudinaryService)
     {
         _userManager = userManager;
         _mapper = mapper;
         _tokenService = tokenService;
+        _cloudinaryService = cloudinaryService;
     }
 
     public async Task<ResponseDto> GetUserProfile(ClaimsPrincipal userPrincipal)
@@ -139,5 +146,46 @@ public class ProfileService : IProfileService
             StaticOperationStatus.Token.TokenRefreshed,
             StaticOperationStatus.StatusCode.Ok,
             newAccessToken);
+    }
+
+    public async Task<ResponseDto> UploadAvatar(ClaimsPrincipal userPrincipal, IFormFile avatarFile)
+    {
+        var userId = userPrincipal.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userId))
+        {
+            return ErrorResponse.Build(StaticOperationStatus.User.UserNotFound, 401);
+        }
+
+        if (avatarFile == null || avatarFile.Length == 0)
+        {
+            return ErrorResponse.Build("No image provided", 400);
+        }
+
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user == null)
+        {
+            return ErrorResponse.Build(StaticOperationStatus.User.UserNotFound, 404);
+        }
+
+        try 
+        {
+            // 1. Upload lên Cloudinary vào folder 'avatars'
+            var imageUrl = await _cloudinaryService.UploadImageAsync(avatarFile, "avatars");
+
+            // 2. Cập nhật URL vào User entity
+            user.ImageUrl = imageUrl;
+            var result = await _userManager.UpdateAsync(user);
+
+            if (!result.Succeeded)
+            {
+                return ErrorResponse.Build("Failed to update avatar in database", 500);
+            }
+
+            return SuccessResponse.Build("Avatar uploaded successfully", 200, new { ImageUrl = imageUrl });
+        }
+        catch (Exception ex)
+        {
+            return ErrorResponse.Build($"Avatar upload failed: {ex.Message}", 500);
+        }
     }
 }

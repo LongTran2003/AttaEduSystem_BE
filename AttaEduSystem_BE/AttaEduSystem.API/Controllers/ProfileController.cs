@@ -64,4 +64,18 @@ public class ProfileController : ControllerBase
         var responseDto = await _profileService.RefreshAccessToken(refreshTokenDto);
         return StatusCode(responseDto.StatusCode, responseDto);
     }
+    
+    [HttpPost("avatar")]
+    [SwaggerOperation(Summary = "Upload user avatar", Description = "Uploads a new avatar image for the logged-in user.")]
+    public async Task<ActionResult<ResponseDto>> UploadAvatar(IFormFile file)
+    {
+        // Kiểm tra file cơ bản ở Controller
+        if (file == null || file.Length == 0)
+        {
+            return ReturnInvalidInputResponse(); // Hoặc trả về BadRequest custom
+        }
+
+        var responseDto = await _profileService.UploadAvatar(User, file);
+        return StatusCode(responseDto.StatusCode, responseDto);
+    }
 }
