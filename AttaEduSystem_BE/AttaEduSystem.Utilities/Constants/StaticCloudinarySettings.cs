@@ -8,5 +8,6 @@
 
         public const string StudentAvatarTransformation = "mt-student-avatar-upload";
         public const string TeacherAvatarTransformation = "mt-teacher-avatar-upload";
+        public const string ExamPaperTransformation = "mt-exam-paper-upload";
     }
 }

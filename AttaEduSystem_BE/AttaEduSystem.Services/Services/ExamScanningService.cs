@@ -12,6 +12,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System.Security.Claims;
 using System.Text.Json;
+using CloudinaryDotNet;
 
 namespace AttaEduSystem.Services.Services
 {
@@ -45,6 +46,181 @@ namespace AttaEduSystem.Services.Services
             _geminiAiService = geminiAiService;
             _usageTracker = usageTracker;
         }
+        public async Task<ResponseDto> ScanExamPaper(UploadExamPaperDto uploadDto, ClaimsPrincipal user)
+        {
+            try
+            {
+                // 1. Check user có đăng nhập/token
+                var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrEmpty(userId))
+                {
+                    return ErrorResponse.Build(
+                        message: StaticOperationStatus.User.UserNotFound,
+                        statusCode: StaticOperationStatus.StatusCode.Unauthorized);
+                }
+
+                // 2. Check quota hiện tại có đủ không
+                if (!await _usageTracker.TryConsumeAsync(user, UsageType.Scan, 1))
+                {
+                    return ErrorResponse.Build(
+                        message: "Your scan quota has been reached. Please upgrade your subscription to continue.",
+                        statusCode: 402); // Payment Required
+                }
+                
+                // 3. Check file có tồn tại 
+                if (uploadDto.ExamImage == null || uploadDto.ExamImage.Length == 0)
+                {
+                    return ErrorResponse.Build(
+                        message: StaticOperationStatus.File.FileEmpty,
+                        statusCode: StaticOperationStatus.StatusCode.BadRequest);
+                }
+                
+                // 4. Check ảnh có bị quá kích thước cho phép 
+                var maxFileSize = _configuration.GetValue<long>("ExamPaperSettings:MaxFileSize", 10485760);
+                if (uploadDto.ExamImage.Length > maxFileSize)
+                {
+                    return ErrorResponse.Build(
+                        message: "File size exceeds maximum allowed size",
+                        statusCode: StaticOperationStatus.StatusCode.BadRequest);
+                }
+
+                // 5. Convert ảnh sang base64
+                string base64Image;
+                await using (var ms = new MemoryStream())
+                {
+                    await uploadDto.ExamImage.CopyToAsync(ms);
+                    base64Image = Convert.ToBase64String(ms.ToArray());
+                }
+
+                // 6. Upload Cloudinary với Hard-code Transformation
+                var folderPath = StaticCloudinaryFolders.ExamPapers;
+                string imageUrl;
+                try
+                {
+                    // Cấu hình: Giữ nguyên tỷ lệ, chỉ thu nhỏ nếu quá to (>2000px), tối ưu dung lượng
+                    var examTransform = new Transformation()
+                        .Width(2000).Crop("limit")
+                        .Quality("auto")
+                        .FetchFormat("auto");
+                    
+                    // Truyền transformation vào hàm upload
+                    imageUrl = await _cloudinaryService.UploadImageAsync(uploadDto.ExamImage, folderPath, examTransform);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error uploading exam image");
+                    return ErrorResponse.Build(
+                        message: "Failed to upload exam image",
+                        statusCode: StaticOperationStatus.StatusCode.InternalServerError);
+                }
+
+                // 7. OCR  
+                string scannedText;
+                try
+                {
+                    scannedText = await _ocrService.ExtractText(uploadDto.ExamImage);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error performing OCR");
+                    return ErrorResponse.Build(
+                        message: "Failed to scan exam paper",
+                        statusCode: StaticOperationStatus.StatusCode.InternalServerError);
+                }
+
+                // 8. Gọi Gemini
+                string aiResponseJson;
+                try
+                {
+                    aiResponseJson = await _geminiAiService.AnalyzeExamStructure(
+                        base64Image,
+                        uploadDto.ExamImage.ContentType ?? "image/jpeg");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error calling Gemini API");
+                    return ErrorResponse.Build("AI Service Unreachable: " + ex.Message, 500);
+                }
+                
+                // 9. Lưu ExamPaper (Header)
+                var examPaper = _mapper.Map<ExamPaper>(uploadDto);
+                examPaper.ExamPaperId = Guid.NewGuid();
+                examPaper.Title = string.IsNullOrWhiteSpace(examPaper.Title)
+                    ? $"Exam Paper - {StaticOperationStatus.Timezone.Vietnam:yyyy-MM-dd HH:mm}"
+                    : examPaper.Title;
+                examPaper.OriginalImageUrl = imageUrl;
+                examPaper.ScannedText = aiResponseJson;
+                examPaper.CreatedBy = userId;
+                examPaper.CreatedTime = StaticOperationStatus.Timezone.Vietnam;
+                examPaper.Status = StaticOperationStatus.ExamPaper.Ready;
+
+                await _unitOfWork.ExamPaper.AddAsync(examPaper);
+
+                // 10. Logic Parse JSON và lưu vào bảng EXAM_QUESTION
+                try
+                {
+                    var parsedData = JsonSerializer.Deserialize<ExamStructureResponse>
+                        (aiResponseJson, 
+                            new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+                    if (parsedData?.Questions != null)
+                    {
+                        // Tự động map List<QuestionItem> sang List<ExamQuestion> (AutoMapper)
+                        var questionEntities = _mapper.Map<List<ExamQuestion>>(parsedData.Questions);
+
+                        // Gán FK thủ công vì Mapper không biết ExamPaperId vừa tạo
+                        foreach (var q in questionEntities)
+                        {
+                            q.ExamPaperId = examPaper.ExamPaperId;
+                            // Gán OrderIndex
+                            q.OrderIndex = questionEntities.IndexOf(q) + 1;
+                            q.CreatedBy = userId;
+                            q.CreatedTime = StaticOperationStatus.Timezone.Vietnam;
+                        }
+
+                        await _unitOfWork.ExamQuestion.AddRangeAsync(questionEntities);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning("Failed to parse structure to entities: " + ex.Message);
+                }
+                
+                // 11. Lưu vào DB
+                await _unitOfWork.SaveAsync();
+                
+                // 12. Response lại bằng ScanExamPaperResponseDto
+                var responseDto = _mapper.Map<ScanExamPaperResponseDto>(examPaper);
+
+                return SuccessResponse.Build(
+                    message: "Exam paper scanned successfully",
+                    statusCode: StaticOperationStatus.StatusCode.Created,
+                    result: responseDto);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unexpected error in ScanExamPaper");
+                return ErrorResponse.Build(
+                    message: "An unexpected error occurred",
+                    statusCode: StaticOperationStatus.StatusCode.InternalServerError);
+            }
+        }
+                
+        public async Task<ResponseDto> GetScannedText(Guid examPaperId)
+        {
+            var examPaper = await _unitOfWork.ExamPaper.GetAsync(e => e.ExamPaperId == examPaperId);
+            if (examPaper == null)
+            {
+                return ErrorResponse.Build(
+                    message: "Exam paper not found",
+                    statusCode: StaticOperationStatus.StatusCode.NotFound);
+            }
+
+            return SuccessResponse.Build(
+                message: "Scanned text retrieved successfully",
+                statusCode: StaticOperationStatus.StatusCode.Ok,
+                result: new { examPaper.ScannedText });
+        }        
 
         public async Task<ResponseDto> GetExamPaperById(Guid examPaperId)
         {
@@ -144,185 +320,6 @@ namespace AttaEduSystem.Services.Services
                 message: "Exam papers retrieved successfully",
                 statusCode: StaticOperationStatus.StatusCode.Ok,
                 result: dtos);
-        }
-
-        public async Task<ResponseDto> GetScannedText(Guid examPaperId)
-        {
-            var examPaper = await _unitOfWork.ExamPaper.GetAsync(e => e.ExamPaperId == examPaperId);
-            if (examPaper == null)
-            {
-                return ErrorResponse.Build(
-                    message: "Exam paper not found",
-                    statusCode: StaticOperationStatus.StatusCode.NotFound);
-            }
-
-            return SuccessResponse.Build(
-                message: "Scanned text retrieved successfully",
-                statusCode: StaticOperationStatus.StatusCode.Ok,
-                result: new { examPaper.ScannedText });
-        }
-
-        public async Task<ResponseDto> ScanExamPaper(UploadExamPaperDto uploadDto, ClaimsPrincipal user)
-        {
-            try
-            {
-                var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
-                if (string.IsNullOrEmpty(userId))
-                {
-                    return ErrorResponse.Build(
-                        message: StaticOperationStatus.User.UserNotFound,
-                        statusCode: StaticOperationStatus.StatusCode.Unauthorized);
-                }
-
-                // ========== CHECK QUOTA ==========
-                if (!await _usageTracker.TryConsumeAsync(user, UsageType.Scan, 1))
-                {
-                    return ErrorResponse.Build(
-                        message: "Your scan quota has been reached. Please upgrade your subscription to continue.",
-                        statusCode: 402); // Payment Required
-                }
-                // ==================================
-
-                if (uploadDto.ExamImage == null || uploadDto.ExamImage.Length == 0)
-                {
-                    return ErrorResponse.Build(
-                        message: StaticOperationStatus.File.FileEmpty,
-                        statusCode: StaticOperationStatus.StatusCode.BadRequest);
-                }
-
-                var maxFileSize = _configuration.GetValue<long>("ExamPaperSettings:MaxFileSize", 10485760);
-                if (uploadDto.ExamImage.Length > maxFileSize)
-                {
-                    return ErrorResponse.Build(
-                        message: "File size exceeds maximum allowed size",
-                        statusCode: StaticOperationStatus.StatusCode.BadRequest);
-                }
-
-                // Convert ảnh sang base64
-                string base64Image;
-                await using (var ms = new MemoryStream())
-                {
-                    await uploadDto.ExamImage.CopyToAsync(ms);
-                    base64Image = Convert.ToBase64String(ms.ToArray());
-                }
-
-                // Upload Cloudinary
-                var folderPath = $"exam-papers/{userId}";
-                string imageUrl;
-                try
-                {
-                    imageUrl = await _cloudinaryService.UploadImageAsync(uploadDto.ExamImage, folderPath);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error uploading exam image");
-                    return ErrorResponse.Build(
-                        message: "Failed to upload exam image",
-                        statusCode: StaticOperationStatus.StatusCode.InternalServerError);
-                }
-
-                // OCR  
-                string scannedText;
-                try
-                {
-                    scannedText = await _ocrService.ExtractText(uploadDto.ExamImage);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error performing OCR");
-                    return ErrorResponse.Build(
-                        message: "Failed to scan exam paper",
-                        statusCode: StaticOperationStatus.StatusCode.InternalServerError);
-                }
-
-                // Gọi Gemini
-                string aiResponseJson;
-                try
-                {
-                    aiResponseJson = await _geminiAiService.AnalyzeExamStructure(
-                        base64Image,
-                        uploadDto.ExamImage.ContentType ?? "image/jpeg");
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error calling Gemini API");
-                    return ErrorResponse.Build("AI Service Unreachable: " + ex.Message, 500);
-                }
-
-                // Tạm thời bỏ Parse format vì chưa ổn định được format đề thi  
-
-                //// Parse format
-                //ExamFormatSchema? schema = null;
-                //string? examFormatJson = null;
-                //try
-                //{
-                //    schema = _examFormatParser.Parse(scannedText);
-                //    examFormatJson = JsonSerializer.Serialize(schema);
-                //}
-                //catch (Exception ex)
-                //{
-                //    _logger.LogWarning(ex, "Failed to parse exam format, continuing with raw OCR text");
-                //}
-
-                var examPaper = _mapper.Map<ExamPaper>(uploadDto);
-                examPaper.ExamPaperId = Guid.NewGuid();
-                examPaper.Title = string.IsNullOrWhiteSpace(examPaper.Title)
-                    ? $"Exam Paper - {StaticOperationStatus.Timezone.Vietnam:yyyy-MM-dd HH:mm}"
-                    : examPaper.Title;
-                examPaper.OriginalImageUrl = imageUrl;
-                examPaper.ScannedText = aiResponseJson;
-                //examPaper.ExamFormat = examFormatJson;
-                examPaper.CreatedBy = userId;
-                examPaper.CreatedTime = StaticOperationStatus.Timezone.Vietnam;
-                examPaper.Status = StaticOperationStatus.ExamPaper.Ready;
-
-                await _unitOfWork.ExamPaper.AddAsync(examPaper);
-
-                // 4. PARSE JSON VÀ LƯU VÀO BẢNG EXAM_QUESTION (Logic Mới)
-                try
-                {
-                    var parsedData = JsonSerializer.Deserialize<ExamStructureResponse>(aiResponseJson, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-
-                    if (parsedData?.Questions != null)
-                    {
-                        // SỨC MẠNH CỦA AUTOMAPPER Ở ĐÂY:
-                        // Tự động map List<QuestionItem> sang List<ExamQuestion>
-                        // Tự động tách Options nhờ hàm MapOptions trong Profile
-                        var questionEntities = _mapper.Map<List<ExamQuestion>>(parsedData.Questions);
-
-                        // Gán FK thủ công vì Mapper không biết ExamPaperId vừa tạo
-                        foreach (var q in questionEntities)
-                        {
-                            q.ExamPaperId = examPaper.ExamPaperId;
-                            // Gán OrderIndex
-                            q.OrderIndex = questionEntities.IndexOf(q) + 1;
-                        }
-
-                        await _unitOfWork.ExamQuestion.AddRangeAsync(questionEntities);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning("Failed to parse structure to entities: " + ex.Message);
-                }
-
-                await _unitOfWork.SaveAsync();
-
-                var responseDto = _mapper.Map<ScanExamPaperResponseDto>(examPaper);
-                //responseDto.ExamFormatParsed ??= schema; // fallback nếu mapper null
-
-                return SuccessResponse.Build(
-                    message: "Exam paper scanned successfully",
-                    statusCode: StaticOperationStatus.StatusCode.Created,
-                    result: responseDto);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Unexpected error in ScanExamPaper");
-                return ErrorResponse.Build(
-                    message: "An unexpected error occurred",
-                    statusCode: StaticOperationStatus.StatusCode.InternalServerError);
-            }
         }
 
         public async Task<ResponseDto> GetExamPaperImage(Guid examPaperId)

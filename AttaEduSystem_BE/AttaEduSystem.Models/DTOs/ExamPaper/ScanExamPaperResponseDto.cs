@@ -9,7 +9,6 @@ namespace AttaEduSystem.Models.DTOs.ExamPaper
         public string ScannedText { get; set; } = null!;
         public string ImageUrl { get; set; } = null!;
         public string? ExamFormat { get; set; }
-        //public ExamFormatSchema? ExamFormatParsed { get; set; }
         public string? Subject { get; set; }
         public string? ScannedBy { get; set; }
         public DateTime ScannedAt { get; set; }
