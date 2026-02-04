@@ -6,6 +6,7 @@ using AttaEduSystem.Services.Helpers.Responses;
 using AttaEduSystem.Services.IServices;
 using AttaEduSystem.Utilities.Constants;
 using AutoMapper;
+using CloudinaryDotNet;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 
@@ -169,10 +170,24 @@ public class ProfileService : IProfileService
 
         try 
         {
-            // 1. Upload lên Cloudinary vào folder 'avatars'
-            var imageUrl = await _cloudinaryService.UploadImageAsync(avatarFile, "avatars");
+            // 1. Chọn Folder dựa trên Role
+            var roles = await _userManager.GetRolesAsync(user);
+            string folderPath = roles.Contains(StaticUserRoles.Teacher) 
+                ? StaticCloudinaryFolders.TeacherAvatars 
+                : StaticCloudinaryFolders.StudentAvatars;
 
-            // 2. Cập nhật URL vào User entity
+            // 2. CẤU HÌNH HARD-CODE (Tự động nhận diện mặt & tối ưu)
+            var avatarTransform = new Transformation()
+                .Width(500).Height(500)     // Kích thước cố định
+                .Crop("fill")               // Fill đầy khung 500x500
+                .Gravity("face")            // Tự động tìm khuôn mặt để căn giữa (Quan trọng)
+                .Quality("auto")            // Tự động nén dung lượng
+                .FetchFormat("auto");       // Tự động chọn JPG/WebP/AVIF
+
+            // 3. Upload lên Cloudinary
+            var imageUrl = await _cloudinaryService.UploadImageAsync(avatarFile, folderPath, avatarTransform);
+
+            // 4. Lưu URL vào DB
             user.ImageUrl = imageUrl;
             var result = await _userManager.UpdateAsync(user);
 

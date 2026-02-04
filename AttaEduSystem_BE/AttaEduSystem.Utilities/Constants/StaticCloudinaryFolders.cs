@@ -2,7 +2,12 @@
 {
     public static class StaticCloudinaryFolders
     {
-        public const string StudentAvatars = "student-avatars";
-        public const string TeacherAvatars = "teacher-avatars";
+        // Gom nhóm Avatar
+        public const string StudentAvatars = "avatars/students";
+        public const string TeacherAvatars = "avatars/teachers";
+        
+        // Gom nhóm Exam
+        public const string ExamPapers = "exam-papers/original";
+        
     }
 }
