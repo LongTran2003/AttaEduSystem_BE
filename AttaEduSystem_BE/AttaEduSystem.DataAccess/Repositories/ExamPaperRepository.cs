@@ -18,7 +18,7 @@ namespace AttaEduSystem.DataAccess.Repositories
         public async Task<ExamPaper?> GetByIdWithUserAsync(Guid id)
         {
             return await _context.ExamPapers
-                .Include(e => e.Creator) // navigation optional nếu bạn giữ
+                .Include(e => e.Creator) 
                 .Include(e => e.Questions.OrderBy(q => q.OrderIndex))
                 .ThenInclude(q => q.Options) // Lấy đáp án A, B, C, D
                 .FirstOrDefaultAsync(e => e.ExamPaperId == id);
