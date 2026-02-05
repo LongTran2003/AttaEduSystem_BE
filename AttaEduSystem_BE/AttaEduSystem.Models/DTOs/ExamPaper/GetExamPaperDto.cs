@@ -13,5 +13,6 @@ namespace AttaEduSystem.Models.DTOs.ExamPaper
         public string? Subject { get; set; }
         public string CreatedBy { get; set; } = null!;
         public DateTime CreatedTime { get; set; }
+        public List<ExamQuestionResponseDto> Questions { get; set; } = new();
     }
 }
