@@ -19,6 +19,8 @@ namespace AttaEduSystem.DataAccess.Repositories
         {
             return await _context.ExamPapers
                 .Include(e => e.Creator) // navigation optional nếu bạn giữ
+                .Include(e => e.Questions.OrderBy(q => q.OrderIndex))
+                .ThenInclude(q => q.Options) // Lấy đáp án A, B, C, D
                 .FirstOrDefaultAsync(e => e.ExamPaperId == id);
         }
 

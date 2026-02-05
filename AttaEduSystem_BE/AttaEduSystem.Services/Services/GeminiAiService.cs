@@ -25,22 +25,37 @@ namespace AttaEduSystem.Services.Services
         public async Task<string> AnalyzeExamStructure(string base64Image, string mimeType)
         {
             var prompt = @"
-                Bạn là một AI chuyên số hóa đề thi.
-                NHIỆM VỤ: Phân tích hình ảnh đề thi và trích xuất cấu trúc JSON.
+                Bạn là một AI chuyên gia số hóa đề thi.
                 
+                NHIỆM VỤ: 
+                Phân tích hình ảnh và trích xuất các câu hỏi thành JSON.
+
+                QUY TẮC QUAN TRỌNG (ĐỂ LỌC NHIỄU):
+                1. BỎ QUA hoàn toàn phần Header (Tên trường, Sở GD, Họ tên học sinh, Lớp, Mã đề, Lời dặn dò).
+                2. BẮT ĐẦU trích xuất từ câu hỏi đầu tiên (thường bắt đầu bằng 'Câu 1', 'Question 1', '1.', 'Bài 1').
+                3. Nếu gặp các tiêu đề phần lớn (VD: 'I. TRẮC NGHIỆM'), hãy bỏ qua hoặc gộp vào nội dung câu đầu tiên của phần đó.
+
+                PHÂN LOẠI (Type):
+                - 'MultipleChoice': Nếu câu hỏi có các đáp án lựa chọn (A, B, C, D...).
+                - 'Essay': Nếu câu hỏi tự luận, điền từ, hoặc không có đáp án trắc nghiệm.
+
                 YÊU CẦU OUTPUT JSON (Schema):
                 {
-                    ""exam_info"": { ""title"": ""string"", ""time_limit"": ""string"", ""total_points"": ""string"" },
+                    ""exam_info"": { 
+                        ""title"": ""Trích xuất tiêu đề đề thi (VD: KIỂM TRA 1 TIẾT)"", 
+                        ""suggested_subject"": ""Môn học dự đoán""
+                    },
                     ""questions"": [
                         {
                             ""id"": ""Câu 1"",
-                            ""content"": ""Nội dung câu hỏi. Công thức toán giữ nguyên LaTeX giữa dấu $."",
-                            ""options"": [""A..."", ""B...""] (nếu trắc nghiệm, để null nếu tự luận),
-                            ""points"": 1.0
+                            ""type"": ""MultipleChoice"" hoặc ""Essay"",
+                            ""content"": ""Nội dung câu hỏi. Giữ nguyên LaTeX ($) cho công thức toán."",
+                            ""options"": [""A. ..."", ""B. ...""] (Nếu là Essay thì để mảng rỗng [] hoặc null),
+                            ""points"": 0.25 (Dự đoán điểm số, mặc định 0.25 cho trắc nghiệm, 1.0 cho tự luận)
                         }
                     ]
                 }
-                Chỉ trả về JSON hợp lệ.";
+                Chỉ trả về JSON thuần, không Markdown.";
 
             var payload = new
             {
