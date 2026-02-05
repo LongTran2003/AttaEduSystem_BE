@@ -17,7 +17,12 @@ namespace AttaEduSystem.Models.Entities
         public double? Points { get; set; }
         public int OrderIndex { get; set; }
         public string QuestionType { get; set; } = "Essay"; // "MultipleChoice" hoặc "Essay"
-
+        
+        [StringLength(10)] // VD: "A", "B"
+        public string? CorrectAnswer { get; set; } 
+    
+        public string? DifficultyLevel { get; set; } // Easy, Medium, Hard (Chuẩn bị cho Phase Giáo viên)
+        
         public virtual ICollection<QuestionOption> Options { get; set; } = new List<QuestionOption>();
     }
 }

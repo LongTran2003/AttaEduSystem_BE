@@ -11,6 +11,8 @@ using AttaEduSystem.Services.IServices;
 using AttaEduSystem.Utilities.Constants;
 using AutoMapper;
 using System.Text.Json;
+using AttaEduSystem.Models.DTOs.ExamResult;
+using AttaEduSystem.Models.DTOs.ExamTaking;
 using AttaEduSystem.Models.DTOs.Profile;
 
 namespace AttaEduSystem.Services.Mapping
@@ -141,6 +143,42 @@ namespace AttaEduSystem.Services.Mapping
 
             CreateMap<UserSubscription, GetUserSubscriptionDto>()
                 .ForMember(dest => dest.Plan, opt => opt.MapFrom(src => src.Plan));
+            
+            // ExamTaking mapping
+                    // 1. Map Entity -> History DTO
+            CreateMap<ExamAttempt, ExamHistoryDto>()
+                .ForMember(dest => dest.ExamTitle, 
+                    opt => opt.MapFrom(src => src.ExamPaper != null ? src.ExamPaper.Title : "Unknown Exam"))
+                .ForMember(dest => dest.Subject, 
+                    opt => opt.MapFrom(src => src.ExamPaper != null ? src.ExamPaper.Subject : "General"))
+                .ForMember(dest => dest.Duration, 
+                    opt => opt.MapFrom(src => src.CompletedAt.HasValue 
+                        ? $"{(src.CompletedAt.Value - src.StartedAt).TotalMinutes:0} mins" 
+                        : "N/A"));
+                    
+                    // 2. Map Entity Detail -> Result Detail DTO
+            CreateMap<ExamAttemptDetail, ExamResultDetailDto>()
+                .ForMember(dest => dest.QuestionContent, 
+                    opt => opt.MapFrom(src => src.ExamQuestion != null ? src.ExamQuestion.Content : "Question removed"))
+                .ForMember(dest => dest.QuestionIndex, 
+                    opt => opt.MapFrom(src => src.ExamQuestion != null ? src.ExamQuestion.OrderIndex : 0))
+                .ForMember(dest => dest.CorrectAnswer, 
+                    opt => opt.MapFrom(src => src.ExamQuestion != null ? src.ExamQuestion.CorrectAnswer : ""))
+                .ForMember(dest => dest.UserAnswer, 
+                    opt => opt.MapFrom(src => src.UserAnswer ?? ""))
+                // Nếu sau này có Explanation thì map thêm vào đây
+                .ForMember(dest => dest.Explanation, opt => opt.Ignore());
+            
+                    // 3. Map Entity Attempt -> Result DTO (Bao gồm cả list Details)
+            CreateMap<ExamAttempt, ExamResultDto>()
+                .ForMember(dest => dest.ExamTitle, 
+                    opt => opt.MapFrom(src => src.ExamPaper != null ? src.ExamPaper.Title : "Unknown"))
+                .ForMember(dest => dest.CompletedAt, 
+                    opt => opt.MapFrom(src => src.CompletedAt ?? DateTime.UtcNow))
+                .ForMember(dest => dest.Details, 
+                    opt => opt.MapFrom(src => src.Details.OrderBy(d => d.ExamQuestion.OrderIndex)));
+            
+            
         }
 
 

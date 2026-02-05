@@ -16,7 +16,10 @@ namespace AttaEduSystem.DataAccess.IRepositories
         IUserUsageRepository UserUsage { get; }
         IOrderRepository Order { get; }
         IPaymentRepository Payment { get; }
-
+        IExamAttemptRepository ExamAttempt { get; }
+        IExamAttemptDetailRepository ExamAttemptDetail { get; }
+        
+        
         Task<int> SaveAsync();
 
         Task<IDbContextTransaction> BeginTransactionAsync();
