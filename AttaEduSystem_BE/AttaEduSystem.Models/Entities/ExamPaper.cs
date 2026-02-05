@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace AttaEduSystem.Models.Entities
 {
@@ -25,5 +26,8 @@ namespace AttaEduSystem.Models.Entities
         public string? Subject { get; set; }
 
         public virtual ICollection<ExamQuestion> Questions { get; set; } = new List<ExamQuestion>();
+        
+        [ForeignKey("CreatedBy")] 
+        public virtual ApplicationUser? Creator { get; set; }
     }
 }

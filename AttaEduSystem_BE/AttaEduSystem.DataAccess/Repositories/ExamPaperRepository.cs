@@ -18,13 +18,14 @@ namespace AttaEduSystem.DataAccess.Repositories
         public async Task<ExamPaper?> GetByIdWithUserAsync(Guid id)
         {
             return await _context.ExamPapers
-                .Include(e => e.CreatedBy) // navigation optional nếu bạn giữ
+                .Include(e => e.Creator) // navigation optional nếu bạn giữ
                 .FirstOrDefaultAsync(e => e.ExamPaperId == id);
         }
 
         public async Task<IEnumerable<ExamPaper>> GetByUserIdAsync(string userId)
         {
             return await _context.ExamPapers
+                .Include(e => e.Creator)
                 .Where(e => e.CreatedBy == userId)
                 .OrderByDescending(e => e.CreatedTime)
                 .ToListAsync();
@@ -40,6 +41,7 @@ namespace AttaEduSystem.DataAccess.Repositories
             string status = StaticOperationStatus.ExamPaper.Ready)
         {
             var query = _context.ExamPapers
+                .Include(e => e.Creator)
                 .Where(e => e.Status == status)
                 .AsQueryable();
 
