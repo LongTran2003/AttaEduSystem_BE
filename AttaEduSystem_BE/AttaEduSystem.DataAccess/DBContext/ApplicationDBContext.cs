@@ -24,7 +24,8 @@ namespace AttaEduSystem.DataAccess.DBContext
         public DbSet<UserUsage> UserUsages { get; set; }
         public DbSet<Order> Orders { get; set; }
         public DbSet<Payment> Payments { get; set; }
-
+        public DbSet<ExamAttempt> ExamAttempts { get; set; }
+        public DbSet<ExamAttemptDetail> ExamAttemptDetails { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -147,6 +148,39 @@ namespace AttaEduSystem.DataAccess.DBContext
                 .HasForeignKey(p => p.OrderNumber)
                 .HasPrincipalKey(o => o.OrderNumber)
                 .OnDelete(DeleteBehavior.Cascade);
+            
+            // ExamAttempt
+                // 1. ExamAttempt nối với User (1 User nộp nhiều bài)
+            modelBuilder.Entity<ExamAttempt>()
+                .HasOne(a => a.User)
+                .WithMany()
+                .HasForeignKey(a => a.UserId)
+                .OnDelete(DeleteBehavior.Cascade); // Xóa user thì xóa luôn bài làm
+
+                // 2. ExamAttempt nối với ExamPaper (1 Đề có nhiều lần làm bài)
+            modelBuilder.Entity<ExamAttempt>()
+                .HasOne(a => a.ExamPaper)
+                .WithMany()
+                .HasForeignKey(a => a.ExamPaperId)
+                .OnDelete(DeleteBehavior.Restrict); // Xóa đề thi không được xóa lịch sử làm bài (để thống kê)
+            
+            // ExamAttemptDetail
+                // 3. Detail thuộc về 1 Attempt (1 Bài làm có nhiều câu trả lời)
+            modelBuilder.Entity<ExamAttemptDetail>()
+                .HasOne(d => d.ExamAttempt)
+                .WithMany(a => a.Details)
+                .HasForeignKey(d => d.ExamAttemptId)
+                .OnDelete(DeleteBehavior.Cascade); // Xóa bài làm thì xóa luôn chi tiết
+
+                // 4. Detail nối với ExamQuestion (Để biết trả lời cho câu hỏi nào)
+            modelBuilder.Entity<ExamAttemptDetail>()
+                .HasOne(d => d.ExamQuestion)
+                .WithMany()
+                .HasForeignKey(d => d.ExamQuestionId)
+                .OnDelete(DeleteBehavior.Restrict);
+            
+            
+            
         }
     }
 }
