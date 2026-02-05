@@ -224,14 +224,15 @@ namespace AttaEduSystem.Services.Services
 
         public async Task<ResponseDto> GetExamPaperById(Guid examPaperId)
         {
-            var examPaper = await _unitOfWork.ExamPaper.GetAsync(e => e.ExamPaperId == examPaperId);
+            var examPaper = await _unitOfWork.ExamPaper.GetByIdWithUserAsync(examPaperId);
+            
             if (examPaper == null)
             {
                 return ErrorResponse.Build(
                     message: "Exam paper not found",
                     statusCode: StaticOperationStatus.StatusCode.NotFound);
             }
-
+            
             var dto = _mapper.Map<GetExamPaperDto>(examPaper);
 
             return SuccessResponse.Build(
