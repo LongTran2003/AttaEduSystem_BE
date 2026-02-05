@@ -13,6 +13,7 @@ using Microsoft.Extensions.Logging;
 using System.Security.Claims;
 using System.Text.Json;
 using CloudinaryDotNet;
+using Microsoft.AspNetCore.Identity;
 
 namespace AttaEduSystem.Services.Services
 {
@@ -26,6 +27,7 @@ namespace AttaEduSystem.Services.Services
         private readonly IOcrService _ocrService;
         private readonly IGeminiAiService _geminiAiService;
         private readonly IUsageTrackerService _usageTracker;
+        private readonly UserManager<ApplicationUser> _userManager;
 
         public ExamScanningService(
             IUnitOfWork unitOfWork, 
@@ -35,7 +37,8 @@ namespace AttaEduSystem.Services.Services
             ILogger<ExamScanningService> logger,
             IOcrService ocrService,
             IGeminiAiService geminiAiService,
-            IUsageTrackerService usageTracker)
+            IUsageTrackerService usageTracker,
+            UserManager<ApplicationUser> userManager)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
@@ -45,6 +48,7 @@ namespace AttaEduSystem.Services.Services
             _ocrService = ocrService;
             _geminiAiService = geminiAiService;
             _usageTracker = usageTracker;
+            _userManager = userManager;
         }
         public async Task<ResponseDto> ScanExamPaper(UploadExamPaperDto uploadDto, ClaimsPrincipal user)
         {
@@ -153,7 +157,10 @@ namespace AttaEduSystem.Services.Services
                 examPaper.CreatedBy = userId;
                 examPaper.CreatedTime = StaticOperationStatus.Timezone.Vietnam;
                 examPaper.Status = StaticOperationStatus.ExamPaper.Ready;
-
+                
+                var currentUser = await _userManager.FindByIdAsync(userId);
+                examPaper.Creator = currentUser;
+                
                 await _unitOfWork.ExamPaper.AddAsync(examPaper);
 
                 // 10. Logic Parse JSON và lưu vào bảng EXAM_QUESTION
