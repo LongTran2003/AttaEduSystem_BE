@@ -47,8 +47,8 @@ namespace AttaEduSystem.API.Controllers
         }
 
         [HttpGet("{id:guid}")]
-        [SwaggerOperation(Summary = "Get exam paper details", 
-            Description = "Retrieves metadata and OCR content of a specific exam paper.")]
+        [SwaggerOperation(Summary = "Get exam paper details with questions label", 
+            Description = "Retrieves metadata and OCR content of a specific exam paper with a question label.")]
         public async Task<ActionResult<ResponseDto>> GetExamPaper(Guid id)
         {
             var result = await _examScanningService.GetExamPaperById(id);

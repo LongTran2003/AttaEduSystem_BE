@@ -118,7 +118,10 @@ namespace AttaEduSystem.Services.Mapping
                 .ForMember(dest => dest.QuestionIdLabel, opt => opt.MapFrom(src => src.Id))
                 .ForMember(dest => dest.Content, opt => opt.MapFrom(src => src.Content))
                 .ForMember(dest => dest.Points, opt => opt.MapFrom(src => src.Points))
-                .ForMember(dest => dest.QuestionType, opt => opt.MapFrom(src => (src.Options != null && src.Options.Any()) ? "MultipleChoice" : "Essay"))
+                .ForMember(dest => dest.QuestionType, opt => opt.MapFrom(src => 
+                    !string.IsNullOrEmpty(src.Type) ? src.Type : 
+                        ((src.Options != null && src.Options.Any()) ? "MultipleChoice" : "Essay")))
+
                 .ForMember(dest => dest.Options, opt => opt.MapFrom(src => MapOptions(src.Options)));
 
             // ExamSolution mapping
@@ -173,6 +176,20 @@ namespace AttaEduSystem.Services.Mapping
                     opt => opt.MapFrom(src => src.CompletedAt ?? DateTime.UtcNow))
                 .ForMember(dest => dest.Details, 
                     opt => opt.MapFrom(src => src.Details.OrderBy(d => d.ExamQuestion.OrderIndex)));
+            
+            //  Question mapping
+                    // 1. Map QuestionOption -> DTO
+            CreateMap<QuestionOption, QuestionOptionDto>();
+
+                    // 2. Map ExamQuestion -> DTO
+            CreateMap<ExamQuestion, ExamQuestionResponseDto>()
+                // Map options nếu có
+                .ForMember(dest => dest.Options, opt => opt.MapFrom(src => src.Options)); 
+
+                    // 3. Cập nhật Map ExamPaper -> GetExamPaperDto
+            CreateMap<ExamPaper, GetExamPaperDto>()
+                // ... các trường cũ ...
+                .ForMember(dest => dest.Questions, opt => opt.MapFrom(src => src.Questions));
             
             
         }
