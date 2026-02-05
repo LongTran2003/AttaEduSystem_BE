@@ -89,18 +89,14 @@ namespace AttaEduSystem.Services.Mapping
                 .ForMember(dest => dest.ExamPaperId, opt => opt.MapFrom(src => src.ExamPaperId))
                 .ForMember(dest => dest.ImageUrl, opt => opt.MapFrom(src => src.OriginalImageUrl))
                 .ForMember(dest => dest.ExamFormat, opt => opt.MapFrom(src => src.ExamFormat))
-                //.ForMember(dest => dest.ExamFormatParsed,
-                //        opt => opt.MapFrom(src => DeserializeExamFormat(src.ExamFormat)))
-                .ForMember(dest => dest.ScannedBy, opt => opt.MapFrom(src => src.CreatedBy))
+                .ForMember(dest => dest.ScannedBy, opt => opt.MapFrom(src => src.Creator != null ? src.Creator.FullName : "Unknown"))
                 .ForMember(dest => dest.ScannedAt, opt => opt.MapFrom(src => src.CreatedTime ?? StaticOperationStatus.Timezone.Vietnam));
 
             CreateMap<ExamPaper, GetExamPaperDto>()
                 .ForMember(dest => dest.ExamPaperId, opt => opt.MapFrom(src => src.ExamPaperId))
                 .ForMember(dest => dest.ExamFormat, opt => opt.MapFrom(src => src.ExamFormat))
-                //.ForMember(dest => dest.ExamFormatParsed,
-                //        opt => opt.MapFrom(src => DeserializeExamFormat(src.ExamFormat)))
                 .ForMember(dest => dest.CreatedBy,
-                        opt => opt.MapFrom(src => src.CreatedBy ?? string.Empty))
+                        opt => opt.MapFrom(src => src.Creator != null ? src.Creator.FullName : "Unknown"))
                 .ForMember(dest => dest.CreatedTime,
                         opt => opt.MapFrom(src => src.CreatedTime ?? StaticOperationStatus.Timezone.Vietnam));
 
