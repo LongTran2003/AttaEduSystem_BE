@@ -13,6 +13,7 @@ using AutoMapper;
 using System.Text.Json;
 using AttaEduSystem.Models.DTOs.ExamResult;
 using AttaEduSystem.Models.DTOs.ExamTaking;
+using AttaEduSystem.Models.DTOs.Folder;
 using AttaEduSystem.Models.DTOs.Profile;
 
 namespace AttaEduSystem.Services.Mapping
@@ -191,6 +192,17 @@ namespace AttaEduSystem.Services.Mapping
                 // ... các trường cũ ...
                 .ForMember(dest => dest.Questions, opt => opt.MapFrom(src => src.Questions));
             
+            // ExamFolder mapping
+            CreateMap<ExamFolder, FolderDto>()
+                .ForMember(dest => dest.FolderId, opt => opt.MapFrom(src => src.FolderId))
+                .ForMember(dest => dest.Name, opt => opt.MapFrom(src => src.Name))
+                .ForMember(dest => dest.ColorCode, opt => opt.MapFrom(src => src.ColorCode))
+                .ForMember(dest => dest.CreatedBy, opt => opt.MapFrom(src => src.CreatedBy))
+                .ForMember(dest => dest.CreatedTime, opt => opt.MapFrom(src => src.CreatedTime))
+                // Map số lượng đề thi đang có trong folder
+                .ForMember(dest => dest.ExamCount, opt => opt.MapFrom(src => src.ExamPapers.Count));
+
+            CreateMap<CreateFolderDto, ExamFolder>();
             
         }
 

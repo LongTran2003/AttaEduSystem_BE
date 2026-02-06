@@ -154,7 +154,7 @@ namespace AttaEduSystem.Services.Services
                     : examPaper.Title;
                 examPaper.OriginalImageUrl = imageUrl;
                 examPaper.ScannedText = aiResponseJson;
-                examPaper.CreatedBy = userId;
+                examPaper.CreatedBy = user.FindFirstValue("FullName");
                 examPaper.CreatedTime = StaticOperationStatus.Timezone.Vietnam;
                 examPaper.Status = StaticOperationStatus.ExamPaper.Ready;
                 
@@ -181,7 +181,7 @@ namespace AttaEduSystem.Services.Services
                             q.ExamPaperId = examPaper.ExamPaperId;
                             // Gán OrderIndex
                             q.OrderIndex = questionEntities.IndexOf(q) + 1;
-                            q.CreatedBy = userId;
+                            q.CreatedBy = user.FindFirstValue("FullName");
                             q.CreatedTime = StaticOperationStatus.Timezone.Vietnam;
                         }
 
