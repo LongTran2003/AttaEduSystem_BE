@@ -18,6 +18,7 @@ namespace AttaEduSystem.DataAccess.IRepositories
         IPaymentRepository Payment { get; }
         IExamAttemptRepository ExamAttempt { get; }
         IExamAttemptDetailRepository ExamAttemptDetail { get; }
+        IExamFolderRepository ExamFolder { get; }
         
         
         Task<int> SaveAsync();

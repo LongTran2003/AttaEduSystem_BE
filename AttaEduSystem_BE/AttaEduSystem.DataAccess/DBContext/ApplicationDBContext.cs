@@ -26,6 +26,7 @@ namespace AttaEduSystem.DataAccess.DBContext
         public DbSet<Payment> Payments { get; set; }
         public DbSet<ExamAttempt> ExamAttempts { get; set; }
         public DbSet<ExamAttemptDetail> ExamAttemptDetails { get; set; }
+        public DbSet<ExamFolder> ExamFolders { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -179,6 +180,18 @@ namespace AttaEduSystem.DataAccess.DBContext
                 .HasForeignKey(d => d.ExamQuestionId)
                 .OnDelete(DeleteBehavior.Restrict);
             
+            // ExamFolder
+            modelBuilder.Entity<ExamFolder>()
+                .HasOne(f => f.User)
+                .WithMany()
+                .HasForeignKey(f => f.UserId)
+                .OnDelete(DeleteBehavior.Cascade); // Xóa User thì xóa luôn Folder
+
+            modelBuilder.Entity<ExamPaper>()
+                .HasOne(p => p.Folder)
+                .WithMany(f => f.ExamPapers)
+                .HasForeignKey(p => p.FolderId)
+                .OnDelete(DeleteBehavior.SetNull); // Xóa Folder thì Đề thi văng ra ngoài (Set Null) chứ không bị xóa mất
             
             
         }

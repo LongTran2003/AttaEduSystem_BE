@@ -25,6 +25,11 @@ namespace AttaEduSystem.Models.Entities
         [StringLength(100)]
         public string? Subject { get; set; }
 
+        public Guid? FolderId { get; set; } // Cho phép null
+        
+        [ForeignKey("FolderId")]
+        public virtual ExamFolder? Folder { get; set; }
+        
         public virtual ICollection<ExamQuestion> Questions { get; set; } = new List<ExamQuestion>();
         
         [ForeignKey("CreatedBy")] 

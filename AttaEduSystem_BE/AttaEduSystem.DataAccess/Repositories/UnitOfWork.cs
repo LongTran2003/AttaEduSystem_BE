@@ -23,6 +23,7 @@ namespace AttaEduSystem.DataAccess.Repositories
         public IPaymentRepository Payment { get; private set; }
         public IExamAttemptRepository ExamAttempt { get; private set; }
         public IExamAttemptDetailRepository ExamAttemptDetail { get; private set; }
+        public  IExamFolderRepository ExamFolder { get; private set; }
         
 
         public UnitOfWork(ApplicationDBContext context, UserManager<ApplicationUser> userManager)
@@ -42,6 +43,7 @@ namespace AttaEduSystem.DataAccess.Repositories
             Payment = new PaymentRepository(_context);
             ExamAttempt = new ExamAttemptRepository(_context);
             ExamAttemptDetail = new ExamAttemptDetailRepository(_context);
+            ExamFolder = new ExamFolderRepository(_context);
         }
 
 

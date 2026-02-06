@@ -44,6 +44,7 @@ namespace AttaEduSystem.API.Extension
             services.AddScoped<IOcrService, GoogleVisionOcrService>();
             services.AddScoped<IExamFormatParser, RegexExamFormatParser>();
             services.AddScoped<IExamTakingService, ExamTakingService>();
+            services.AddScoped<IStatisticsService, StatisticsService>();
 
             // --- A. Cấu hình cho OpenAI ---
             // OpenAiService dùng IHttpClientFactory, nên đăng ký Scoped bình thường
