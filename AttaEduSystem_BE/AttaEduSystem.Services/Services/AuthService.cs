@@ -352,6 +352,26 @@ namespace AttaEduSystem.Services.Services
             return SuccessResponse.Build("Account verified successfully.", 200);
         }
 
+        public async Task<ResponseDto> VerifyResetOtp(VerifyOtpDto verifyOtpDto)
+        {
+            var user = await _userManager.FindByEmailAsync(verifyOtpDto.Email);
+            if (user == null)
+                return ErrorResponse.Build("User not found", 404);
+
+            // Kiểm tra OTP
+            if (user.OtpCode != verifyOtpDto.OtpCode || user.OtpExpiry == null || user.OtpExpiry < DateTime.UtcNow)
+                return ErrorResponse.Build("Invalid or expired OTP code", 400);
+
+            // ✅ OTP đúng → Sinh temporary token để reset password
+            var resetToken = await _userManager.GeneratePasswordResetTokenAsync(user);
+
+            return SuccessResponse.Build("OTP verified successfully. Use the token to reset password.", 200, new
+            {
+                ResetToken = resetToken,
+                Email = user.Email
+            });
+        }
+
         public async Task<ResponseDto> SendVerifyEmail(EmailDto emailDto)
         {
             {
@@ -414,60 +434,59 @@ namespace AttaEduSystem.Services.Services
             if (user == null)
                 return ErrorResponse.Build("No account found matching the provided email.", 404);
 
-            //token reset password
-            var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+            ////token reset password
+            //var token = await _userManager.GeneratePasswordResetTokenAsync(user);
 
-            // build link reset password
-            // string resetLink = $"http://localhost:5173/reset-password?email={user.Email}&token={Uri.UnescapeDataString(token)}";
-            var resetLink =
-                $"http://www.spicypox.com/reset-password?email={user.Email}&token={HttpUtility.UrlEncode(token)}";
+            //// build link reset password
+            //// string resetLink = $"http://localhost:5173/reset-password?email={user.Email}&token={Uri.UnescapeDataString(token)}";
+            //var resetLink =
+            //    $"http://www.spicypox.com/reset-password?email={user.Email}&token={HttpUtility.UrlEncode(token)}";
+            //var emailSent = await _emailService.SendPasswordResetEmailAsync(user.Email!, resetLink);
 
-            var emailSent = await _emailService.SendPasswordResetEmailAsync(user.Email!, resetLink);
+
+            // ✅ SỬA: Sinh OTP thay vì token link
+            var otp = GenerateOtp();
+            user.OtpCode = otp;
+            user.OtpExpiry = DateTime.UtcNow.AddMinutes(10); // Hết hạn sau 10 phút
+            await _userManager.UpdateAsync(user);
+
+            // ✅ SỬA: Gửi OTP qua email
+            var emailSent = await _emailService.SendPasswordResetOtpAsync(user.Email!, otp, user.FullName);
 
             if (emailSent) 
-                return SuccessResponse.Build("Password reset email sent successfully.", 200);
+                return SuccessResponse.Build(
+                    "Password reset OTP sent to your email. Please check your inbox.", 200);
 
             return ErrorResponse.Build("Failed to send password reset email.", 500);
         }
 
         public async Task<ResponseDto> ResetPassword(ResetPasswordDto resetPasswordDto)
         {
-            // Check if new password and confirm password match
+            // Validate password match
             if (resetPasswordDto.NewPassword != resetPasswordDto.ConfirmPassword)
-                return new ResponseDto
-                {
-                    IsSuccess = false,
-                    Message = "New password and confirmation password do not match.",
-                    StatusCode = 400,
-                    Result = null
-                };
+                return ErrorResponse.Build("New password and confirmation password do not match.", 400);
 
             var user = await _userManager.FindByEmailAsync(resetPasswordDto.Email);
             if (user == null)
-                return new ResponseDto
-                {
-                    IsSuccess = false,
-                    Message = "User not found",
-                    StatusCode = 404,
-                    Result = null
-                };
+                return ErrorResponse.Build("User not found", 404);
 
-            var result = await _userManager.ResetPasswordAsync(user, resetPasswordDto.Token, resetPasswordDto.NewPassword);
+            // ✅ Reset password với token từ VerifyResetOtp
+            var result = await _userManager.ResetPasswordAsync(
+                user, 
+                resetPasswordDto.Token, 
+                resetPasswordDto.NewPassword);
+
             if (!result.Succeeded)
-                return new ResponseDto
-                {
-                    IsSuccess = false,
-                    Message = "Reset password failed",
-                    StatusCode = 400,
-                    Result = null
-                };
-            return new ResponseDto
-            {
-                IsSuccess = true,
-                Message = "Password has been reset successfully.",
-                StatusCode = 200,
-                Result = null
-            };
+                return ErrorResponse.Build(
+                    "Reset password failed. Invalid token or password requirements not met.", 
+                    400);
+
+            // ✅ Xóa OTP sau khi reset thành công
+            user.OtpCode = null;
+            user.OtpExpiry = null;
+            await _userManager.UpdateAsync(user);
+
+            return SuccessResponse.Build("Password has been reset successfully.", 200);
         }
 
         public async Task<ResponseDto> ChangePassword(ChangePasswordDto changePasswordDto, ClaimsPrincipal User)

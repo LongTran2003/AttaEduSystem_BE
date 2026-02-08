@@ -34,7 +34,7 @@ namespace AttaEduSystem.API.Controllers
         
         [HttpPost("{examPaperId:guid}/solve")]
         [Authorize(Policy = "RequireProPlan")]
-        [SwaggerOperation(Summary = "Solve an exam paper", 
+        [SwaggerOperation(Summary = "💡 Solve an exam paper", 
             Description = "Uses AI to generate step-by-step solutions.")]
         public async Task<ActionResult<ResponseDto>> SolveExam(Guid examPaperId)
         {
@@ -43,7 +43,7 @@ namespace AttaEduSystem.API.Controllers
         }
 
         [HttpGet("{examPaperId:guid}")]
-        [SwaggerOperation(Summary = "Get solution for exam", 
+        [SwaggerOperation(Summary = "💡 Get solution for exam", 
             Description = "Retrieves the saved AI solution for a specific exam.")]
         public async Task<ActionResult<ResponseDto>> GetSolution(Guid examPaperId)
         {
@@ -52,7 +52,7 @@ namespace AttaEduSystem.API.Controllers
         }
         
         [HttpPut("{id:guid}/status")]
-        [SwaggerOperation(Summary = "Update solution status", 
+        [SwaggerOperation(Summary = "💡 Update solution status", 
             Description = "Update status (Saved, Deleted) for a solution.")]
         public async Task<ActionResult<ResponseDto>> UpdateStatus(Guid id, [FromBody] UpdateSolutionStatusDto dto)
         {
