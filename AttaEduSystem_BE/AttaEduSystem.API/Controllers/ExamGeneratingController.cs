@@ -34,7 +34,7 @@ namespace AttaEduSystem.API.Controllers
         
         [HttpPost("{originalExamId:guid}/generate-similar")]
         [Authorize(Policy = "RequireProPlan")]
-        [SwaggerOperation(Summary = "Generate similar exam", 
+        [SwaggerOperation(Summary = "🤖 Generate similar exam", 
             Description = "Uses AI to generate a new exam based on the structure of an original exam.")]
         public async Task<ActionResult<ResponseDto>> GenerateSimilarExam(Guid originalExamId)
         {
@@ -43,7 +43,7 @@ namespace AttaEduSystem.API.Controllers
         }
         
         [HttpPut("{id:guid}/status")]
-        [SwaggerOperation(Summary = "Update generated exam status", 
+        [SwaggerOperation(Summary = "🤖 Update generated exam status", 
             Description = "Update status (Draft, Saved, Deleted) for a generated exam.")]
         public async Task<ActionResult<ResponseDto>> UpdateStatus(Guid id, [FromBody] UpdateGeneratedExamStatusDto dto)
         {

@@ -34,7 +34,7 @@ public class FolderController : ControllerBase
         }
 
         [HttpPost]
-        [SwaggerOperation(Summary = "Create new folder", Description = "Create a new folder to organize exam papers.")]
+        [SwaggerOperation(Summary = "📂 Create new folder", Description = "Create a new folder to organize exam papers.")]
         public async Task<ActionResult<ResponseDto>> CreateFolder([FromBody] CreateFolderDto dto)
         {
             if (!ModelState.IsValid) return ReturnInvalidInputResponse();
@@ -44,7 +44,7 @@ public class FolderController : ControllerBase
         }
 
         [HttpGet]
-        [SwaggerOperation(Summary = "List my folders", Description = "Get all active folders created by the current user.")]
+        [SwaggerOperation(Summary = "📂 List my folders", Description = "Get all active folders created by the current user.")]
         public async Task<ActionResult<ResponseDto>> GetMyFolders()
         {
             var result = await _folderService.GetMyFolders(User);
@@ -52,7 +52,7 @@ public class FolderController : ControllerBase
         }
 
         [HttpGet("{folderId:guid}")]
-        [SwaggerOperation(Summary = "Get folder details", Description = "Get folder info and list of exam papers inside it.")]
+        [SwaggerOperation(Summary = "📂 Get folder details", Description = "Get folder info and list of exam papers inside it.")]
         public async Task<ActionResult<ResponseDto>> GetFolderDetails(Guid folderId)
         {
             var result = await _folderService.GetFolderDetails(folderId, User);
@@ -60,7 +60,7 @@ public class FolderController : ControllerBase
         }
 
         [HttpPut("{folderId:guid}")]
-        [SwaggerOperation(Summary = "Update folder", Description = "Rename folder or change color.")]
+        [SwaggerOperation(Summary = "📂 Update folder", Description = "Rename folder or change color.")]
         public async Task<ActionResult<ResponseDto>> UpdateFolder(Guid folderId, [FromBody] UpdateFolderDto dto)
         {
             if (!ModelState.IsValid) return ReturnInvalidInputResponse();
@@ -70,7 +70,7 @@ public class FolderController : ControllerBase
         }
 
         [HttpDelete("{folderId:guid}")]
-        [SwaggerOperation(Summary = "Delete folder (Soft Delete)", Description = "Mark folder as deleted. Exams inside will be detached (moved to root).")]
+        [SwaggerOperation(Summary = "📂 Delete folder (Soft Delete)", Description = "Mark folder as deleted. Exams inside will be detached (moved to root).")]
         public async Task<ActionResult<ResponseDto>> DeleteFolder(Guid folderId)
         {
             var result = await _folderService.DeleteFolder(folderId, User);
@@ -78,7 +78,7 @@ public class FolderController : ControllerBase
         }
 
         [HttpPost("{folderId:guid}/exams")]
-        [SwaggerOperation(Summary = "Add exam to folder", Description = "Move an existing exam paper into a specific folder.")]
+        [SwaggerOperation(Summary = "📂 Add exam to folder", Description = "Move an existing exam paper into a specific folder.")]
         public async Task<ActionResult<ResponseDto>> AddExamToFolder(Guid folderId, [FromBody] AddExamToFolderDto dto)
         {
             if (!ModelState.IsValid) return ReturnInvalidInputResponse();
@@ -88,7 +88,7 @@ public class FolderController : ControllerBase
         }
 
         [HttpDelete("exams/{examPaperId:guid}")]
-        [SwaggerOperation(Summary = "Remove exam from folder", Description = "Remove an exam from its current folder (exam will be moved to 'Uncategorized').")]
+        [SwaggerOperation(Summary = "📂 Remove exam from folder", Description = "Remove an exam from its current folder (exam will be moved to 'Uncategorized').")]
         public async Task<ActionResult<ResponseDto>> RemoveExamFromFolder(Guid examPaperId)
         {
             var result = await _folderService.RemoveExamFromFolder(examPaperId, User);

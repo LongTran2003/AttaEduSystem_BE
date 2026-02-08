@@ -39,7 +39,7 @@ namespace AttaEduSystem.API.Controllers
         }
         
         [HttpPost("payos/create-link")]
-        [SwaggerOperation(Summary = "Create PayOS payment link", 
+        [SwaggerOperation(Summary = "💸 Create PayOS payment link", 
             Description = "Generates a payment link for a pending order.")]
         public async Task<ActionResult<ResponseDto>> CreatePayOsPaymentLink([FromBody] CreatePaymentLinkDto createPaymentLinkDto)
         {
@@ -50,7 +50,7 @@ namespace AttaEduSystem.API.Controllers
         }
 
         [HttpPost("payos/confirm")]
-        [SwaggerOperation(Summary = "Confirm PayOS transaction", 
+        [SwaggerOperation(Summary = "💸 Confirm PayOS transaction", 
             Description = "Updates transaction status based on PayOS callback data.")]
         public async Task<ActionResult<ResponseDto>> ConfirmPayOsTransaction([FromBody] ConfirmPaymentDto confirmPaymentDto)
         {
@@ -74,7 +74,7 @@ namespace AttaEduSystem.API.Controllers
         }
 
         [HttpGet]
-        [SwaggerOperation(Summary = "List all payments", 
+        [SwaggerOperation(Summary = "💸 List all payments", 
             Description = "Returns a paginated list of payment transactions.")]
         public async Task<ActionResult<ResponseDto>> GetAll(
             int pageNumber = 1,
@@ -88,7 +88,7 @@ namespace AttaEduSystem.API.Controllers
         }
 
         [HttpGet("{paymentId:guid}")]
-        [SwaggerOperation(Summary = "Get payment details", 
+        [SwaggerOperation(Summary = "💸 Get payment details", 
             Description = "Retrieves details of a specific payment transaction.")]
         public async Task<ActionResult<ResponseDto>> GetById(Guid paymentId)
         {

@@ -34,7 +34,7 @@ public class ProfileController : ControllerBase
     }
     
     [HttpGet("me")]
-    [SwaggerOperation(Summary = "Get current user profile", 
+    [SwaggerOperation(Summary = "👤 Get current user profile", 
         Description = "Fetches detailed profile information of the logged-in user.")]
     public async Task<ActionResult<ResponseDto>> GetUserProfile()
     {
@@ -43,7 +43,7 @@ public class ProfileController : ControllerBase
     }
 
     [HttpPut("update")]
-    [SwaggerOperation(Summary = "Update user profile", 
+    [SwaggerOperation(Summary = "👤 Update user profile", 
         Description = "Updates personal information (Full Name, Address, Phone, etc.) of the logged-in user.")]
     public async Task<ActionResult<ResponseDto>> UpdateUserProfile([FromBody] UpdateUserProfileDto updateUserProfileDto)
     {
@@ -55,7 +55,7 @@ public class ProfileController : ControllerBase
 
     [HttpPost("token/refresh")]
     [AllowAnonymous] // Thường refresh token không cần Authorize bearer cũ (vì nó hết hạn rồi)
-    [SwaggerOperation(Summary = "Refresh access token", 
+    [SwaggerOperation(Summary = "👤 Refresh access token", 
         Description = "Generates a new access token using a valid refresh token.")]
     public async Task<ActionResult<ResponseDto>> RefreshAccessToken([FromBody] RefreshTokenDto refreshTokenDto)
     {
@@ -66,7 +66,7 @@ public class ProfileController : ControllerBase
     }
     
     [HttpPost("avatar")]
-    [SwaggerOperation(Summary = "Upload user avatar", Description = "Uploads a new avatar image for the logged-in user.")]
+    [SwaggerOperation(Summary = "👤 Upload user avatar", Description = "Uploads a new avatar image for the logged-in user.")]
     public async Task<ActionResult<ResponseDto>> UploadAvatar(IFormFile file)
     {
         // Kiểm tra file cơ bản ở Controller
