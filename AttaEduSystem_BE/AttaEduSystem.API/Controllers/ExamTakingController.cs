@@ -34,7 +34,8 @@ public class ExamTakingController : ControllerBase
     }
     
     [HttpPost("submit")]
-    [SwaggerOperation(Summary = "Submit exam answers", Description = "Submits user answers, calculates score, and saves the attempt.")]
+    [SwaggerOperation(Summary = "✍️ Submit exam answers", 
+        Description = "Submits user answers, calculates score, and saves the attempt.")]
     public async Task<ActionResult<ResponseDto>> SubmitExam([FromBody] SubmitExamDto dto)
     {
         if (!ModelState.IsValid) return ReturnInvalidInputResponse();
@@ -44,7 +45,8 @@ public class ExamTakingController : ControllerBase
     }
 
     [HttpGet("history")]
-    [SwaggerOperation(Summary = "Get exam history", Description = "Returns a list of all exams taken by the current user.")]
+    [SwaggerOperation(Summary = "✍️ Get exam history", 
+        Description = "Returns a list of all exams taken by the current user.")]
     public async Task<ActionResult<ResponseDto>> GetHistory()
     {
         var result = await _examTakingService.GetExamHistory(User);
@@ -52,7 +54,8 @@ public class ExamTakingController : ControllerBase
     }
 
     [HttpGet("result/{attemptId:guid}")]
-    [SwaggerOperation(Summary = "Get exam result details", Description = "Retrieves detailed results (score, answers) of a specific attempt.")]
+    [SwaggerOperation(Summary = "✍️ Get exam result details", 
+        Description = "Retrieves detailed results (score, answers) of a specific attempt.")]
     public async Task<ActionResult<ResponseDto>> GetResult(Guid attemptId)
     {
         var result = await _examTakingService.GetExamResult(attemptId, User);

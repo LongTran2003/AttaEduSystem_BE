@@ -21,7 +21,7 @@ public class StatisticsController : ControllerBase
     }
 
     [HttpGet("overview")]
-    [SwaggerOperation(Summary = "Get overview statistics", 
+    [SwaggerOperation(Summary = "📊 Get overview statistics", 
         Description = "Returns total exams, avg score, etc.")]
     public async Task<ActionResult<ResponseDto>> GetOverview()
     {
@@ -30,7 +30,7 @@ public class StatisticsController : ControllerBase
     }
 
     [HttpGet("progress-chart")]
-    [SwaggerOperation(Summary = "Get progress chart data", 
+    [SwaggerOperation(Summary = "📊 Get progress chart data", 
         Description = "Returns aggregated scores over the last 7 days (or specified days).")]
     public async Task<ActionResult<ResponseDto>> GetProgressChart([FromQuery] int days = 7)
     {

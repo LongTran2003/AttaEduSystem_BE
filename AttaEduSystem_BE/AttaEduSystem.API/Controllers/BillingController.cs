@@ -38,7 +38,7 @@ namespace AttaEduSystem.API.Controllers
         
         [HttpGet("plans")]
         [AllowAnonymous]
-        [SwaggerOperation(Summary = "List subscription plans", 
+        [SwaggerOperation(Summary = "💎 List subscription plans", 
             Description = "Returns all active subscription plans available for purchase.")]
         public async Task<ActionResult<ResponseDto>> GetPlans()
         {
@@ -47,7 +47,7 @@ namespace AttaEduSystem.API.Controllers
         }
 
         [HttpGet("subscription")]
-        [SwaggerOperation(Summary = "Get current subscription", 
+        [SwaggerOperation(Summary = "💎 Get current subscription", 
             Description = "Returns the active subscription details of the current user.")]
         public async Task<ActionResult<ResponseDto>> GetCurrentSubscription()
         {
@@ -56,7 +56,7 @@ namespace AttaEduSystem.API.Controllers
         }
 
         [HttpGet("usage")]
-        [SwaggerOperation(Summary = "Get usage statistics", 
+        [SwaggerOperation(Summary = "💎 Get usage statistics", 
             Description = "Returns current usage (scans, solves, etc.) vs limits of the plan.")]
         public async Task<ActionResult<ResponseDto>> GetUsage()
         {
@@ -65,7 +65,7 @@ namespace AttaEduSystem.API.Controllers
         }
 
         [HttpPost("checkout")]
-        [SwaggerOperation(Summary = "Create checkout session", 
+        [SwaggerOperation(Summary = "💎 Create checkout session", 
             Description = "Creates a pending order and returns PayOS payment link.")]
         public async Task<ActionResult<ResponseDto>> CreateCheckout([FromBody] CreateCheckoutRequestDto dto)
         {

@@ -120,6 +120,17 @@ namespace AttaEduSystem.Services.Services
             return await SendEmailFromTemplateAsync(toEmail, new AccountVerificationOtpTemplate(), placeholders);
         }
 
+        public async Task<bool> SendPasswordResetOtpAsync(string toEmail, string otp, string userName)
+        {
+            var placeholders = new Dictionary<string, string>
+    {
+        { "{{OTPnumbers}}", otp },
+        { "{{UserName}}", userName }
+    };
+
+            return await SendEmailFromTemplateAsync(toEmail, new PasswordResetOtpTemplate(), placeholders);
+        }
+
         private async Task<bool> SendEmailFromTemplateAsync(string toEmail,
             GenericEmailTemplate template,
             Dictionary<string, string> placeholders)
@@ -127,5 +138,6 @@ namespace AttaEduSystem.Services.Services
             string body = template.Render(placeholders);
             return await SendEmailAsync(toEmail, template.Subject, body);
         }
+
     }
 }
