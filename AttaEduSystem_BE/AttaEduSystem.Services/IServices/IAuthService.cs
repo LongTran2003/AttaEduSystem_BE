@@ -13,6 +13,7 @@ namespace AttaEduSystem.Services.IServices
         Task<ResponseDto> SendVerifyEmail(EmailDto emailDto);
         Task<ResponseDto> VerifyEmail(VerifyEmailDto verifyEmailDto);
         Task<ResponseDto> VerifyOtp(VerifyOtpDto verifyOtpDto);
+        Task<ResponseDto> VerifyResetOtp(VerifyOtpDto verifyOtpDto);
         Task<ResponseDto> ForgotPassword(EmailDto forgotPasswordDto);
         Task<ResponseDto> ResetPassword(ResetPasswordDto resetPasswordDto);
         Task<ResponseDto> ChangePassword(ChangePasswordDto changePasswordDto, ClaimsPrincipal User);

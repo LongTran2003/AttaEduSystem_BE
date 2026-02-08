@@ -36,7 +36,7 @@ namespace AttaEduSystem.API.Controllers
         }
 
         [HttpPost("scan")]
-        [SwaggerOperation(Summary = "Upload & Scan exam paper", 
+        [SwaggerOperation(Summary = "📸 Upload & Scan exam paper", 
             Description = "Uploads an image, performs OCR, and extracts exam structure.")]
         public async Task<ActionResult<ResponseDto>> ScanExamPaper([FromForm] UploadExamPaperDto dto)
         {
@@ -47,7 +47,7 @@ namespace AttaEduSystem.API.Controllers
         }
 
         [HttpGet("{id:guid}")]
-        [SwaggerOperation(Summary = "Get exam paper details with questions label", 
+        [SwaggerOperation(Summary = "📸 Get exam paper details with questions label", 
             Description = "Retrieves metadata and OCR content of a specific exam paper with a question label.")]
         public async Task<ActionResult<ResponseDto>> GetExamPaper(Guid id)
         {
@@ -57,7 +57,7 @@ namespace AttaEduSystem.API.Controllers
 
         [HttpGet("ready")]
         [AllowAnonymous]
-        [SwaggerOperation(Summary = "List ready exam papers", 
+        [SwaggerOperation(Summary = "📸 List ready exam papers", 
             Description = "Get a paginated list of public exam papers marked as Ready.")]
         public async Task<ActionResult<ResponseDto>> GetReadyExamPapers(
             [FromQuery] int pageNumber = 1,
@@ -71,7 +71,7 @@ namespace AttaEduSystem.API.Controllers
         }
 
         [HttpGet("{id:guid}/scanned-text")]
-        [SwaggerOperation(Summary = "Get scanned text only", 
+        [SwaggerOperation(Summary = "📸 Get scanned text only", 
             Description = "Returns the raw OCR text extracted from the exam paper.")]
         public async Task<ActionResult<ResponseDto>> GetScannedText(Guid id)
         {
@@ -80,7 +80,7 @@ namespace AttaEduSystem.API.Controllers
         }
 
         [HttpGet("my-exams")]
-        [SwaggerOperation(Summary = "List my exam papers", 
+        [SwaggerOperation(Summary = "📸 List my exam papers", 
             Description = "Returns all exam papers uploaded by the current logged-in user.")]
         public async Task<ActionResult<ResponseDto>> GetMyExamPapers()
         {
@@ -89,7 +89,7 @@ namespace AttaEduSystem.API.Controllers
         }
 
         [HttpGet("{id:guid}/image")]
-        [SwaggerOperation(Summary = "Get exam image URL", 
+        [SwaggerOperation(Summary = "📸 Get exam image URL", 
             Description = "Returns the Cloudinary URL of the uploaded exam image.")]
         public async Task<ActionResult<ResponseDto>> GetExamPaperImage(Guid id)
         {
@@ -98,7 +98,7 @@ namespace AttaEduSystem.API.Controllers
         }
 
         [HttpPut("{id:guid}/status")]
-        [SwaggerOperation(Summary = "Update exam paper status", 
+        [SwaggerOperation(Summary = "📸 Update exam paper status", 
             Description = "Updates status (e.g., Removed) for a scanned exam paper.")]
         public async Task<ActionResult<ResponseDto>> UpdateExamPaperStatus(Guid id, [FromBody] UpdateExamPaperStatusDto dto)
         {
