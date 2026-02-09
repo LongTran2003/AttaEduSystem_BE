@@ -4,5 +4,6 @@ namespace AttaEduSystem.DataAccess.IRepositories
 {
     public interface IStudentRepository : IRepository<Student>
     {
+        Task<string> GetNextStudentCodeAsync();
     }
 }

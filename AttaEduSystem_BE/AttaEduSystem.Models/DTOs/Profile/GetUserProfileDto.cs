@@ -1,6 +1,6 @@
 ﻿namespace AttaEduSystem.Models.DTOs.Profile
 {
-    public class GetUserDto
+    public class GetUserProfileDto
     {
         public string Id { get; set; } = null!;
         public string FullName { get; set; } = null!;
