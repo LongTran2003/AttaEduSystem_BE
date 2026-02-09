@@ -5,12 +5,14 @@ using AttaEduSystem.Models.DTOs.ExamFormat;
 using AttaEduSystem.Models.DTOs.ExamPaper;
 using AttaEduSystem.Models.DTOs.ExamQuestion;
 using AttaEduSystem.Models.DTOs.ExamResult;
+using AttaEduSystem.Models.DTOs.ExamShuffle;
 using AttaEduSystem.Models.DTOs.ExamTaking;
 using AttaEduSystem.Models.DTOs.Folder;
 using AttaEduSystem.Models.DTOs.GeminiAi;
 using AttaEduSystem.Models.DTOs.Openai;
 using AttaEduSystem.Models.DTOs.Payment;
 using AttaEduSystem.Models.DTOs.Profile;
+using AttaEduSystem.Models.DTOs.QuestionBank;
 using AttaEduSystem.Models.DTOs.Student;
 using AttaEduSystem.Models.Entities;
 using AttaEduSystem.Services.IServices;
@@ -199,7 +201,7 @@ namespace AttaEduSystem.Services.Mapping
             
             //  Question mapping
                     // 1. Map QuestionOption -> DTO
-            CreateMap<QuestionOption, Models.DTOs.ExamPaper.QuestionOptionDto>();
+            CreateMap<QuestionOption, Models.DTOs.ExamPaper.ExamQuestionOptionDto>();
 
                     // 2. Map ExamQuestion -> DTO
             CreateMap<ExamQuestion, ExamQuestionResponseDto>()
@@ -231,6 +233,32 @@ namespace AttaEduSystem.Services.Mapping
                 .ForMember(dest => dest.OptionLabel, opt => opt.MapFrom(src => src.Label))
                 .ForMember(dest => dest.OptionContent, opt => opt.MapFrom(src => src.Content));
 
+            // Shuffle & Question Bank mapping
+            CreateMap<ExamQuestion, ShuffledQuestionDto>()
+                .ForMember(dest => dest.OriginalQuestionId, opt => opt.MapFrom(src => src.QuestionId))
+                .ForMember(dest => dest.NewOrderIndex, opt => opt.Ignore())
+                .ForMember(dest => dest.QuestionIdLabel, opt => opt.MapFrom(src => src.QuestionIdLabel))
+                .ForMember(dest => dest.Content, opt => opt.MapFrom(src => src.Content))
+                .ForMember(dest => dest.QuestionType, opt => opt.MapFrom(src => src.QuestionType))
+                .ForMember(dest => dest.Points, opt => opt.MapFrom(src => src.Points))
+                .ForMember(dest => dest.CorrectAnswer, opt => opt.MapFrom(src => src.CorrectAnswer))
+                .ForMember(dest => dest.Options, opt => opt.Ignore());
+
+            CreateMap<QuestionOption, ShuffledOptionDto>()
+                .ForMember(dest => dest.OriginalLabel, opt => opt.MapFrom(src => src.Label))
+                .ForMember(dest => dest.NewLabel, opt => opt.Ignore())
+                .ForMember(dest => dest.Content, opt => opt.MapFrom(src => src.Content));
+
+            CreateMap<ExamQuestion, QuestionBankItemDto>()
+                .ForMember(dest => dest.ExamPaperTitle, opt => opt.MapFrom(src => src.ExamPaper != null ? src.ExamPaper.Title : "Unknown"))
+                .ForMember(dest => dest.Subject, opt => opt.MapFrom(src => src.ExamPaper != null ? src.ExamPaper.Subject : null))
+                .ForMember(dest => dest.Options, opt => opt.MapFrom(src => src.Options))
+                .ForMember(dest => dest.CreatedBy, opt => opt.MapFrom(src => src.CreatedBy ?? "Unknown"))
+                .ForMember(dest => dest.CreatedTime, opt => opt.MapFrom(src => src.CreatedTime ?? DateTime.UtcNow));
+
+            CreateMap<QuestionOption, QuestionBankOptionDto>()
+                .ForMember(dest => dest.OptionLabel, opt => opt.MapFrom(src => src.Label))
+                .ForMember(dest => dest.OptionContent, opt => opt.MapFrom(src => src.Content));
         }
 
 

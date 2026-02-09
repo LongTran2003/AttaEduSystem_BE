@@ -8,5 +8,5 @@ public class ExamQuestionResponseDto
     public int OrderIndex { get; set; }
     public double? Points { get; set; }
     public string QuestionType { get; set; } = "Essay";
-    public List<QuestionOptionDto> Options { get; set; } = new();
+    public List<ExamQuestionOptionDto> Options { get; set; } = new();
 }
