@@ -9,7 +9,7 @@ namespace AttaEduSystem.API.Controllers
 {
     [ApiController]
     [Route("api/exam-questions")]
-    [Authorize()]
+    [Authorize(Roles = "TEACHER, ADMIN")]
     [SwaggerTag("Exam Questions Management APIs")]
 
     public class ExamQuestionsController : ControllerBase
