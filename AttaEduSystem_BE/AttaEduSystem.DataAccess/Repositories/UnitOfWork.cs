@@ -11,6 +11,7 @@ namespace AttaEduSystem.DataAccess.Repositories
         private readonly ApplicationDBContext _context;
         public IStudentRepository Student { get; private set; }
         public ITeacherRepository Teacher { get; private set; }
+        public IUserRepository User { get; private set; }
         public IExamPaperRepository ExamPaper { get; private set; }
         public IGeneratedExamPaperRepository GeneratedExamPaper { get; private set; }
         public IExamQuestionRepository ExamQuestion { get; private set; }
@@ -23,7 +24,7 @@ namespace AttaEduSystem.DataAccess.Repositories
         public IPaymentRepository Payment { get; private set; }
         public IExamAttemptRepository ExamAttempt { get; private set; }
         public IExamAttemptDetailRepository ExamAttemptDetail { get; private set; }
-        public  IExamFolderRepository ExamFolder { get; private set; }
+        public IExamFolderRepository ExamFolder { get; private set; }
         
 
         public UnitOfWork(ApplicationDBContext context, UserManager<ApplicationUser> userManager)
@@ -31,6 +32,7 @@ namespace AttaEduSystem.DataAccess.Repositories
             _context = context;
             Student = new StudentRepository(_context);
             Teacher = new TeacherRepository(_context);
+            User = new UserRepository(_context);
             ExamPaper = new ExamPaperRepository(_context);
             GeneratedExamPaper = new GeneratedExamPaperRepository(_context);
             ExamQuestion = new ExamQuestionRepository(_context);

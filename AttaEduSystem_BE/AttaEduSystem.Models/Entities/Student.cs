@@ -8,6 +8,10 @@ namespace AttaEduSystem.Models.Entities
         [Key]
         public Guid StudentId { get; set; }
 
+        [Required]
+        [StringLength(8)]
+        public string StudentCode { get; set; } = null!;
+
         public string UserId { get; set; } = null!;
         [ForeignKey("UserId")] public virtual ApplicationUser ApplicationUser { get; set; } = null!;
     }
