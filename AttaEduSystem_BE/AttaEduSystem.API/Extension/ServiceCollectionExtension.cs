@@ -31,6 +31,7 @@ namespace AttaEduSystem.API.Extension
             services.AddScoped<IEmailService, EmailService>();
             services.AddScoped<IManageUserAccountService, ManageUserAccountService>();
             services.AddScoped<IProfileService, ProfileService>();
+            services.AddScoped<IAdminService, AdminService>();
 
             // 4. Cloudinary
             services.AddScoped<ICloudinaryService, CloudinaryService>();
