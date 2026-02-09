@@ -50,7 +50,7 @@ public class ProfileService : IProfileService
         var roles = await _userManager.GetRolesAsync(user);
 
         // Map data từ Database (để đảm bảo data mới nhất, không dùng data từ Token cũ)
-        var userDto = new GetUserDto
+        var userDto = new GetUserProfileDto
         {
             Id = user.Id,
             FullName = user.FullName ?? string.Empty, // Lấy từ DB

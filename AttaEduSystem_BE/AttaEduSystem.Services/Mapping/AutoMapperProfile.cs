@@ -1,20 +1,21 @@
-﻿using AttaEduSystem.Models.DTOs.Authentication;
+﻿using AttaEduSystem.Models.DTOs.Admin;
+using AttaEduSystem.Models.DTOs.Authentication;
 using AttaEduSystem.Models.DTOs.Billing;
 using AttaEduSystem.Models.DTOs.ExamFormat;
 using AttaEduSystem.Models.DTOs.ExamPaper;
+using AttaEduSystem.Models.DTOs.ExamResult;
+using AttaEduSystem.Models.DTOs.ExamTaking;
+using AttaEduSystem.Models.DTOs.Folder;
 using AttaEduSystem.Models.DTOs.GeminiAi;
 using AttaEduSystem.Models.DTOs.Openai;
 using AttaEduSystem.Models.DTOs.Payment;
+using AttaEduSystem.Models.DTOs.Profile;
 using AttaEduSystem.Models.DTOs.Student;
 using AttaEduSystem.Models.Entities;
 using AttaEduSystem.Services.IServices;
 using AttaEduSystem.Utilities.Constants;
 using AutoMapper;
 using System.Text.Json;
-using AttaEduSystem.Models.DTOs.ExamResult;
-using AttaEduSystem.Models.DTOs.ExamTaking;
-using AttaEduSystem.Models.DTOs.Folder;
-using AttaEduSystem.Models.DTOs.Profile;
 
 namespace AttaEduSystem.Services.Mapping
 {
@@ -71,6 +72,23 @@ namespace AttaEduSystem.Services.Mapping
                 .ForMember(dest => dest.ImageUrl, opt => opt.MapFrom(src => src.ImageUrl))
                 .ReverseMap();
 
+            // Admin: ApplicationUser to GetUserDto
+            CreateMap<ApplicationUser, GetUserDto>()
+                .ForMember(dest => dest.Roles, opt => opt.Ignore()) // Roles cần query riêng (manual mapping), ignore để tránh lỗi
+                .ForMember(dest => dest.StudentCode, opt => opt.Ignore()) // Map manually
+                .ForMember(dest => dest.TeacherCode, opt => opt.Ignore()) // Map manually
+                .ForMember(dest => dest.CreatedBy, opt => opt.Ignore()) // Chưa có logic nên ignore
+                .ForMember(dest => dest.CreatedAt, opt => opt.Ignore()); // Chưa có logic nên ignore
+
+            // Admin: UpdateUserDto to ApplicationUser
+            CreateMap<UpdateUserDto, ApplicationUser>()
+                .ForMember(dest => dest.FullName, opt => opt.Condition(src => !string.IsNullOrEmpty(src.FullName)))
+                .ForMember(dest => dest.PhoneNumber, opt => opt.Condition(src => !string.IsNullOrEmpty(src.PhoneNumber)))
+                .ForMember(dest => dest.Address, opt => opt.Condition(src => !string.IsNullOrEmpty(src.Address)))
+                .ForMember(dest => dest.Gender, opt => opt.Condition(src => !string.IsNullOrEmpty(src.Gender)))
+                .ForMember(dest => dest.BirthDate, opt => opt.Condition(src => src.BirthDate.HasValue))
+                .ForMember(dest => dest.ImageUrl, opt => opt.Condition(src => !string.IsNullOrEmpty(src.ImageUrl)))
+                .ForMember(dest => dest.Status, opt => opt.Condition(src => !string.IsNullOrEmpty(src.Status)));
 
             ////// Add more mappings as needed
 
@@ -203,7 +221,9 @@ namespace AttaEduSystem.Services.Mapping
                 .ForMember(dest => dest.ExamCount, opt => opt.MapFrom(src => src.ExamPapers.Count));
 
             CreateMap<CreateFolderDto, ExamFolder>();
-            
+
+
+
         }
 
 
