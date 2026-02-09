@@ -1,6 +1,6 @@
 ﻿namespace AttaEduSystem.Models.DTOs.ExamFormat
 {
-    public class ExamQuestionDto
+    public class ExamQuestionFormatDto
     {
         public string Code { get; set; } = string.Empty; // Câu 1, Câu 2...
         public string Requirement { get; set; } = string.Empty;
