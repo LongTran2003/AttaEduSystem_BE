@@ -3,6 +3,7 @@ using AttaEduSystem.Models.DTOs.Authentication;
 using AttaEduSystem.Models.DTOs.Billing;
 using AttaEduSystem.Models.DTOs.ExamFormat;
 using AttaEduSystem.Models.DTOs.ExamPaper;
+using AttaEduSystem.Models.DTOs.ExamQuestion;
 using AttaEduSystem.Models.DTOs.ExamResult;
 using AttaEduSystem.Models.DTOs.ExamTaking;
 using AttaEduSystem.Models.DTOs.Folder;
@@ -198,7 +199,7 @@ namespace AttaEduSystem.Services.Mapping
             
             //  Question mapping
                     // 1. Map QuestionOption -> DTO
-            CreateMap<QuestionOption, QuestionOptionDto>();
+            CreateMap<QuestionOption, Models.DTOs.ExamPaper.QuestionOptionDto>();
 
                     // 2. Map ExamQuestion -> DTO
             CreateMap<ExamQuestion, ExamQuestionResponseDto>()
@@ -222,7 +223,13 @@ namespace AttaEduSystem.Services.Mapping
 
             CreateMap<CreateFolderDto, ExamFolder>();
 
+            // ExamQuestion mapping
+            CreateMap<ExamQuestion, ExamQuestionDto>()
+                .ForMember(dest => dest.Options, opt => opt.MapFrom(src => src.Options));
 
+            CreateMap<QuestionOption, Models.DTOs.ExamQuestion.QuestionOptionDto>()
+                .ForMember(dest => dest.OptionLabel, opt => opt.MapFrom(src => src.Label))
+                .ForMember(dest => dest.OptionContent, opt => opt.MapFrom(src => src.Content));
 
         }
 
