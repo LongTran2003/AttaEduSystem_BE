@@ -111,7 +111,7 @@ namespace AttaEduSystem.Services.Services
             Questions = ExtractQuestions(text).ToList()
         };
 
-        private IEnumerable<ExamQuestionDto> ExtractQuestions(string text)
+        private IEnumerable<ExamQuestionFormatDto> ExtractQuestions(string text)
         {
             var matches = QuestionRegex.Matches(text);
             for (int i = 0; i < matches.Count; i++)
@@ -125,7 +125,7 @@ namespace AttaEduSystem.Services.Services
 
                 var subParts = ExtractSubQuestions(remainder);
 
-                yield return new ExamQuestionDto
+                yield return new ExamQuestionFormatDto
                 {
                     Code = matches[i].Groups[1].Value.Trim(),
                     Points = ParsePoint(matches[i].Value),

@@ -21,5 +21,22 @@ namespace AttaEduSystem.DataAccess.Repositories
                 .Where(q => q.ExamPaperId == examPaperId)
                 .ToListAsync();
         }
+
+        public async Task<ExamQuestion?> GetByIdWithOptionsAsync(Guid questionId)
+        {
+            return await _context.ExamQuestions
+                .Include(q => q.Options)
+                .FirstOrDefaultAsync(q => q.QuestionId == questionId);
+        }
+
+        public void Update(ExamQuestion examQuestion)
+        {
+            _context.ExamQuestions.Update(examQuestion);
+        }
+
+        public void UpdateRange(IEnumerable<ExamQuestion> examQuestions)
+        {
+            _context.ExamQuestions.UpdateRange(examQuestions);
+        }
     }
 }
