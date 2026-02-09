@@ -5,11 +5,12 @@ using AttaEduSystem.Services.IServices;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
+using System.Runtime.InteropServices;
 
 namespace AttaEduSystem.API.Controllers
 {
     [ApiController]
-    [Authorize()]
+    [Authorize(Roles = "TEACHER, ADMIN")]
     [SwaggerTag("Exam Shuffle & Question Bank APIs")]
 
     public class ExamShuffleController : ControllerBase
