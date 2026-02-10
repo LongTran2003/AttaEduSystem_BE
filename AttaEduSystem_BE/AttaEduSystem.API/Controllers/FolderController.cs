@@ -9,6 +9,7 @@ namespace AttaEduSystem.API.Controllers;
 
 [ApiController]
 [Route("api/folders")]
+[ApiExplorerSettings(IgnoreApi = true)]
 [Authorize]
 [SwaggerTag("Library & Folder Management APIs")]
 
