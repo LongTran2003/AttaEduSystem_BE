@@ -3,6 +3,7 @@ using System;
 using AttaEduSystem.DataAccess.DBContext;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace AttaEduSystem.DataAccess.Migrations
 {
     [DbContext(typeof(ApplicationDBContext))]
-    partial class ApplicationDBContextModelSnapshot : ModelSnapshot
+    [Migration("20260210045948_AddExamRoom")]
+    partial class AddExamRoom
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -123,7 +126,7 @@ namespace AttaEduSystem.DataAccess.Migrations
                             AccessFailedCount = 0,
                             Address = "123 Admin St",
                             BirthDate = new DateTime(2001, 6, 5, 0, 0, 0, 0, DateTimeKind.Utc),
-                            ConcurrencyStamp = "cafdbf7c-aca1-45aa-8e97-e2299ac6f771",
+                            ConcurrencyStamp = "47282f92-b1cf-4697-b63e-4a55405bfd32",
                             Email = "admin@gmail.com",
                             EmailConfirmed = true,
                             FullName = "Admin",
@@ -131,10 +134,10 @@ namespace AttaEduSystem.DataAccess.Migrations
                             LockoutEnabled = true,
                             NormalizedEmail = "ADMIN@GMAIL.COM",
                             NormalizedUserName = "ADMIN@GMAIL.COM",
-                            PasswordHash = "AQAAAAIAAYagAAAAELa7yDspd6NE75hln35njJDifU939uLxjJDrypOZcXMPQNZGiwzHZzRTe7t0TGENiQ==",
+                            PasswordHash = "AQAAAAIAAYagAAAAEAOcXh6EHoKy8bOjZV7MauNq70aCJl8JVQYIP7hrfOweKrQIfVM8hQXKEb1IJ42GJg==",
                             PhoneNumber = "1234567890",
                             PhoneNumberConfirmed = true,
-                            SecurityStamp = "4842f30b-613a-455a-8bc9-b70729d94394",
+                            SecurityStamp = "ed3df71e-04c8-4dfc-98b4-6ffc52c20c5a",
                             Status = "Active",
                             TwoFactorEnabled = false,
                             UserName = "admin@gmail.com"
@@ -711,8 +714,8 @@ namespace AttaEduSystem.DataAccess.Migrations
 
                     b.Property<string>("StudentCode")
                         .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("character varying(10)");
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)");
 
                     b.Property<string>("UserId")
                         .IsRequired()
@@ -794,7 +797,7 @@ namespace AttaEduSystem.DataAccess.Migrations
                             SubscriptionPlanId = new Guid("11111111-1111-1111-1111-111111111111"),
                             Code = "FREE",
                             CreatedBy = "System",
-                            CreatedTime = new DateTime(2026, 2, 10, 6, 22, 18, 553, DateTimeKind.Utc).AddTicks(8819),
+                            CreatedTime = new DateTime(2026, 2, 10, 4, 59, 46, 508, DateTimeKind.Utc).AddTicks(4302),
                             Description = "Dành cho người mới bắt đầu, giới hạn tính năng.",
                             IsActive = true,
                             MaxGeneratedExamsPerMonth = 0,
@@ -809,7 +812,7 @@ namespace AttaEduSystem.DataAccess.Migrations
                             SubscriptionPlanId = new Guid("22222222-2222-2222-2222-222222222222"),
                             Code = "PRO",
                             CreatedBy = "System",
-                            CreatedTime = new DateTime(2026, 2, 10, 6, 22, 18, 553, DateTimeKind.Utc).AddTicks(8827),
+                            CreatedTime = new DateTime(2026, 2, 10, 4, 59, 46, 508, DateTimeKind.Utc).AddTicks(4313),
                             Description = "Mở khóa toàn bộ tính năng AI & Giải đề.",
                             IsActive = true,
                             MaxGeneratedExamsPerMonth = 50,

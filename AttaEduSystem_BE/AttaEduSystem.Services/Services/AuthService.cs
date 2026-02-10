@@ -137,8 +137,14 @@ namespace AttaEduSystem.Services.Services
                     };
                 }
 
-                var customer = _mapper.Map<Student>(signUpStudentDto);
-                customer.UserId = newUser.Id;
+                var studentCode = await _unitOfWork.Student.GetNextStudentCodeAsync();
+
+                var student = new Student
+                {
+                    StudentId = Guid.NewGuid(),
+                    UserId = newUser.Id,
+                    StudentCode = studentCode // ✅ Gán StudentCode
+                };
 
                 var isRoleExist = await _roleManager.RoleExistsAsync(StaticUserRoles.Student);
 
@@ -157,7 +163,7 @@ namespace AttaEduSystem.Services.Services
                     };
 
                 // Lưu thay đổi vào cơ sở dữ liệu
-                await _unitOfWork.Student.AddAsync(customer);
+                await _unitOfWork.Student.AddAsync(student);
                 await _unitOfWork.SaveAsync();
 
                 await transaction.CommitAsync();

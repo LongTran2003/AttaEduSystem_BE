@@ -74,5 +74,21 @@
             public const string Ready = "Ready";
             public const string Removed = "Removed";
         }
+
+        public static class ExamRoom
+        {
+            public const string Waiting = "Waiting";       // Phòng đang chờ, chưa đến giờ
+            public const string InProgress = "InProgress"; // Đang diễn ra
+            public const string Finished = "Finished";     // Đã kết thúc
+            public const string Cancelled = "Cancelled";   // Đã hủy
+        }
+
+        public static class ExamRoomParticipant
+        {
+            public const string Joined = "Joined";       // Đã vào phòng chờ
+            public const string InProgress = "InProgress"; // Đang làm bài
+            public const string Submitted = "Submitted";   // Đã nộp bài
+            public const string Left = "Left";            // Đã rời phòng
+        }
     }
 }

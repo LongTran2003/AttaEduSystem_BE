@@ -218,12 +218,17 @@ namespace AttaEduSystem.Services.Services
         // --- Helper Methods ---
         private async Task EnrichUserCodeAsync(ApplicationUser user, GetUserDto userDto)
         {
-            if (userDto.Roles != null && userDto.Roles.Contains(StaticUserRoles.Student))
+            // 1. Lấy Roles từ UserManager (QUAN TRỌNG!)
+            var roles = await _userManager.GetRolesAsync(user);
+            userDto.Roles = roles.ToList();
+
+            // 2. Enrich StudentCode hoặc TeacherCode dựa trên Role
+            if (userDto.Roles.Contains(StaticUserRoles.Student))
             {
                 var student = await _unitOfWork.Student.GetAsync(s => s.UserId == user.Id);
                 userDto.StudentCode = student?.StudentCode;
             }
-            else if (userDto.Roles != null && userDto.Roles.Contains(StaticUserRoles.Teacher))
+            else if (userDto.Roles.Contains(StaticUserRoles.Teacher))
             {
                 var teacher = await _unitOfWork.Teacher.GetAsync(t => t.UserId == user.Id);
                 userDto.TeacherCode = teacher?.TeacherCode;
