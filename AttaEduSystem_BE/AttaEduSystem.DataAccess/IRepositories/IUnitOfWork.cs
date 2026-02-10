@@ -20,9 +20,10 @@ namespace AttaEduSystem.DataAccess.IRepositories
         IExamAttemptRepository ExamAttempt { get; }
         IExamAttemptDetailRepository ExamAttemptDetail { get; }
         IExamFolderRepository ExamFolder { get; }
+        IExamRoomRepository ExamRoom { get; }
+        IExamRoomParticipantRepository ExamRoomParticipant { get; }
 
-        
-        
+
         Task<int> SaveAsync();
 
         Task<IDbContextTransaction> BeginTransactionAsync();
