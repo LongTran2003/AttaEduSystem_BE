@@ -27,6 +27,8 @@ namespace AttaEduSystem.DataAccess.DBContext
         public DbSet<ExamAttempt> ExamAttempts { get; set; }
         public DbSet<ExamAttemptDetail> ExamAttemptDetails { get; set; }
         public DbSet<ExamFolder> ExamFolders { get; set; }
+        public DbSet<ExamRoom> ExamRooms { get; set; }
+        public DbSet<ExamRoomParticipant> ExamRoomParticipants { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -192,8 +194,46 @@ namespace AttaEduSystem.DataAccess.DBContext
                 .WithMany(f => f.ExamPapers)
                 .HasForeignKey(p => p.FolderId)
                 .OnDelete(DeleteBehavior.SetNull); // Xóa Folder thì Đề thi văng ra ngoài (Set Null) chứ không bị xóa mất
-            
-            
+
+            // ExamRoom
+            modelBuilder.Entity<ExamRoom>()
+                .HasKey(r => r.ExamRoomId);
+
+            modelBuilder.Entity<ExamRoom>()
+                .HasIndex(r => r.RoomCode)
+                .IsUnique(); // Code phòng thi phải unique
+
+            modelBuilder.Entity<ExamRoom>()
+                .HasOne(r => r.ExamPaper)
+                .WithMany()
+                .HasForeignKey(r => r.ExamPaperId)
+                .OnDelete(DeleteBehavior.Restrict); // Không xóa đề thi nếu còn phòng thi
+
+            modelBuilder.Entity<ExamRoom>()
+                .HasMany(r => r.Participants)
+                .WithOne(p => p.ExamRoom)
+                .HasForeignKey(p => p.ExamRoomId)
+                .OnDelete(DeleteBehavior.Cascade); // Xóa phòng thì xóa luôn participants
+
+            // ExamRoomParticipant
+            modelBuilder.Entity<ExamRoomParticipant>()
+                .HasKey(p => p.ParticipantId);
+
+            modelBuilder.Entity<ExamRoomParticipant>()
+                .HasIndex(p => new { p.ExamRoomId, p.UserId })
+                .IsUnique(); // 1 user chỉ join 1 phòng 1 lần
+
+            modelBuilder.Entity<ExamRoomParticipant>()
+                .HasOne(p => p.User)
+                .WithMany()
+                .HasForeignKey(p => p.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ExamRoomParticipant>()
+                .HasOne(p => p.ExamAttempt)
+                .WithMany()
+                .HasForeignKey(p => p.ExamAttemptId)
+                .OnDelete(DeleteBehavior.SetNull); // Xóa attempt không xóa participant record
         }
     }
 }
