@@ -5,6 +5,7 @@ using AttaEduSystem.Models.DTOs.ExamFormat;
 using AttaEduSystem.Models.DTOs.ExamPaper;
 using AttaEduSystem.Models.DTOs.ExamQuestion;
 using AttaEduSystem.Models.DTOs.ExamResult;
+using AttaEduSystem.Models.DTOs.ExamRoom;
 using AttaEduSystem.Models.DTOs.ExamShuffle;
 using AttaEduSystem.Models.DTOs.ExamTaking;
 using AttaEduSystem.Models.DTOs.Folder;
@@ -95,7 +96,9 @@ namespace AttaEduSystem.Services.Mapping
 
             ////// Add more mappings as needed
 
+            // =========================================================
             // ExamPaper mapping
+            // =========================================================
             CreateMap<UploadExamPaperDto, ExamPaper>()
                 .ForMember(dest => dest.ExamPaperId, opt => opt.Ignore())
                 .ForMember(dest => dest.OriginalImageUrl, opt => opt.Ignore())
@@ -122,7 +125,9 @@ namespace AttaEduSystem.Services.Mapping
                 .ForMember(dest => dest.CreatedTime,
                         opt => opt.MapFrom(src => src.CreatedTime ?? StaticOperationStatus.Timezone.Vietnam));
 
+            // =========================================================
             // GeneratedExamPaper mapping
+            // =========================================================
             CreateMap<GeneratedExamPaper, GenerateExamResponseDto>()
                 .ForMember(dest => dest.GeneratedExamId, opt => opt.MapFrom(src => src.GeneratedExamPaperId))
                 .ForMember(dest => dest.GeneratedContent, opt => opt.MapFrom(src => src.GeneratedContentJson))
@@ -134,7 +139,9 @@ namespace AttaEduSystem.Services.Mapping
                 .ForMember(dest => dest.GeneratedExamId, opt => opt.MapFrom(src => src.GeneratedExamPaperId))
                 .ForMember(dest => dest.GeneratedAt, opt => opt.MapFrom(src => src.CreatedTime ?? StaticOperationStatus.Timezone.Vietnam));
 
+            // =========================================================
             // Map từ QuestionItem -> Entity ExamQuestion
+            // =========================================================
             CreateMap<QuestionItem, Models.Entities.ExamQuestion>()
                 .ForMember(dest => dest.QuestionId, opt => opt.MapFrom(src => Guid.NewGuid()))
                 .ForMember(dest => dest.QuestionIdLabel, opt => opt.MapFrom(src => src.Id))
@@ -146,11 +153,15 @@ namespace AttaEduSystem.Services.Mapping
 
                 .ForMember(dest => dest.Options, opt => opt.MapFrom(src => MapOptions(src.Options)));
 
+            // =========================================================
             // ExamSolution mapping
+            // =========================================================
             CreateMap<ExamSolution, ExamSolutionResponseDto>()
                 .ForMember(dest => dest.SolvedAt, opt => opt.MapFrom(src => src.CreatedTime));
 
+            // =========================================================
             // Payment mapping
+            // =========================================================
             CreateMap<Payment, GetAllPaymentDto>()
                 .ForMember(dest => dest.PaymentTransactionId, opt => opt.MapFrom(src => src.PaymentTransactionId))
                 .ForMember(dest => dest.OrderNumber, opt => opt.MapFrom(src => (long?)src.OrderNumber))
@@ -159,13 +170,18 @@ namespace AttaEduSystem.Services.Mapping
                 .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()))
                 .ForMember(dest => dest.CreatedAt, opt => opt.MapFrom(src => src.CreatedAt));
 
+            // =========================================================
             // SubscriptionPlan mapping
+            // =========================================================
             CreateMap<SubscriptionPlan, GetSubscriptionPlanDto>();
 
             CreateMap<UserSubscription, GetUserSubscriptionDto>()
                 .ForMember(dest => dest.Plan, opt => opt.MapFrom(src => src.Plan));
-            
+
+            // =========================================================
             // ExamTaking mapping
+            // =========================================================
+
                     // 1. Map Entity -> History DTO
             CreateMap<ExamAttempt, ExamHistoryDto>()
                 .ForMember(dest => dest.ExamTitle, 
@@ -198,8 +214,11 @@ namespace AttaEduSystem.Services.Mapping
                     opt => opt.MapFrom(src => src.CompletedAt ?? DateTime.UtcNow))
                 .ForMember(dest => dest.Details, 
                     opt => opt.MapFrom(src => src.Details.OrderBy(d => d.ExamQuestion.OrderIndex)));
-            
+
+            // =========================================================
             //  Question mapping
+            // =========================================================
+
                     // 1. Map QuestionOption -> DTO
             CreateMap<QuestionOption, Models.DTOs.ExamPaper.ExamQuestionOptionDto>();
 
@@ -212,8 +231,10 @@ namespace AttaEduSystem.Services.Mapping
             CreateMap<ExamPaper, GetExamPaperDto>()
                 // ... các trường cũ ...
                 .ForMember(dest => dest.Questions, opt => opt.MapFrom(src => src.Questions));
-            
+
+            // =========================================================
             // ExamFolder mapping
+            // =========================================================
             CreateMap<ExamFolder, FolderDto>()
                 .ForMember(dest => dest.FolderId, opt => opt.MapFrom(src => src.FolderId))
                 .ForMember(dest => dest.Name, opt => opt.MapFrom(src => src.Name))
@@ -225,7 +246,9 @@ namespace AttaEduSystem.Services.Mapping
 
             CreateMap<CreateFolderDto, ExamFolder>();
 
+            // =========================================================
             // ExamQuestion mapping
+            // =========================================================
             CreateMap<ExamQuestion, ExamQuestionDto>()
                 .ForMember(dest => dest.Options, opt => opt.MapFrom(src => src.Options));
 
@@ -233,7 +256,9 @@ namespace AttaEduSystem.Services.Mapping
                 .ForMember(dest => dest.OptionLabel, opt => opt.MapFrom(src => src.Label))
                 .ForMember(dest => dest.OptionContent, opt => opt.MapFrom(src => src.Content));
 
+            // =========================================================
             // Shuffle & Question Bank mapping
+            // =========================================================
             CreateMap<ExamQuestion, ShuffledQuestionDto>()
                 .ForMember(dest => dest.OriginalQuestionId, opt => opt.MapFrom(src => src.QuestionId))
                 .ForMember(dest => dest.NewOrderIndex, opt => opt.Ignore())
@@ -259,10 +284,59 @@ namespace AttaEduSystem.Services.Mapping
             CreateMap<QuestionOption, QuestionBankOptionDto>()
                 .ForMember(dest => dest.OptionLabel, opt => opt.MapFrom(src => src.Label))
                 .ForMember(dest => dest.OptionContent, opt => opt.MapFrom(src => src.Content));
+
+            // =========================================================
+            // ExamRoom mapping
+            // =========================================================
+
+            // CreateExamRoomDto -> ExamRoom
+            CreateMap<CreateExamRoomDto, ExamRoom>()
+                .ForMember(dest => dest.ExamRoomId, opt => opt.MapFrom(src => Guid.NewGuid()))
+                .ForMember(dest => dest.RoomCode, opt => opt.Ignore()) // Generate trong Service
+                .ForMember(dest => dest.EndTime, opt => opt.MapFrom(src => src.StartTime.AddMinutes(src.TimeLimit)))
+                .ForMember(dest => dest.CreatedBy, opt => opt.Ignore())
+                .ForMember(dest => dest.CreatedTime, opt => opt.Ignore())
+                .ForMember(dest => dest.Status, opt => opt.Ignore());
+
+            // ExamRoom -> ExamRoomResponseDto
+            CreateMap<ExamRoom, ExamRoomResponseDto>()
+                .ForMember(dest => dest.RoomCode, opt => opt.MapFrom(src => src.RoomCode))
+                .ForMember(dest => dest.ExamTitle, opt => opt.MapFrom(src => src.ExamPaper != null ? src.ExamPaper.Title : null))
+                .ForMember(dest => dest.CurrentParticipants, opt => opt.MapFrom(src => src.Participants != null ? src.Participants.Count : 0))
+                .ForMember(dest => dest.Status, opt => opt.Ignore()); // Tính toán động trong Service
+
+            // ExamRoom -> ExamRoomStatusDto
+            CreateMap<ExamRoom, ExamRoomStatusDto>()
+                .ForMember(dest => dest.RoomCode, opt => opt.MapFrom(src => src.RoomCode))
+                .ForMember(dest => dest.ExamTitle, opt => opt.MapFrom(src => src.ExamPaper != null ? src.ExamPaper.Title : null))
+                .ForMember(dest => dest.CurrentParticipants, opt => opt.MapFrom(src => src.Participants != null ? src.Participants.Count : 0))
+                .ForMember(dest => dest.Status, opt => opt.Ignore())
+                .ForMember(dest => dest.RemainingSeconds, opt => opt.Ignore())
+                .ForMember(dest => dest.CanJoin, opt => opt.Ignore())
+                .ForMember(dest => dest.Message, opt => opt.Ignore());
+
+            // ExamRoom -> JoinExamRoomResponseDto (partial, cần bổ sung participant info)
+            CreateMap<ExamRoom, JoinExamRoomResponseDto>()
+                .ForMember(dest => dest.RoomCode, opt => opt.MapFrom(src => src.RoomCode))
+                .ForMember(dest => dest.ParticipantId, opt => opt.Ignore())
+                .ForMember(dest => dest.ExamTitle, opt => opt.MapFrom(src => src.ExamPaper != null ? src.ExamPaper.Title : null))
+                .ForMember(dest => dest.RoomStatus, opt => opt.Ignore())
+                .ForMember(dest => dest.ParticipantStatus, opt => opt.Ignore())
+                .ForMember(dest => dest.ExamAttemptId, opt => opt.Ignore())
+                .ForMember(dest => dest.RemainingSeconds, opt => opt.Ignore());
+
+
+
+
+
+
         }
 
 
+
+        // =========================================================
         // --- Helper để tách chuỗi Options: "A. Nội dung" -> Label: A, Content: Nội dung ---
+        // =========================================================
         private List<QuestionOption> MapOptions(List<string>? sourceOptions)
         {
             var result = new List<QuestionOption>();

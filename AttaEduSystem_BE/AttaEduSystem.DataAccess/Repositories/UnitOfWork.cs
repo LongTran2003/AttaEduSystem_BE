@@ -25,7 +25,9 @@ namespace AttaEduSystem.DataAccess.Repositories
         public IExamAttemptRepository ExamAttempt { get; private set; }
         public IExamAttemptDetailRepository ExamAttemptDetail { get; private set; }
         public IExamFolderRepository ExamFolder { get; private set; }
-        
+        public IExamRoomRepository ExamRoom { get; private set; }
+        public IExamRoomParticipantRepository ExamRoomParticipant { get; private set; }
+
 
         public UnitOfWork(ApplicationDBContext context, UserManager<ApplicationUser> userManager)
         {
@@ -46,6 +48,8 @@ namespace AttaEduSystem.DataAccess.Repositories
             ExamAttempt = new ExamAttemptRepository(_context);
             ExamAttemptDetail = new ExamAttemptDetailRepository(_context);
             ExamFolder = new ExamFolderRepository(_context);
+            ExamRoom = new ExamRoomRepository(_context);
+            ExamRoomParticipant = new ExamRoomParticipantRepository(_context);
         }
 
 

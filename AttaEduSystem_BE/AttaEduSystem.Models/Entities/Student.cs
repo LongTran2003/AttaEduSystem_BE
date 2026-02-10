@@ -9,7 +9,7 @@ namespace AttaEduSystem.Models.Entities
         public Guid StudentId { get; set; }
 
         [Required]
-        [StringLength(8)]
+        [StringLength(10)]
         public string StudentCode { get; set; } = null!;
 
         public string UserId { get; set; } = null!;
