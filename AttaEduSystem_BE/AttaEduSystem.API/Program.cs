@@ -1,4 +1,6 @@
-﻿using AttaEduSystem.API.Extension;
+﻿using AttaEduSystem.API.BackgroundServices;
+using AttaEduSystem.API.Extension;
+using AttaEduSystem.API.Hubs;
 using AttaEduSystem.API.Middleware;
 using AttaEduSystem.DataAccess.DBContext;
 using AttaEduSystem.Models.Entities;
@@ -141,7 +143,11 @@ builder.Services.AddCors(options =>
         });
 });
 
+// Add SignalR
+builder.Services.AddSignalR();
 
+// Add Background Service for Timer
+builder.Services.AddHostedService<ExamTimerBackgroundService>();
 
 
 
@@ -179,6 +185,9 @@ app.Use(async (context, next) =>
 
 app.UseCors("AllowAttaEduSystem");
 app.UseMiddleware<GlobalExceptionHandllingMiddleware>();
+
+// Map SignalR Hub
+app.MapHub<ExamHub>("/hubs/exam");
 
 // Configure the HTTP request pipeline.
 //if (app.Environment.IsDevelopment())

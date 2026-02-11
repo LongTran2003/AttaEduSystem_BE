@@ -153,4 +153,63 @@ public class ExamTakingService : IExamTakingService
 
         return SuccessResponse.Build("Exam result retrieved successfully", 200, resultDto);
     }
+
+    // =========================================================
+    // AUTO-SUBMIT EXAM (When time's up)
+    // =========================================================
+    public async Task<ResponseDto> AutoSubmitExam(Guid examAttemptId, ClaimsPrincipal user)
+    {
+        var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userId))
+            return ErrorResponse.Build(StaticOperationStatus.User.UserNotFound, 401);
+
+        // 1. Lấy ExamAttempt
+        var attempt = await _unitOfWork.ExamAttempt.GetAttemptWithDetailsAsync(examAttemptId);
+        if (attempt == null)
+            return ErrorResponse.Build("Exam attempt not found", 404);
+
+        if (attempt.UserId != userId)
+            return ErrorResponse.Build("You are not authorized to submit this exam", 403);
+
+        if (attempt.CompletedAt.HasValue)
+            return ErrorResponse.Build("Exam has already been submitted", 400);
+
+        // 2. Lấy tất cả câu hỏi của đề
+        var questions = await _unitOfWork.ExamQuestion.GetByExamPaperIdAsync(attempt.ExamPaperId);
+        if (questions == null || !questions.Any())
+            return ErrorResponse.Build("No questions found", 400);
+
+        // 3. Tính điểm dựa trên câu đã trả lời (Details đã có sẵn từ quá trình làm bài)
+        int correctCount = 0;
+        foreach (var detail in attempt.Details)
+        {
+            var question = questions.FirstOrDefault(q => q.QuestionId == detail.ExamQuestionId);
+            if (question != null && !string.IsNullOrEmpty(question.CorrectAnswer))
+            {
+                if (string.Equals(question.CorrectAnswer.Trim(), detail.UserAnswer?.Trim(),
+                    StringComparison.OrdinalIgnoreCase))
+                {
+                    detail.IsCorrect = true;
+                    correctCount++;
+                }
+            }
+        }
+
+        // 4. Cập nhật điểm
+        double score = questions.Count > 0 ? (double)correctCount / questions.Count * 10 : 0;
+
+        attempt.Score = Math.Round(score, 2);
+        attempt.CorrectCount = correctCount;
+        attempt.TotalQuestions = questions.Count;
+        attempt.CompletedAt = DateTime.UtcNow;
+        attempt.Status = "AutoSubmitted";
+
+        _unitOfWork.ExamAttempt.Update(attempt);
+        await _unitOfWork.SaveAsync();
+
+        // 5. Trả về kết quả
+        var resultDto = _mapper.Map<ExamResultDto>(attempt);
+
+        return SuccessResponse.Build("Exam auto-submitted successfully", 200, resultDto);
+    }
 }

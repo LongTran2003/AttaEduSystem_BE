@@ -1,4 +1,5 @@
-﻿using AttaEduSystem.DataAccess.IRepositories;
+﻿using AttaEduSystem.API.Hubs;
+using AttaEduSystem.DataAccess.IRepositories;
 using AttaEduSystem.DataAccess.Repositories;
 using AttaEduSystem.Services.IServices;
 using AttaEduSystem.Services.Mapping;
@@ -74,7 +75,11 @@ namespace AttaEduSystem.API.Extension
             services.AddScoped<ISubscriptionService, SubscriptionService>();
             services.AddScoped<IUsageTrackerService, UsageTrackerService>();
 
+            // 8. QR Code Service
+            services.AddScoped<IQrCodeService, QrCodeService>();
 
+            // 9. SignalR Hub Service
+            services.AddScoped<IExamHubService, ExamHubService>();
 
 
 
