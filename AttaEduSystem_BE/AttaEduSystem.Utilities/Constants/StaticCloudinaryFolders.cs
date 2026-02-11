@@ -8,6 +8,8 @@
         
         // Gom nhóm Exam
         public const string ExamPapers = "exam-papers/original";
-        
+
+        // Gom nhóm Exported PDF
+        public const string ExportedPdfs = "AttaEduSystem/ExportedPdfs";
     }
 }

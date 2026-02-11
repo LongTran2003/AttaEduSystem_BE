@@ -22,5 +22,14 @@ namespace AttaEduSystem.Services.IServices
         /// <exception cref="Exception">If the retrieval operation failed</exception>
         Task<string> GetImageUrlAsync(string publicId);
         Task<string> UploadVideoAsync(IFormFile file, string folderPath);
+
+        /// <summary>
+        /// Async method to upload a raw file (PDF, etc.) to Cloudinary from byte array.
+        /// </summary>
+        /// <param name="fileBytes">The file content as byte array</param>
+        /// <param name="fileName">The file name with extension</param>
+        /// <param name="folderPath">The folder path in Cloudinary</param>
+        /// <returns>URL of the uploaded file</returns>
+        Task<string> UploadRawFileAsync(byte[] fileBytes, string fileName, string folderPath);
     }
 }
