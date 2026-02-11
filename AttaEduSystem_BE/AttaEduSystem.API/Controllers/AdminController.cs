@@ -89,5 +89,39 @@ namespace AttaEduSystem.API.Controllers
             var response = await _adminService.UnlockUser(id, User);
             return StatusCode(response.StatusCode, response);
         }
+
+        // =========================================================
+        // GET /api/admin/dashboard/overview - Dashboard Overview
+        // =========================================================
+        [HttpGet("dashboard/overview")]
+        [SwaggerOperation(Summary = "📊 Get dashboard overview",
+            Description = "Get overview statistics for admin dashboard including users, exams, subscriptions, and revenue.")]
+        public async Task<ActionResult<ResponseDto>> GetDashboardOverview()
+        {
+            var response = await _adminService.GetDashboardOverview();
+            return StatusCode(response.StatusCode, response);
+        }
+
+        // =========================================================
+        // GET /api/admin/dashboard/charts - Dashboard Charts
+        // =========================================================
+        [HttpGet("dashboard/charts")]
+        [SwaggerOperation(Summary = "📈 Get dashboard charts",
+            Description = "Get chart data for user growth, exam creation trend, and revenue over time.")]
+        public async Task<ActionResult<ResponseDto>> GetDashboardCharts([FromQuery] int months = 6)
+        {
+            if (months < 1 || months > 12)
+            {
+                return BadRequest(new ResponseDto
+                {
+                    IsSuccess = false,
+                    StatusCode = 400,
+                    Message = "Months must be between 1 and 12."
+                });
+            }
+
+            var response = await _adminService.GetDashboardCharts(months);
+            return StatusCode(response.StatusCode, response);
+        }
     }
 }
