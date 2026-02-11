@@ -82,5 +82,30 @@ namespace AttaEduSystem.Services.Services
             throw new Exception($"Failed to upload video to Cloudinary. Error: {uploadResult.Error.Message}");
         }
 
+        /// <summary>
+        /// Upload raw file (PDF, etc.) from byte array
+        /// </summary>
+        public async Task<string> UploadRawFileAsync(byte[] fileBytes, string fileName, string folderPath)
+        {
+            await using var stream = new MemoryStream(fileBytes);
+
+            var uploadParams = new RawUploadParams
+            {
+                File = new FileDescription(fileName, stream),
+                Folder = folderPath,
+                PublicId = Path.GetFileNameWithoutExtension(fileName) + "_" + DateTime.UtcNow.Ticks
+            };
+
+            var uploadResult = await cloudinary.UploadAsync(uploadParams);
+
+            if (uploadResult.Error != null)
+            {
+                throw new Exception($"Cloudinary upload failed: {uploadResult.Error.Message}");
+            }
+
+            // Return URL as-is (without fl_attachment)
+            return uploadResult.SecureUrl.ToString();
+        }
+
     }
 }
