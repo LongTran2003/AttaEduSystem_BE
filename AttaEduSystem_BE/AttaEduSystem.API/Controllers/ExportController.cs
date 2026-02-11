@@ -36,8 +36,8 @@ namespace AttaEduSystem.API.Controllers
         public async Task<IActionResult> ExportToPdf(
             Guid id,
             [FromQuery] string source = "ExamPaper",
-            [FromQuery] bool includeAnswers = false,
-            [FromQuery] bool uploadToCloud = false)
+            [FromQuery] bool includeAnswers = false)
+            //[FromQuery] bool uploadToCloud = false)
         {
             // Validate source
             var validSources = new[] { "ExamPaper", "GeneratedExam" };
@@ -55,7 +55,7 @@ namespace AttaEduSystem.API.Controllers
             {
                 Source = source,
                 IncludeAnswers = includeAnswers,
-                UploadToCloud = uploadToCloud
+                //UploadToCloud = uploadToCloud
             };
 
             // Pass User to service
