@@ -14,10 +14,12 @@ namespace AttaEduSystem.API.Controllers
     public class ExamRoomsController : ControllerBase
     {
         private readonly IExamRoomService _examRoomService;
+        private readonly IQrCodeService _qrCodeService;
 
-        public ExamRoomsController(IExamRoomService examRoomService)
+        public ExamRoomsController(IExamRoomService examRoomService, IQrCodeService qrCodeService)
         {
             _examRoomService = examRoomService;
+            _qrCodeService = qrCodeService;
         }
 
         // Helper validate
@@ -110,6 +112,27 @@ namespace AttaEduSystem.API.Controllers
         {
             var result = await _examRoomService.JoinRoom(code, User);
             return StatusCode(result.StatusCode, result);
+        }
+
+        // =========================================================
+        // GET /api/exam-rooms/{code}/qrcode - QR Code để join phòng
+        // =========================================================
+        [HttpGet("{code}/qrcode")]
+        [AllowAnonymous]
+        [SwaggerOperation(Summary = "📱 Get QR Code for room",
+            Description = "Returns a QR code image (PNG) that links to the room join page.")]
+        [Produces("image/png")]
+        public async Task<IActionResult> GetRoomQrCode(string code)
+        {
+            // Verify room exists
+            var result = await _examRoomService.GetRoomByCode(code);
+            if (!result.IsSuccess)
+                return NotFound(new { message = "Room not found" });
+
+            var joinUrl = _qrCodeService.GetExamRoomJoinUrl(code.ToUpper());
+            var qrCodeBytes = _qrCodeService.GenerateQrCode(joinUrl);
+
+            return File(qrCodeBytes, "image/png", $"room-{code}-qr.png");
         }
     }
 }

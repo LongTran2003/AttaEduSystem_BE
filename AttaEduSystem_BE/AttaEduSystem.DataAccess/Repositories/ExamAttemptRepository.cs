@@ -32,4 +32,9 @@ public class ExamAttemptRepository : Repository<ExamAttempt>, IExamAttemptReposi
             .ThenInclude(d => d.ExamQuestion) // Từ câu trả lời JOIN sang câu hỏi gốc để lấy CorrectAnswer
             .FirstOrDefaultAsync(x => x.ExamAttemptId == attemptId);
     }
+
+    public void Update(ExamAttempt examAttempt)
+    {
+        _context.ExamAttempts.Update(examAttempt);
+    }
 }
