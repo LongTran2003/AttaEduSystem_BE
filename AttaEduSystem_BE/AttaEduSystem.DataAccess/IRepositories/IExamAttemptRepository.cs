@@ -9,4 +9,6 @@ public interface IExamAttemptRepository : IRepository<ExamAttempt>
 
     // Lấy chi tiết 1 lần thi (kèm câu hỏi và câu trả lời)
     Task<ExamAttempt?> GetAttemptWithDetailsAsync(Guid attemptId);
+
+    void Update(ExamAttempt examAttempt);
 }
