@@ -193,11 +193,7 @@ app.MapHub<ExamHub>("/hubs/exam");
 //if (app.Environment.IsDevelopment())
 //{
 app.UseSwagger();
-app.UseSwaggerUI(c =>
-{
-    c.SwaggerEndpoint("./swagger/v1/swagger.json", "AttaEdu System API V1");
-    c.RoutePrefix = "swagger"; // Hoặc string.Empty nếu muốn làm trang chủ
-});
+app.UseSwaggerUI();
 //}
 
 app.UseHttpsRedirection();
