@@ -16,11 +16,12 @@ namespace AttaEduSystem.API.Controllers
     {
 
         private readonly IExamScanningService _examScanningService;
-        
+        private readonly IQrCodeService _qrCodeService;
 
-        public ExamScanningController(IExamScanningService examScanningService)
+        public ExamScanningController(IExamScanningService examScanningService, IQrCodeService qrCodeService)
         {
             _examScanningService = examScanningService;
+            _qrCodeService = qrCodeService;
         }
         
         // Helper validate
@@ -106,6 +107,27 @@ namespace AttaEduSystem.API.Controllers
 
             var result = await _examScanningService.UpdateExamPaperStatus(id, dto.Status, User);
             return StatusCode(result.StatusCode, result);
+        }
+
+        // =========================================================
+        // GET /api/exam-papers/{id}/qrcode - QR Code để chia sẻ đề
+        // =========================================================
+        [HttpGet("{id:guid}/qrcode")]
+        [AllowAnonymous]
+        [SwaggerOperation(Summary = "📱 Get QR Code for exam paper",
+            Description = "Returns a QR code image (PNG) that links to the exam practice page.")]
+        [Produces("image/png")]
+        public async Task<IActionResult> GetExamPaperQrCode(Guid id)
+        {
+            // Verify exam paper exists
+            var result = await _examScanningService.GetExamPaperById(id);
+            if (!result.IsSuccess)
+                return NotFound(new { message = "Exam paper not found" });
+
+            var shareUrl = _qrCodeService.GetExamPaperShareUrl(id);
+            var qrCodeBytes = _qrCodeService.GenerateQrCode(shareUrl);
+
+            return File(qrCodeBytes, "image/png", $"exam-{id}-qr.png");
         }
     }
 }

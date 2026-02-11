@@ -61,5 +61,18 @@ public class ExamTakingController : ControllerBase
         var result = await _examTakingService.GetExamResult(attemptId, User);
         return StatusCode(result.StatusCode, result);
     }
-    
+
+    // =========================================================
+    // POST /api/exam-taking/{attemptId}/auto-submit
+    // =========================================================
+    [HttpPost("{attemptId:guid}/auto-submit")]
+    [Authorize]
+    [SwaggerOperation(Summary = "⏰ Auto-submit exam",
+        Description = "Automatically submits the exam when time is up. Grades only answered questions.")]
+    public async Task<ActionResult<ResponseDto>> AutoSubmitExam(Guid attemptId)
+    {
+        var result = await _examTakingService.AutoSubmitExam(attemptId, User);
+        return StatusCode(result.StatusCode, result);
+    }
+
 }
