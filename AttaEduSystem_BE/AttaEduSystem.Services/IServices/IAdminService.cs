@@ -13,5 +13,9 @@ namespace AttaEduSystem.Services.IServices
         Task<ResponseDto> DeleteUser(string userId, ClaimsPrincipal admin);
         Task<ResponseDto> LockUser(string userId, int lockDurationDays, ClaimsPrincipal admin);
         Task<ResponseDto> UnlockUser(string userId, ClaimsPrincipal admin);
+
+        // Dashboard (NEW)
+        Task<ResponseDto> GetDashboardOverview();
+        Task<ResponseDto> GetDashboardCharts(int months = 6);
     }
 }
