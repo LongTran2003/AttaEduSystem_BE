@@ -87,5 +87,10 @@ namespace AttaEduSystem.DataAccess.Repositories
 
             return (items, totalCount);
         }
+
+        public void Update(ExamPaper examPaper)
+        {
+            _context.ExamPapers.Update(examPaper);
+        }
     }
 }

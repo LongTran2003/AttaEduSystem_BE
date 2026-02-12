@@ -112,5 +112,93 @@ namespace AttaEduSystem.Services.Services
 
             return SuccessResponse.Build("Generated exam status updated successfully", 200);
         }
+
+        // =========================================================
+        // NEW: Paging / GetById / GetByUser
+        // =========================================================
+        public async Task<ResponseDto> GetAllGeneratedExams(
+            int pageNumber = 1,
+            int pageSize = 10,
+            string? filterOn = null,
+            string? filterQuery = null,
+            string? sortBy = null)
+        {
+            try
+            {
+                var (items, totalCount) = await _unitOfWork.GeneratedExamPaper.GetGeneratedExamsAsync(
+                    pageNumber, pageSize, filterOn, filterQuery, sortBy, includeProperties: "OriginalExamPaper");
+
+                if (items == null || !items.Any())
+                {
+                    var emptyResult = new
+                    {
+                        Data = Enumerable.Empty<GeneratedExamDto>(),
+                        CurrentPage = pageNumber,
+                        PageSize = pageSize,
+                        TotalCount = 0,
+                        TotalPages = 0,
+                        HasPreviousPage = false,
+                        HasNextPage = false
+                    };
+
+                    return SuccessResponse.Build("No generated exams found", 200, emptyResult);
+                }
+
+                var dtos = _mapper.Map<IEnumerable<GeneratedExamDto>>(items);
+                var payload = new
+                {
+                    Data = dtos,
+                    CurrentPage = pageNumber,
+                    PageSize = pageSize,
+                    TotalCount = totalCount,
+                    TotalPages = (int)Math.Ceiling((double)totalCount / pageSize),
+                    HasPreviousPage = pageNumber > 1,
+                    HasNextPage = pageNumber * pageSize < totalCount
+                };
+
+                return SuccessResponse.Build("Generated exams retrieved successfully", 200, payload);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving generated exams");
+                return ErrorResponse.Build("Failed to retrieve generated exams", 500);
+            }
+        }
+
+        public async Task<ResponseDto> GetGeneratedExamById(Guid generatedExamId)
+        {
+            try
+            {
+                var generatedExam = await _unitOfWork.GeneratedExamPaper.GetByIdWithOriginalAsync(generatedExamId);
+                if (generatedExam == null) return ErrorResponse.Build("Generated exam not found", 404);
+
+                var dto = _mapper.Map<GeneratedExamDto>(generatedExam);
+                return SuccessResponse.Build("Generated exam retrieved successfully", 200, dto);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving generated exam by ID");
+                return ErrorResponse.Build("Failed to retrieve generated exam", 500);
+            }
+        }
+
+        public async Task<ResponseDto> GetGeneratedExamsByUser(ClaimsPrincipal user)
+        {
+            try
+            {
+                var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrEmpty(userId)) return ErrorResponse.Build(StaticOperationStatus.User.UserNotFound, 401);
+
+                var generatedExams = await _unitOfWork.GeneratedExamPaper.GetByUserAsync(userId);
+                var dtos = _mapper.Map<IEnumerable<GeneratedExamDto>>(generatedExams.OrderByDescending(g => g.CreatedTime));
+
+                return SuccessResponse.Build("User generated exams retrieved successfully", 200, dtos);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving user generated exams");
+                return ErrorResponse.Build("Failed to retrieve user generated exams", 500);
+            }
+        }
     }
 }

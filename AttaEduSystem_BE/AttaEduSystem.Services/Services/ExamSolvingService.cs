@@ -125,5 +125,93 @@ namespace AttaEduSystem.Services.Services
 
             return SuccessResponse.Build("Solution status updated successfully", 200);
         }
+
+        // =========================================================
+        // NEW: Paging / GetById / GetByUser
+        // =========================================================
+        public async Task<ResponseDto> GetAllSolutions(
+            int pageNumber = 1,
+            int pageSize = 10,
+            string? filterOn = null,
+            string? filterQuery = null,
+            string? sortBy = null)
+        {
+            try
+            {
+                var (items, totalCount) = await _unitOfWork.ExamSolution.GetSolutionsAsync(
+                    pageNumber, pageSize, filterOn, filterQuery, sortBy, includeProperties: "ExamPaper");
+
+                if (items == null || !items.Any())
+                {
+                    var emptyResult = new
+                    {
+                        Data = Enumerable.Empty<ExamSolutionResponseDto>(),
+                        CurrentPage = pageNumber,
+                        PageSize = pageSize,
+                        TotalCount = 0,
+                        TotalPages = 0,
+                        HasPreviousPage = false,
+                        HasNextPage = false
+                    };
+
+                    return SuccessResponse.Build("No solutions found", 200, emptyResult);
+                }
+
+                var dtos = _mapper.Map<IEnumerable<ExamSolutionResponseDto>>(items);
+                var payload = new
+                {
+                    Data = dtos,
+                    CurrentPage = pageNumber,
+                    PageSize = pageSize,
+                    TotalCount = totalCount,
+                    TotalPages = (int)Math.Ceiling((double)totalCount / pageSize),
+                    HasPreviousPage = pageNumber > 1,
+                    HasNextPage = pageNumber * pageSize < totalCount
+                };
+
+                return SuccessResponse.Build("Solutions retrieved successfully", 200, payload);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving solutions");
+                return ErrorResponse.Build("Failed to retrieve solutions", 500);
+            }
+        }
+
+        public async Task<ResponseDto> GetSolutionById(Guid solutionId)
+        {
+            try
+            {
+                var solution = await _unitOfWork.ExamSolution.GetByIdWithExamAsync(solutionId);
+                if (solution == null) return ErrorResponse.Build("Solution not found", 404);
+
+                var dto = _mapper.Map<ExamSolutionResponseDto>(solution);
+                return SuccessResponse.Build("Solution retrieved successfully", 200, dto);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving solution by ID");
+                return ErrorResponse.Build("Failed to retrieve solution", 500);
+            }
+        }
+
+        public async Task<ResponseDto> GetSolutionsByUser(ClaimsPrincipal user)
+        {
+            try
+            {
+                var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrEmpty(userId)) return ErrorResponse.Build(StaticOperationStatus.User.UserNotFound, 401);
+
+                var solutions = await _unitOfWork.ExamSolution.GetByUserIdAsync(userId);
+                var dtos = _mapper.Map<IEnumerable<ExamSolutionResponseDto>>(solutions.OrderByDescending(s => s.CreatedTime));
+
+                return SuccessResponse.Build("User solutions retrieved successfully", 200, dtos);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving user solutions");
+                return ErrorResponse.Build("Failed to retrieve user solutions", 500);
+            }
+        }
     }
 }

@@ -84,15 +84,19 @@ public class FolderService : IFolderService
         return SuccessResponse.Build("Folders retrieved", 200, _mapper.Map<List<FolderDto>>(folders));
     }
 
-    public async Task<ResponseDto> GetFolderDetails(Guid folderId, ClaimsPrincipal user)
+    public async Task<ResponseDto> GetFolderDetails(Guid folderId, ClaimsPrincipal user, bool includeQuestions = false)
     {
         var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
-            
+
         // Lấy folder và Include danh sách đề thi
         // Lưu ý: UnitOfWork Generic thường hỗ trợ include string
+        var includeProps = includeQuestions
+        ? "ExamPapers.Questions.Options"
+        : "ExamPapers";
+
         var folder = await _unitOfWork.ExamFolder.GetAsync(
             filter: f => f.FolderId == folderId && f.UserId == userId,
-            includeProperties: "ExamPapers"
+            includeProperties: includeProps
         );
 
         if (folder == null) return ErrorResponse.Build("Folder not found", 404);

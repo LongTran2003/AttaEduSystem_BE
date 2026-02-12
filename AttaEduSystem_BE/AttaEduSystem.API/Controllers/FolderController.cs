@@ -44,7 +44,8 @@ public class FolderController : ControllerBase
         }
 
         [HttpGet]
-        [SwaggerOperation(Summary = "📂 List my folders", Description = "Get all active folders created by the current user.")]
+        [SwaggerOperation(Summary = "📂 List my folders", 
+            Description = "Get all active folders created by the current user.")]
         public async Task<ActionResult<ResponseDto>> GetMyFolders()
         {
             var result = await _folderService.GetMyFolders(User);
@@ -52,14 +53,18 @@ public class FolderController : ControllerBase
         }
 
         [HttpGet("{folderId:guid}")]
-        [SwaggerOperation(Summary = "📂 Get folder details", Description = "Get folder info and list of exam papers inside it.")]
-        public async Task<ActionResult<ResponseDto>> GetFolderDetails(Guid folderId)
+        [SwaggerOperation(Summary = "📁 Get folder details with exams",
+            Description = "Retrieves folder metadata and list of exam papers. " +
+        "Use includeQuestions=true to get full question details.")]
+        public async Task<ActionResult<ResponseDto>> GetFolderDetails(
+            Guid folderId,
+            [FromQuery] bool includeQuestions = false)
         {
-            var result = await _folderService.GetFolderDetails(folderId, User);
+            var result = await _folderService.GetFolderDetails(folderId, User, includeQuestions);
             return StatusCode(result.StatusCode, result);
         }
 
-        [HttpPut("{folderId:guid}")]
+    [HttpPut("{folderId:guid}")]
         [SwaggerOperation(Summary = "📂 Update folder", Description = "Rename folder or change color.")]
         public async Task<ActionResult<ResponseDto>> UpdateFolder(Guid folderId, [FromBody] UpdateFolderDto dto)
         {
