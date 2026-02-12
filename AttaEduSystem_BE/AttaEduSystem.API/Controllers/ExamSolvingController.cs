@@ -50,7 +50,39 @@ namespace AttaEduSystem.API.Controllers
             var result = await _examSolvingService.GetSolutionByExamId(examPaperId);
             return StatusCode(result.StatusCode, result);
         }
-        
+
+        [HttpGet("solutions")]
+        [SwaggerOperation(Summary = "🧾 List exam solutions (paged)",
+            Description = "Returns a paginated list of exam solutions. Supports filterOn, filterQuery and sortBy.")]
+        public async Task<ActionResult<ResponseDto>> GetAllSolutions(
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 10,
+            [FromQuery] string? filterOn = null,
+            [FromQuery] string? filterQuery = null,
+            [FromQuery] string? sortBy = null)
+        {
+            var result = await _examSolvingService.GetAllSolutions(pageNumber, pageSize, filterOn, filterQuery, sortBy);
+            return StatusCode(result.StatusCode, result);
+        }
+
+        [HttpGet("solutions/{id:guid}")]
+        [SwaggerOperation(Summary = "🧾 Get solution by id",
+            Description = "Retrieve a single exam solution by its id.")]
+        public async Task<ActionResult<ResponseDto>> GetSolutionById(Guid id)
+        {
+            var result = await _examSolvingService.GetSolutionById(id);
+            return StatusCode(result.StatusCode, result);
+        }
+
+        [HttpGet("my-solutions")]
+        [SwaggerOperation(Summary = "🧾 List my solutions",
+            Description = "Returns solutions created by the current user.")]
+        public async Task<ActionResult<ResponseDto>> GetSolutionsByUser()
+        {
+            var result = await _examSolvingService.GetSolutionsByUser(User);
+            return StatusCode(result.StatusCode, result);
+        }
+
         [HttpPut("{id:guid}/status")]
         [SwaggerOperation(Summary = "💡 Update solution status", 
             Description = "Update status (Saved, Deleted) for a solution.")]
