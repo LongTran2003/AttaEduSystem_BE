@@ -99,13 +99,14 @@ namespace AttaEduSystem.API.Controllers
         }
 
         [HttpPut("{id:guid}/status")]
-        [SwaggerOperation(Summary = "📸 Update exam paper status", 
-            Description = "Updates status (e.g., Removed) for a scanned exam paper.")]
+        [SwaggerOperation(Summary = "📸 Update exam paper metadata and status",
+            Description = "Updates title, description, subject, and/or status" +
+            " (e.g., Draft, Ready, Removed) for a scanned exam paper. Only owner or admin can update.")]
         public async Task<ActionResult<ResponseDto>> UpdateExamPaperStatus(Guid id, [FromBody] UpdateExamPaperStatusDto dto)
         {
             if (!ModelState.IsValid) return ReturnInvalidInputResponse();
 
-            var result = await _examScanningService.UpdateExamPaperStatus(id, dto.Status, User);
+            var result = await _examScanningService.UpdateExamPaperStatus(id, dto, User);
             return StatusCode(result.StatusCode, result);
         }
 
