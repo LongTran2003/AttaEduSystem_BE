@@ -14,6 +14,7 @@ using AttaEduSystem.Models.DTOs.Openai;
 using AttaEduSystem.Models.DTOs.Payment;
 using AttaEduSystem.Models.DTOs.Profile;
 using AttaEduSystem.Models.DTOs.QuestionBank;
+using AttaEduSystem.Models.DTOs.SharedExam;
 using AttaEduSystem.Models.DTOs.Student;
 using AttaEduSystem.Models.Entities;
 using AttaEduSystem.Services.IServices;
@@ -325,7 +326,32 @@ namespace AttaEduSystem.Services.Mapping
                 .ForMember(dest => dest.ExamAttemptId, opt => opt.Ignore())
                 .ForMember(dest => dest.RemainingSeconds, opt => opt.Ignore());
 
+            // =========================================================
+            // SharedExam mapping
+            // =========================================================
 
+            // CreateShareLinkDto -> SharedExam
+            CreateMap<CreateShareLinkDto, SharedExam>()
+                .ForMember(dest => dest.SharedExamId, opt => opt.Ignore())
+                .ForMember(dest => dest.ShareToken, opt => opt.Ignore())
+                .ForMember(dest => dest.ExpiresAt, opt => opt.Ignore())
+                .ForMember(dest => dest.Password, opt => opt.Ignore())
+                .ForMember(dest => dest.IsActive, opt => opt.Ignore())
+                .ForMember(dest => dest.ViewCount, opt => opt.Ignore())
+                .ForMember(dest => dest.CreatedBy, opt => opt.Ignore())
+                .ForMember(dest => dest.CreatedTime, opt => opt.Ignore());
+
+            // SharedExam -> ShareLinkResponseDto
+            CreateMap<SharedExam, ShareLinkResponseDto>()
+                .ForMember(dest => dest.ShareUrl, opt => opt.Ignore())
+                .ForMember(dest => dest.HasPassword, opt => opt.MapFrom(src => !string.IsNullOrEmpty(src.Password)))
+                .ForMember(dest => dest.CreatedAt, opt => opt.MapFrom(src => src.CreatedTime ?? DateTime.UtcNow));
+
+            // SharedExam -> MyShareLinkDto
+            CreateMap<SharedExam, MyShareLinkDto>()
+                .ForMember(dest => dest.ExamTitle, opt => opt.Ignore()) // Set manually in service
+                .ForMember(dest => dest.HasPassword, opt => opt.MapFrom(src => !string.IsNullOrEmpty(src.Password)))
+                .ForMember(dest => dest.CreatedAt, opt => opt.MapFrom(src => src.CreatedTime ?? DateTime.UtcNow));
 
 
 
