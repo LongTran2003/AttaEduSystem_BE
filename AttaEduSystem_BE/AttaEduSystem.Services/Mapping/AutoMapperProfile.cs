@@ -1,6 +1,7 @@
 ﻿using AttaEduSystem.Models.DTOs.Admin;
 using AttaEduSystem.Models.DTOs.Authentication;
 using AttaEduSystem.Models.DTOs.Billing;
+using AttaEduSystem.Models.DTOs.ChatBox;
 using AttaEduSystem.Models.DTOs.ExamFormat;
 using AttaEduSystem.Models.DTOs.ExamPaper;
 using AttaEduSystem.Models.DTOs.ExamQuestion;
@@ -353,7 +354,35 @@ namespace AttaEduSystem.Services.Mapping
                 .ForMember(dest => dest.HasPassword, opt => opt.MapFrom(src => !string.IsNullOrEmpty(src.Password)))
                 .ForMember(dest => dest.CreatedAt, opt => opt.MapFrom(src => src.CreatedTime ?? DateTime.UtcNow));
 
+            // =========================================================
+            // Chat mapping 
+            // =========================================================
 
+            // ChatConversation -> ChatConversationDto
+            CreateMap<ChatConversation, ChatConversationDto>()
+                .ForMember(dest => dest.MessageCount, opt => opt.MapFrom(src => src.Messages != null ? src.Messages.Count : 0))
+                .ForMember(dest => dest.UpdatedAt, opt => opt.MapFrom(src => 
+                    src.UpdatedAt.HasValue && src.UpdatedAt != src.CreatedTime 
+                        ? src.UpdatedAt 
+                        : null));
+
+            // ChatConversation -> ConversationDetailDto
+            CreateMap<ChatConversation, ConversationDetailDto>()
+                .ForMember(dest => dest.Messages, opt => opt.MapFrom(src => src.Messages.OrderBy(m => m.CreatedTime)));
+
+            // ChatMessage -> ChatMessageDto
+            CreateMap<ChatMessage, ChatMessageDto>()
+                .ForMember(dest => dest.Role, opt => opt.MapFrom(src => src.Role.ToString()));
+
+            //// CreateConversationDto -> ChatConversation
+            //CreateMap<CreateConversationDto, ChatConversation>()
+            //    .ForMember(dest => dest.ChatConversationId, opt => opt.Ignore())
+            //    .ForMember(dest => dest.UserId, opt => opt.Ignore())
+            //    .ForMember(dest => dest.UpdatedAt, opt => opt.Ignore())
+            //    .ForMember(dest => dest.Messages, opt => opt.Ignore())
+            //    .ForMember(dest => dest.CreatedBy, opt => opt.Ignore())
+            //    .ForMember(dest => dest.CreatedTime, opt => opt.Ignore())
+            //    .ForMember(dest => dest.Status, opt => opt.Ignore());
 
 
         }
