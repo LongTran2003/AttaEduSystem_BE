@@ -17,7 +17,7 @@ namespace AttaEduSystem.Services.IServices
             string? sortBy = null);
         Task<ResponseDto> GetExamPapersByUser(ClaimsPrincipal user);
         Task<ResponseDto> GetExamPaperImage(Guid examPaperId);
-        Task<ResponseDto> UpdateExamPaperStatus(Guid examPaperId, string status, ClaimsPrincipal user);
+        Task<ResponseDto> UpdateExamPaperStatus(Guid examPaperId, UpdateExamPaperStatusDto dto, ClaimsPrincipal user);
 
     }
 }

@@ -15,5 +15,6 @@ namespace AttaEduSystem.DataAccess.IRepositories
             string? sortBy = null,
             string? includeProperties = null,
             string status = StaticOperationStatus.ExamPaper.Ready);
+        void Update(ExamPaper examPaper);
     }
 }

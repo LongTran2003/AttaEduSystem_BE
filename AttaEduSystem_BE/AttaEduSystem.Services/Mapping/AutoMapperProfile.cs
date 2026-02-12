@@ -122,10 +122,17 @@ namespace AttaEduSystem.Services.Mapping
             CreateMap<ExamPaper, GetExamPaperDto>()
                 .ForMember(dest => dest.ExamPaperId, opt => opt.MapFrom(src => src.ExamPaperId))
                 .ForMember(dest => dest.ExamFormat, opt => opt.MapFrom(src => src.ExamFormat))
+                .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status))
                 .ForMember(dest => dest.CreatedBy,
                         opt => opt.MapFrom(src => src.Creator != null ? src.Creator.FullName : "Unknown"))
                 .ForMember(dest => dest.CreatedTime,
-                        opt => opt.MapFrom(src => src.CreatedTime ?? StaticOperationStatus.Timezone.Vietnam));
+                        opt => opt.MapFrom(src => src.CreatedTime ?? StaticOperationStatus.Timezone.Vietnam))
+                .ForMember(dest => dest.QuestionCount,
+                        opt => opt.MapFrom(src => src.Questions != null ? src.Questions.Count : 0))
+                .ForMember(dest => dest.Questions,
+                        opt => opt.MapFrom(src => src.Questions != null
+                            ? src.Questions.OrderBy(q => q.OrderIndex)
+                            : Enumerable.Empty<ExamQuestion>()));
 
             // =========================================================
             // GeneratedExamPaper mapping
@@ -139,6 +146,11 @@ namespace AttaEduSystem.Services.Mapping
 
             CreateMap<GeneratedExamPaper, GeneratedExamDto>() // nếu bạn muốn DTO riêng để list/view
                 .ForMember(dest => dest.GeneratedExamId, opt => opt.MapFrom(src => src.GeneratedExamPaperId))
+                .ForMember(dest => dest.OriginalExamPaperId, opt => opt.MapFrom(src => src.OriginalExamPaperId))
+                .ForMember(dest => dest.GeneratedContent, opt => opt.MapFrom(src => src.GeneratedContentJson))
+                .ForMember(dest => dest.AiModelUsed, opt => opt.MapFrom(src => src.AiModelUsed))
+                .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status))
+                .ForMember(dest => dest.GeneratedBy, opt => opt.MapFrom(src => src.CreatedBy))
                 .ForMember(dest => dest.GeneratedAt, opt => opt.MapFrom(src => src.CreatedTime ?? StaticOperationStatus.Timezone.Vietnam));
 
             // =========================================================
@@ -222,7 +234,7 @@ namespace AttaEduSystem.Services.Mapping
             // =========================================================
 
                     // 1. Map QuestionOption -> DTO
-            CreateMap<QuestionOption, Models.DTOs.ExamPaper.ExamQuestionOptionDto>();
+            CreateMap<QuestionOption, ExamQuestionOptionDto>();
 
                     // 2. Map ExamQuestion -> DTO
             CreateMap<ExamQuestion, ExamQuestionResponseDto>()
@@ -230,9 +242,9 @@ namespace AttaEduSystem.Services.Mapping
                 .ForMember(dest => dest.Options, opt => opt.MapFrom(src => src.Options)); 
 
                     // 3. Cập nhật Map ExamPaper -> GetExamPaperDto
-            CreateMap<ExamPaper, GetExamPaperDto>()
-                // ... các trường cũ ...
-                .ForMember(dest => dest.Questions, opt => opt.MapFrom(src => src.Questions));
+            //CreateMap<ExamPaper, GetExamPaperDto>()
+            //    // ... các trường cũ ...
+            //    .ForMember(dest => dest.Questions, opt => opt.MapFrom(src => src.Questions));
 
             // =========================================================
             // ExamFolder mapping

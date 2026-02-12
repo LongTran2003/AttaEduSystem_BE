@@ -342,34 +342,86 @@ namespace AttaEduSystem.Services.Services
                 new { examPaper.OriginalImageUrl });
         }
 
-        public async Task<ResponseDto> UpdateExamPaperStatus(Guid examPaperId, string status, ClaimsPrincipal user)
+        public async Task<ResponseDto> UpdateExamPaperStatus(Guid examPaperId, UpdateExamPaperStatusDto dto, ClaimsPrincipal user)
         {
-            var allowed = new[] { StaticOperationStatus.ExamPaper.Draft, StaticOperationStatus.ExamPaper.Ready, StaticOperationStatus.ExamPaper.Removed };
-            if (!allowed.Contains(status))
+            try
             {
-                return ErrorResponse.Build("Invalid status value", 400);
-            }
+                // 1. Get user ID
+                var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrEmpty(userId))
+                {
+                    return ErrorResponse.Build(StaticOperationStatus.User.UserNotFound, 401);
+                }
 
-            var examPaper = await _unitOfWork.ExamPaper.GetAsync(e => e.ExamPaperId == examPaperId);
-            if (examPaper == null)
+                // 2. Get exam paper with creator info
+                var examPaper = await _unitOfWork.ExamPaper.GetByIdWithUserAsync(examPaperId);
+                if (examPaper == null)
+                {
+                    return ErrorResponse.Build("Exam paper not found", 404);
+                }
+
+                // 3. Check ownership: only creator or admin can update
+                var userRoles = user.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList();
+                var isOwner = examPaper.Creator?.Id == userId || examPaper.CreatedBy == userId;
+                var isAdmin = userRoles.Contains("Admin") || userRoles.Contains("Administrator");
+
+                if (!isOwner && !isAdmin)
+                {
+                    return ErrorResponse.Build("You do not have permission to update this exam paper", 403);
+                }
+
+                // 4. Update Status if provided
+                if (!string.IsNullOrWhiteSpace(dto.Status))
+                {
+                    var allowedStatuses = new[] {
+                        StaticOperationStatus.ExamPaper.Draft,
+                        StaticOperationStatus.ExamPaper.Ready,
+                        StaticOperationStatus.ExamPaper.Removed
+                    };
+
+                    if (!allowedStatuses.Contains(dto.Status))
+                    {
+                        return ErrorResponse.Build("Invalid status value. Must be Draft, Ready, or Removed.", 400);
+                    }
+
+                    examPaper.Status = dto.Status;
+                }
+
+                // 5. Update Title if provided
+                if (!string.IsNullOrWhiteSpace(dto.Title))
+                {
+                    examPaper.Title = dto.Title;
+                }
+
+                // 6. Update Description if provided (allow empty to clear)
+                if (!string.IsNullOrWhiteSpace(dto.Description))
+                {
+                    examPaper.Description = dto.Description;
+                }
+
+                // 7. Update Subject if provided (allow empty to clear)
+                if (!string.IsNullOrWhiteSpace(dto.Subject))
+                {
+                    examPaper.Subject = dto.Subject;
+                }
+
+                // 8. Set audit fields
+                examPaper.UpdatedBy = userId;
+                examPaper.UpdatedTime = StaticOperationStatus.Timezone.Vietnam;
+
+                // 9. Save changes
+                _unitOfWork.ExamPaper.Update(examPaper);
+                await _unitOfWork.SaveAsync();
+
+                // 10. Return updated DTO
+                var responseDto = _mapper.Map<GetExamPaperDto>(examPaper);
+                return SuccessResponse.Build("Exam paper updated successfully", 200, responseDto);
+            }
+            catch (Exception ex)
             {
-                return ErrorResponse.Build("Exam paper not found", 404);
+                _logger.LogError(ex, "Error updating exam paper");
+                return ErrorResponse.Build($"An error occurred while updating exam paper, {ex.Message}", 500);
             }
-
-            // Optional: check user role or ownership before allowing change
-            var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (string.IsNullOrEmpty(userId))
-            {
-                return ErrorResponse.Build(StaticOperationStatus.User.UserNotFound, 401);
-            }
-
-            examPaper.Status = status;
-            examPaper.UpdatedBy = userId;
-            examPaper.UpdatedTime = StaticOperationStatus.Timezone.Vietnam;
-
-            await _unitOfWork.SaveAsync();
-
-            return SuccessResponse.Build("Status updated successfully", 200);
         }
     }
 }

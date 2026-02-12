@@ -10,7 +10,7 @@ public interface IFolderService
     Task<ResponseDto> UpdateFolder(Guid folderId, UpdateFolderDto dto, ClaimsPrincipal user);
     Task<ResponseDto> DeleteFolder(Guid folderId, ClaimsPrincipal user);
     Task<ResponseDto> GetMyFolders(ClaimsPrincipal user);
-    Task<ResponseDto> GetFolderDetails(Guid folderId, ClaimsPrincipal user); // Lấy danh sách đề trong folder
+    Task<ResponseDto> GetFolderDetails(Guid folderId, ClaimsPrincipal user, bool includeQuestions = false); // Lấy danh sách đề trong folder
     Task<ResponseDto> AddExamToFolder(Guid folderId, AddExamToFolderDto dto, ClaimsPrincipal user);
     Task<ResponseDto> RemoveExamFromFolder(Guid examPaperId, ClaimsPrincipal user);
 }

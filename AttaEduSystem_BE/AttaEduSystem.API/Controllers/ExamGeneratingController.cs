@@ -41,7 +41,39 @@ namespace AttaEduSystem.API.Controllers
             var result = await _examGeneratingService.GenerateSimilarExam(originalExamId, User);
             return StatusCode(result.StatusCode, result);
         }
-        
+
+        [HttpGet]
+        [SwaggerOperation(Summary = "📚 List generated exams (paged)",
+            Description = "Returns a paginated list of generated exams. Supports filterOn, filterQuery and sortBy.")]
+        public async Task<ActionResult<ResponseDto>> GetAllGeneratedExams(
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 10,
+            [FromQuery] string? filterOn = null,
+            [FromQuery] string? filterQuery = null,
+            [FromQuery] string? sortBy = null)
+        {
+            var result = await _examGeneratingService.GetAllGeneratedExams(pageNumber, pageSize, filterOn, filterQuery, sortBy);
+            return StatusCode(result.StatusCode, result);
+        }
+
+        [HttpGet("{id:guid}")]
+        [SwaggerOperation(Summary = "📚 Get generated exam by id",
+            Description = "Retrieve a single generated exam by its id.")]
+        public async Task<ActionResult<ResponseDto>> GetGeneratedExamById(Guid id)
+        {
+            var result = await _examGeneratingService.GetGeneratedExamById(id);
+            return StatusCode(result.StatusCode, result);
+        }
+
+        [HttpGet("my-generated")]
+        [SwaggerOperation(Summary = "📚 List my generated exams",
+            Description = "Returns generated exams created by the current user.")]
+        public async Task<ActionResult<ResponseDto>> GetGeneratedExamsByUser()
+        {
+            var result = await _examGeneratingService.GetGeneratedExamsByUser(User);
+            return StatusCode(result.StatusCode, result);
+        }
+
         [HttpPut("{id:guid}/status")]
         [SwaggerOperation(Summary = "🤖 Update generated exam status", 
             Description = "Update status (Draft, Saved, Deleted) for a generated exam.")]

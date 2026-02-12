@@ -11,8 +11,10 @@ namespace AttaEduSystem.Models.DTOs.ExamPaper
         public string? ScannedText { get; set; }
         public string? ExamFormat { get; set; }     
         public string? Subject { get; set; }
+        public string? Status { get; set;  }
         public string CreatedBy { get; set; } = null!;
         public DateTime CreatedTime { get; set; }
+        public int QuestionCount { get; set; }
         public List<ExamQuestionResponseDto> Questions { get; set; } = new();
     }
 }
