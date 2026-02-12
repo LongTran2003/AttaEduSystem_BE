@@ -102,5 +102,65 @@ namespace AttaEduSystem.API.Controllers
                 Message = "Unknown error occurred during export"
             });
         }
+
+        // =========================================================
+        // GET /api/export/word/{id} - Export Exam to Word
+        // =========================================================
+        [HttpGet("word/{id:guid}")]
+        [SwaggerOperation(
+            Summary = "📝 Export exam to Word",
+            Description = "Export ExamPaper or GeneratedExam to Word (.docx) format.")]
+        [Produces("application/vnd.openxmlformats-officedocument.wordprocessingml.document")]
+        [ProducesResponseType(typeof(FileResult), 200)]
+        [ProducesResponseType(typeof(ResponseDto), 400)]
+        [ProducesResponseType(typeof(ResponseDto), 404)]
+        public async Task<IActionResult> ExportToWord(
+            Guid id,
+            [FromQuery] string source = "ExamPaper",
+            [FromQuery] bool includeAnswers = false)
+        {
+            var validSources = new[] { "ExamPaper", "GeneratedExam" };
+            if (!validSources.Contains(source, StringComparer.OrdinalIgnoreCase))
+            {
+                return BadRequest(new ResponseDto
+                {
+                    IsSuccess = false,
+                    StatusCode = 400,
+                    Message = "Invalid source. Must be 'ExamPaper' or 'GeneratedExam'."
+                });
+            }
+
+            var request = new ExportPdfRequestDto
+            {
+                Source = source,
+                IncludeAnswers = includeAnswers
+            };
+
+            var (wordBytes, errorMessage) = await _exportService.ExportToWordAsync(id, request, User);
+
+            if (!string.IsNullOrEmpty(errorMessage))
+            {
+                var statusCode = errorMessage.Contains("not found") ? 404 : 500;
+                return StatusCode(statusCode, new ResponseDto
+                {
+                    IsSuccess = false,
+                    StatusCode = statusCode,
+                    Message = errorMessage
+                });
+            }
+
+            if (wordBytes != null)
+            {
+                var fileName = $"Exam_{id}_{DateTime.UtcNow:yyyyMMdd_HHmmss}.docx";
+                return File(wordBytes, "application/vnd.openxmlformats-officedocument.wordprocessingml.document", fileName);
+            }
+
+            return StatusCode(500, new ResponseDto
+            {
+                IsSuccess = false,
+                StatusCode = 500,
+                Message = "Unknown error occurred during export"
+            });
+        }
     }
 }

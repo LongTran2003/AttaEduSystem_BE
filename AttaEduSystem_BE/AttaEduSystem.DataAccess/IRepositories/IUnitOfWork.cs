@@ -22,6 +22,7 @@ namespace AttaEduSystem.DataAccess.IRepositories
         IExamFolderRepository ExamFolder { get; }
         IExamRoomRepository ExamRoom { get; }
         IExamRoomParticipantRepository ExamRoomParticipant { get; }
+        ISharedExamRepository SharedExam { get; }
 
 
         Task<int> SaveAsync();

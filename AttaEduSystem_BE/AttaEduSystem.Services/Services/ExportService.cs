@@ -2,14 +2,21 @@
 using AttaEduSystem.Models.DTOs.Export;
 using AttaEduSystem.Models.DTOs.GeminiAi;
 using AttaEduSystem.Services.IServices;
-using AttaEduSystem.Utilities.Constants;
 using Microsoft.Extensions.Logging;
-using QuestPDF.Fluent;
-using QuestPDF.Helpers;
-using QuestPDF.Infrastructure;
 using System.Security.Claims;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+
+// QuestPDF
+using QuestPDF.Fluent;
+using QuestPDF.Helpers;
+using QuestPDF.Infrastructure;
+
+// OpenXml - dùng alias để tránh conflict
+using OpenXmlDocument = DocumentFormat.OpenXml.Packaging.WordprocessingDocument;
+using DocumentFormat.OpenXml;
+using DocumentFormat.OpenXml.Wordprocessing;
+using DocumentFormat.OpenXml.Packaging;
 
 namespace AttaEduSystem.Services.Services;
 
@@ -81,6 +88,36 @@ public class ExportService : IExportService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error exporting PDF for {Source} {ExamId}", request.Source, examId);
+            return (null, $"Export failed: {ex.Message}");
+        }
+    }
+
+    public async Task<(byte[]? WordBytes, string? ErrorMessage)> ExportToWordAsync(
+    Guid examId,
+    ExportPdfRequestDto request,
+    ClaimsPrincipal user)
+    {
+        try
+        {
+            ExamPdfData? examData = request.Source.ToLower() switch
+            {
+                "exampaper" => await GetExamPaperDataAsync(examId),
+                "generatedexam" => await GetGeneratedExamDataAsync(examId),
+                _ => null
+            };
+
+            if (examData == null)
+            {
+                return (null, $"{request.Source} with ID {examId} not found");
+            }
+
+            var wordBytes = GenerateWordDocument(examData, request.IncludeAnswers);
+
+            return (wordBytes, null);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error exporting Word for {Source} {ExamId}", request.Source, examId);
             return (null, $"Export failed: {ex.Message}");
         }
     }
@@ -174,7 +211,7 @@ public class ExportService : IExportService
 
         var latexImages = await PreFetchLatexImagesAsync(data);
 
-        var document = Document.Create(container =>
+        var document = QuestPDF.Fluent.Document.Create(container =>
         {
             container.Page(page =>
             {
@@ -302,6 +339,105 @@ public class ExportService : IExportService
                 }
             });
         });
+    }
+
+    // =========================================================
+    // WORD GENERATION
+    // =========================================================
+    private byte[] GenerateWordDocument(ExamPdfData data, bool includeAnswers)
+    {
+        using var stream = new MemoryStream();
+
+        using (var wordDocument = WordprocessingDocument.Create(stream, WordprocessingDocumentType.Document))
+        {
+            var mainPart = wordDocument.AddMainDocumentPart();
+            mainPart.Document = new DocumentFormat.OpenXml.Wordprocessing.Document();
+            var body = mainPart.Document.AppendChild(new Body());
+
+            // Title
+            AddParagraph(body, "EXAM", true, "28", JustificationValues.Center);
+            AddParagraph(body, data.Title, true, "24", JustificationValues.Center);
+
+            // Info
+            AddParagraph(body, $"Subject: {data.Subject}", false, "20", JustificationValues.Left);
+            AddParagraph(body, $"Date: {DateTime.Now:dd/MM/yyyy}", false, "20", JustificationValues.Left);
+
+            if (!string.IsNullOrEmpty(data.Description))
+            {
+                AddParagraph(body, data.Description, false, "18", JustificationValues.Left, true);
+            }
+
+            // Separator
+            AddParagraph(body, "═══════════════════════════════════════", false, "20", JustificationValues.Center);
+
+            // Questions
+            foreach (var question in data.Questions)
+            {
+                // Question content
+                AddParagraph(body, $"Q{question.QuestionNumber}: {question.Content}", true, "22", JustificationValues.Left);
+
+                // Options
+                if (question.QuestionType == "MultipleChoice" && question.Options.Any())
+                {
+                    foreach (var option in question.Options)
+                    {
+                        AddParagraph(body, $"    {option}", false, "20", JustificationValues.Left);
+                    }
+                }
+                else if (question.QuestionType == "Essay")
+                {
+                    AddParagraph(body, "    Answer: _______________________________________________", false, "20", JustificationValues.Left);
+                    AddParagraph(body, "", false, "20", JustificationValues.Left);
+                    AddParagraph(body, "    _______________________________________________", false, "20", JustificationValues.Left);
+                }
+
+                // Spacing
+                AddParagraph(body, "", false, "12", JustificationValues.Left);
+            }
+
+            // Answer Key
+            if (includeAnswers && data.Questions.Any(q => !string.IsNullOrEmpty(q.CorrectAnswer)))
+            {
+                // Page break
+                body.AppendChild(new Paragraph(new Run(new Break { Type = BreakValues.Page })));
+
+                AddParagraph(body, "ANSWER KEY", true, "28", JustificationValues.Center);
+                AddParagraph(body, "═══════════════════════════════════════", false, "20", JustificationValues.Center);
+
+                foreach (var q in data.Questions.Where(q => !string.IsNullOrEmpty(q.CorrectAnswer)))
+                {
+                    AddParagraph(body, $"Q{q.QuestionNumber}: {q.CorrectAnswer}", false, "20", JustificationValues.Left);
+                }
+            }
+
+            mainPart.Document.Save();
+        }
+
+        return stream.ToArray();
+    }
+
+    private void AddParagraph(Body body, string text, bool bold, string fontSize, JustificationValues justification, bool italic = false)
+    {
+        var paragraph = new Paragraph();
+        var paragraphProperties = new ParagraphProperties
+        {
+            Justification = new Justification { Val = justification }
+        };
+        paragraph.AppendChild(paragraphProperties);
+
+        var run = new Run();
+        var runProperties = new RunProperties();
+
+        if (bold) runProperties.AppendChild(new Bold());
+        if (italic) runProperties.AppendChild(new Italic());
+        runProperties.AppendChild(new FontSize { Val = fontSize });
+        runProperties.AppendChild(new RunFonts { Ascii = "Arial", HighAnsi = "Arial" });
+
+        run.AppendChild(runProperties);
+        run.AppendChild(new Text(text) { Space = SpaceProcessingModeValues.Preserve });
+
+        paragraph.AppendChild(run);
+        body.AppendChild(paragraph);
     }
 
     // =========================================================
