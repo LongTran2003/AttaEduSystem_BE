@@ -27,12 +27,7 @@ namespace AttaEduSystem.API.Controllers
         [HttpGet("pdf/{id:guid}")]
         [SwaggerOperation(
             Summary = "📄 Export exam to PDF",
-            Description = "Export ExamPaper/GeneratedExam (source)  to PDF format. " +
-            "Can include answer key and optionally upload to cloud(broken, fix later).")]
-        [ProducesResponseType(typeof(FileResult), 200)]
-        [ProducesResponseType(typeof(ExportPdfResponseDto), 200)]
-        [ProducesResponseType(typeof(ResponseDto), 400)]
-        [ProducesResponseType(typeof(ResponseDto), 404)]
+            Description = "Export ExamPaper/GeneratedExam (source)  to PDF format.")]
         public async Task<IActionResult> ExportToPdf(
             Guid id,
             [FromQuery] string source = "ExamPaper",
@@ -110,10 +105,6 @@ namespace AttaEduSystem.API.Controllers
         [SwaggerOperation(
             Summary = "📝 Export exam to Word",
             Description = "Export ExamPaper or GeneratedExam to Word (.docx) format.")]
-        [Produces("application/vnd.openxmlformats-officedocument.wordprocessingml.document")]
-        [ProducesResponseType(typeof(FileResult), 200)]
-        [ProducesResponseType(typeof(ResponseDto), 400)]
-        [ProducesResponseType(typeof(ResponseDto), 404)]
         public async Task<IActionResult> ExportToWord(
             Guid id,
             [FromQuery] string source = "ExamPaper",

@@ -30,6 +30,8 @@ namespace AttaEduSystem.DataAccess.DBContext
         public DbSet<ExamRoom> ExamRooms { get; set; }
         public DbSet<ExamRoomParticipant> ExamRoomParticipants { get; set; }
         public DbSet<SharedExam> SharedExams { get; set; }
+        public DbSet<ChatConversation> ChatConversations { get; set; }
+        public DbSet<ChatMessage> ChatMessages { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -243,6 +245,30 @@ namespace AttaEduSystem.DataAccess.DBContext
             modelBuilder.Entity<SharedExam>()
                 .HasIndex(s => s.ShareToken)
                 .IsUnique();
+
+            // ChatConversation
+            modelBuilder.Entity<ChatConversation>()
+                .HasKey(c => c.ChatConversationId);
+
+            modelBuilder.Entity<ChatConversation>()
+                .HasOne(c => c.User)
+                .WithMany()
+                .HasForeignKey(c => c.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ChatConversation>()
+                .HasMany(c => c.Messages)
+                .WithOne(m => m.Conversation)
+                .HasForeignKey(m => m.ChatConversationId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // ChatMessage
+            modelBuilder.Entity<ChatMessage>()
+                .HasKey(m => m.ChatMessageId);
+
+            modelBuilder.Entity<ChatMessage>()
+                .Property(m => m.Role)
+                .HasConversion<string>(); // Lưu enum dạng string trong DB
         }
     }
 }
