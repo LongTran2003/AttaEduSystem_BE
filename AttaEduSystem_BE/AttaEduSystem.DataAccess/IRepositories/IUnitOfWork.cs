@@ -23,6 +23,8 @@ namespace AttaEduSystem.DataAccess.IRepositories
         IExamRoomRepository ExamRoom { get; }
         IExamRoomParticipantRepository ExamRoomParticipant { get; }
         ISharedExamRepository SharedExam { get; }
+        IChatConversationRepository ChatConversation { get; }
+        IChatMessageRepository ChatMessage { get; }
 
 
         Task<int> SaveAsync();

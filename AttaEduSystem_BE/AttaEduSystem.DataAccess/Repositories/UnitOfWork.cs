@@ -28,6 +28,8 @@ namespace AttaEduSystem.DataAccess.Repositories
         public IExamRoomRepository ExamRoom { get; private set; }
         public IExamRoomParticipantRepository ExamRoomParticipant { get; private set; }
         public ISharedExamRepository SharedExam { get; private set; }
+        public IChatConversationRepository ChatConversation { get; private set; }
+        public IChatMessageRepository ChatMessage { get; private set; }
 
 
         public UnitOfWork(ApplicationDBContext context, UserManager<ApplicationUser> userManager)
@@ -52,6 +54,8 @@ namespace AttaEduSystem.DataAccess.Repositories
             ExamRoom = new ExamRoomRepository(_context);
             ExamRoomParticipant = new ExamRoomParticipantRepository(_context);
             SharedExam = new SharedExamRepository(_context);
+            ChatConversation = new ChatConversationRepository(_context);
+            ChatMessage = new ChatMessageRepository(_context);
         }
 
 

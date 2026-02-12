@@ -69,6 +69,8 @@ namespace AttaEduSystem.API.Extension
             // GeminiService dùng HttpClient trực tiếp trong Constructor
             // Nên dùng AddHttpClient<Interface, Class> để nó tự inject HttpClient vào
             services.AddHttpClient<IGeminiAiService, GeminiAiService>();
+            services.AddHttpClient<IChatAiService, ChatAiService>();
+            services.AddScoped<IChatService, ChatService>();
 
             // 6. Payment Services
             services.AddScoped<IPayOsService, PayOsService>();
