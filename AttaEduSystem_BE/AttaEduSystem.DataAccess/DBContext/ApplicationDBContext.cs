@@ -29,6 +29,7 @@ namespace AttaEduSystem.DataAccess.DBContext
         public DbSet<ExamFolder> ExamFolders { get; set; }
         public DbSet<ExamRoom> ExamRooms { get; set; }
         public DbSet<ExamRoomParticipant> ExamRoomParticipants { get; set; }
+        public DbSet<SharedExam> SharedExams { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -234,6 +235,14 @@ namespace AttaEduSystem.DataAccess.DBContext
                 .WithMany()
                 .HasForeignKey(p => p.ExamAttemptId)
                 .OnDelete(DeleteBehavior.SetNull); // Xóa attempt không xóa participant record
+
+            // SharedExam
+            modelBuilder.Entity<SharedExam>()
+                .HasKey(s => s.SharedExamId);
+
+            modelBuilder.Entity<SharedExam>()
+                .HasIndex(s => s.ShareToken)
+                .IsUnique();
         }
     }
 }

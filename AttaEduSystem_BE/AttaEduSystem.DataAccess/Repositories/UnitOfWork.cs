@@ -27,6 +27,7 @@ namespace AttaEduSystem.DataAccess.Repositories
         public IExamFolderRepository ExamFolder { get; private set; }
         public IExamRoomRepository ExamRoom { get; private set; }
         public IExamRoomParticipantRepository ExamRoomParticipant { get; private set; }
+        public ISharedExamRepository SharedExam { get; private set; }
 
 
         public UnitOfWork(ApplicationDBContext context, UserManager<ApplicationUser> userManager)
@@ -50,6 +51,7 @@ namespace AttaEduSystem.DataAccess.Repositories
             ExamFolder = new ExamFolderRepository(_context);
             ExamRoom = new ExamRoomRepository(_context);
             ExamRoomParticipant = new ExamRoomParticipantRepository(_context);
+            SharedExam = new SharedExamRepository(_context);
         }
 
 

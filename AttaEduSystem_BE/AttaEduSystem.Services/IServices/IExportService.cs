@@ -15,5 +15,13 @@ namespace AttaEduSystem.Services.IServices
             Guid examId,
             ExportPdfRequestDto request,
             ClaimsPrincipal user);
+
+        /// <summary>
+        /// Export exam to Word (.docx)
+        /// </summary>
+        Task<(byte[]? WordBytes, string? ErrorMessage)> ExportToWordAsync(
+            Guid examId,
+            ExportPdfRequestDto request,
+            ClaimsPrincipal user);
     }
 }
