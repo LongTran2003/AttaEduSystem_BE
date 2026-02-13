@@ -22,7 +22,7 @@ namespace AttaEduSystem.DataAccess.Repositories
         public async Task<IEnumerable<SubscriptionPlan>> GetActivePlansAsync()
         {
             return await _context.SubscriptionPlans
-                .Where(p => !string.IsNullOrEmpty(p.Status) && p.Status.Equals("Active", StringComparison.OrdinalIgnoreCase))
+                .Where(p => p.Status != null && p.Status == "Active")
                 .OrderBy(p => p.PricePerMonth)
                 .ToListAsync();
         }
