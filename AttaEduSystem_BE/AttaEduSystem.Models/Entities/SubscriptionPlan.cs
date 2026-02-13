@@ -30,6 +30,5 @@ namespace AttaEduSystem.Models.Entities
             // Bật/tắt các tính năng nâng cao (có thể parse JSON ở tầng service)
             public string? FeaturesJson { get; set; }
 
-            public bool IsActive { get; set; } = true;
     }
 }

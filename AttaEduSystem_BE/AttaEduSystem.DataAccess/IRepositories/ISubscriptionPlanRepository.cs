@@ -6,5 +6,6 @@ namespace AttaEduSystem.DataAccess.IRepositories
     {
         Task<SubscriptionPlan?> GetByCodeAsync(string code);
         Task<IEnumerable<SubscriptionPlan>> GetActivePlansAsync();
+        void Update(SubscriptionPlan subscriptionPlan);
     }
 }
