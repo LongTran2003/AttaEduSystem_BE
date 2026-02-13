@@ -26,5 +26,10 @@ namespace AttaEduSystem.DataAccess.Repositories
                 .OrderBy(p => p.PricePerMonth)
                 .ToListAsync();
         }
+
+        public void Update (SubscriptionPlan subscriptionPlan)
+        {
+            _context.SubscriptionPlans.Update(subscriptionPlan);
+        }
     }
 }

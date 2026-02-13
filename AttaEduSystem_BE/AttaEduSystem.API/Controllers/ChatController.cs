@@ -1,4 +1,5 @@
 ﻿using AttaEduSystem.Models.DTOs;
+using AttaEduSystem.Models.DTOs.ChatBot;
 using AttaEduSystem.Models.DTOs.ChatBox;
 using AttaEduSystem.Services.IServices;
 using Microsoft.AspNetCore.Authorization;
@@ -104,5 +105,20 @@ namespace AttaEduSystem.API.Controllers
             return StatusCode(result.StatusCode, result);
         }
 
+        // =========================================================
+        // ✅ NEW: POST /api/chat/ask-about-exam/{examId}
+        // =========================================================
+        [HttpPost("ask-about-exam/{examId:guid}")]
+        [SwaggerOperation(
+            Summary = "📚 Ask about specific exam",
+            Description = "Sends a question about a specific exam paper. " +
+            "AI will respond with exam context (questions, solutions if enabled). Optionally attach to existing conversation.")]
+        public async Task<ActionResult<ResponseDto>> AskAboutExam(Guid examId, [FromBody] AskAboutExamDto dto)
+        {
+            if (!ModelState.IsValid) return ReturnInvalidInputResponse();
+
+            var result = await _chatService.AskAboutExamAsync(examId, dto, User);
+            return StatusCode(result.StatusCode, result);
+        }
     }
 }

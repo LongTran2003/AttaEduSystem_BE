@@ -187,6 +187,10 @@ namespace AttaEduSystem.Services.Mapping
             // =========================================================
             // SubscriptionPlan mapping
             // =========================================================
+            CreateMap<CreateSubscriptionPlanDto, SubscriptionPlan>()
+                .ForMember(dest => dest.SubscriptionPlanId, opt => opt.Ignore());
+
+            CreateMap<SubscriptionPlan, AdminSubscriptionPlanDto>();
             CreateMap<SubscriptionPlan, GetSubscriptionPlanDto>();
 
             CreateMap<UserSubscription, GetUserSubscriptionDto>()
@@ -376,7 +380,9 @@ namespace AttaEduSystem.Services.Mapping
                 .ForMember(dest => dest.UpdatedAt, opt => opt.MapFrom(src => 
                     src.UpdatedAt.HasValue && src.UpdatedAt != src.CreatedTime 
                         ? src.UpdatedAt 
-                        : null));
+                        : null))
+                .ForMember(dest => dest.ExamPaperId, opt => opt.MapFrom(src => src.ExamPaperId))
+                .ForMember(dest => dest.ExamTitle, opt => opt.MapFrom(src => src.ExamPaper != null ? src.ExamPaper.Title : null));
 
             // ChatConversation -> ConversationDetailDto
             CreateMap<ChatConversation, ConversationDetailDto>()

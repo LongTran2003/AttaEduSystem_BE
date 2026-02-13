@@ -11,5 +11,8 @@ namespace AttaEduSystem.Services.IServices
         Task<ResponseDto> ActivateFromOrder(Guid orderId);
         Task<bool> CanUseAdvancedFeature(string userId, string featureName);
         Task<ResponseDto> CreateCheckout(ClaimsPrincipal user, CreateCheckoutRequestDto request);
+        Task<ResponseDto> CreateSubscriptionPlan(CreateSubscriptionPlanDto dto, ClaimsPrincipal adminUser);
+        Task<ResponseDto> UpdateSubscriptionPlan(Guid planId, UpdateSubscriptionPlanDto dto, ClaimsPrincipal adminUser);
+        Task<ResponseDto> UpdateStatusSubscriptionPlan(Guid planId, UpdateStatusSubscriptionPlanDto dto, ClaimsPrincipal adminUser);
     }
 }

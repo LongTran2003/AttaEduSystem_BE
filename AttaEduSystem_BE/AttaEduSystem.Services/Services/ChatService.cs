@@ -1,5 +1,6 @@
 ﻿using AttaEduSystem.DataAccess.IRepositories;
 using AttaEduSystem.Models.DTOs;
+using AttaEduSystem.Models.DTOs.ChatBot;
 using AttaEduSystem.Models.DTOs.ChatBox;
 using AttaEduSystem.Models.Entities;
 using AttaEduSystem.Models.Enums;
@@ -9,6 +10,7 @@ using AttaEduSystem.Utilities.Constants;
 using AutoMapper;
 using Microsoft.Extensions.Logging;
 using System.Security.Claims;
+using System.Text;
 
 namespace AttaEduSystem.Services.Services
 {
@@ -286,6 +288,171 @@ namespace AttaEduSystem.Services.Services
         }
 
         // =========================================================
+        // ✅ NEW: POST - Hỏi về đề thi cụ thể
+        // =========================================================
+        public async Task<ResponseDto> AskAboutExamAsync(Guid examId, AskAboutExamDto dto, ClaimsPrincipal user)
+        {
+            var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId))
+            {
+                return ErrorResponse.Build("Unauthorized", 401);
+            }
+
+            // 1. Validate exam access permission
+            var exam = await _unitOfWork.ExamPaper.GetByIdWithUserAsync(examId);
+            if (exam == null)
+            {
+                return ErrorResponse.Build("Exam not found", 404);
+            }
+
+            // Check permission: Own exam OR public exam
+            bool hasAccess = exam.Creator?.Id == userId ||
+                             exam.CreatedBy == userId ||
+                             exam.Status == StaticOperationStatus.ExamPaper.Ready;
+
+            if (!hasAccess)
+            {
+                return ErrorResponse.Build("You do not have permission to access this exam", 403);
+            }
+
+            // 2. Load exam questions (limit to first 5 for context efficiency)
+            var questions = await _unitOfWork.ExamQuestion.GetByExamPaperIdWithOptionsAsync(examId);
+            var contextQuestions = questions.Take(5).ToList();
+
+            // 3. Load solution (if requested and exists)
+            string? solutionText = null;
+            if (dto.IncludeSolutions)
+            {
+                var solution = await _unitOfWork.ExamSolution.GetAsync(s => s.ExamPaperId == examId);
+                if (solution != null)
+                {
+                    solutionText = solution.SolutionContentJson;
+                }
+            }
+
+            // 4. Build exam context for AI
+            var examContext = BuildExamContext(exam, contextQuestions, solutionText);
+
+            // 5. Get or create conversation
+            ChatConversation conversation;
+            if (dto.ConversationId.HasValue)
+            {
+                // Attach to existing conversation
+                conversation = await _unitOfWork.ChatConversation
+                    .GetByIdWithMessagesAsync(dto.ConversationId.Value, userId);
+
+                if (conversation == null)
+                {
+                    return ErrorResponse.Build("Conversation not found", 404);
+                }
+
+                // Update exam link if not set
+                if (!conversation.ExamPaperId.HasValue)
+                {
+                    conversation.ExamPaperId = examId;
+                    conversation.UpdatedAt = StaticOperationStatus.Timezone.Vietnam;
+                    conversation.UpdatedBy = user.FindFirstValue("FullName");
+                    _unitOfWork.ChatConversation.Update(conversation);
+                }
+            }
+            else
+            {
+                // Create new conversation
+                conversation = new ChatConversation
+                {
+                    ChatConversationId = Guid.NewGuid(),
+                    UserId = userId,
+                    Title = $"Về đề: {exam.Title}",
+                    ExamPaperId = examId,
+                    CreatedBy = user.FindFirstValue("FullName"),
+                    CreatedTime = StaticOperationStatus.Timezone.Vietnam,
+                    UpdatedAt = StaticOperationStatus.Timezone.Vietnam,
+                    Status = "Active"
+                };
+                await _unitOfWork.ChatConversation.AddAsync(conversation);
+            }
+
+            // 6. Save user message
+            var userMessage = new ChatMessage
+            {
+                ChatMessageId = Guid.NewGuid(),
+                ChatConversationId = conversation.ChatConversationId,
+                Role = MessageRole.User,
+                Content = dto.Message,
+                CreatedBy = user.FindFirstValue("FullName"),
+                CreatedTime = StaticOperationStatus.Timezone.Vietnam
+            };
+            await _unitOfWork.ChatMessage.AddAsync(userMessage);
+
+            // 7. Build conversation history
+            var history = conversation.Messages
+                .TakeLast(10)
+                .Select(m => (m.Role == MessageRole.User ? "user" : "assistant", m.Content))
+                .ToList();
+
+            // 8. Prepend exam context to current message
+            var enhancedMessage = $"{examContext}\n\n---\n\nCâu hỏi của học sinh: {dto.Message}";
+
+            // 9. Call AI with exam context
+            string aiResponseContent;
+            try
+            {
+                aiResponseContent = await _chatAiService.GetChatResponseAsync(enhancedMessage, history);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting AI response for exam {ExamId}", examId);
+                aiResponseContent = "Xin lỗi, tôi đang gặp sự cố khi phân tích đề thi này. Vui lòng thử lại sau.";
+            }
+
+            // 10. Save AI response
+            var assistantMessage = new ChatMessage
+            {
+                ChatMessageId = Guid.NewGuid(),
+                ChatConversationId = conversation.ChatConversationId,
+                Role = MessageRole.Assistant,
+                Content = aiResponseContent,
+                CreatedBy = "AI",
+                CreatedTime = StaticOperationStatus.Timezone.Vietnam
+            };
+            await _unitOfWork.ChatMessage.AddAsync(assistantMessage);
+
+            // 11. Update conversation timestamp
+            conversation.UpdatedAt = StaticOperationStatus.Timezone.Vietnam;
+            conversation.UpdatedBy = user.FindFirstValue("FullName");
+            conversation.UpdatedTime = StaticOperationStatus.Timezone.Vietnam;
+
+            _unitOfWork.ChatConversation.Update(conversation);
+            await _unitOfWork.SaveAsync();
+
+            // 12. Build response
+            var response = new AskAboutExamResponseDto
+            {
+                ConversationId = conversation.ChatConversationId,
+                ConversationTitle = conversation.Title,
+                ExamPaperId = examId,
+                ExamTitle = exam.Title,
+                UserMessage = _mapper.Map<ChatMessageDto>(userMessage),
+                AiResponse = _mapper.Map<ChatMessageDto>(assistantMessage)
+            };
+
+            return SuccessResponse.Build(
+                message: "Message sent successfully",
+                statusCode: 200,
+                result: response);
+        }
+
+        // =========================================================
+        // ✅ NEW: Streaming message via SignalR
+        // =========================================================
+        public async Task SendMessageStreamAsync(Guid conversationId, SendMessageDto dto, ClaimsPrincipal user, string connectionId)
+        {
+            // Implementation will use SignalR hub context to stream chunks
+            // This is a placeholder - actual implementation in ChatHub
+            throw new NotImplementedException("Use SignalR ChatHub.SendMessageStream instead");
+        }
+
+        // =========================================================
         // Helper: Generate title từ tin nhắn đầu tiên
         // =========================================================
         private static string GenerateTitle(string firstMessage)
@@ -300,6 +467,54 @@ namespace AttaEduSystem.Services.Services
 
             // Remove newlines
             return title.Replace("\n", " ").Replace("\r", "").Trim();
+        }
+
+        // =========================================================
+        // Helper: Build Exam Context for AI
+        // =========================================================
+        private static string BuildExamContext(ExamPaper exam, List<ExamQuestion> questions, string? solution)
+        {
+            var sb = new StringBuilder();
+
+            sb.AppendLine("📝 BỐI CẢNH ĐỀ THI:");
+            sb.AppendLine($"- Tiêu đề: {exam.Title}");
+            sb.AppendLine($"- Môn học: {exam.Subject ?? "Chung"}");
+            sb.AppendLine($"- Mô tả: {exam.Description ?? "Không có"}");
+            sb.AppendLine($"- Tổng số câu hỏi: {questions.Count}");
+            sb.AppendLine();
+
+            if (questions.Any())
+            {
+                sb.AppendLine("📌 MẪU CÂU HỎI (5 câu đầu tiên):");
+                foreach (var q in questions)
+                {
+                    sb.AppendLine($"\n{q.QuestionIdLabel}: {q.Content}");
+                    if (q.QuestionType == "MultipleChoice" && q.Options.Any())
+                    {
+                        foreach (var opt in q.Options.OrderBy(o => o.Label))
+                        {
+                            sb.AppendLine($"  {opt.Label}. {opt.Content}");
+                        }
+                        if (!string.IsNullOrEmpty(q.CorrectAnswer))
+                        {
+                            sb.AppendLine($"  ✅ Đáp án: {q.CorrectAnswer}");
+                        }
+                    }
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(solution))
+            {
+                sb.AppendLine("\n📖 LỜI GIẢI (nếu có):");
+                sb.AppendLine(solution);
+            }
+
+            sb.AppendLine("\n---");
+            sb.AppendLine("🎯 NHIỆM VỤ CỦA BẠN:");
+            sb.AppendLine("Trả lời câu hỏi của học sinh dựa trên thông tin đề thi ở trên.");
+            sb.AppendLine("Sử dụng LaTeX ($...$) cho công thức toán học.");
+
+            return sb.ToString();
         }
     }
 }

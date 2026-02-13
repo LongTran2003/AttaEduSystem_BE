@@ -1,4 +1,5 @@
 ﻿using AttaEduSystem.Models.DTOs;
+using AttaEduSystem.Models.DTOs.ChatBot;
 using AttaEduSystem.Models.DTOs.ChatBox;
 using System.Security.Claims;
 
@@ -30,5 +31,15 @@ namespace AttaEduSystem.Services.IServices
         /// Xóa conversation
         /// </summary>
         Task<ResponseDto> DeleteConversationAsync(Guid conversationId, ClaimsPrincipal user);
+
+        /// <summary>
+        /// ✅ NEW: Hỏi về đề thi cụ thể (with exam context)
+        /// </summary>
+        Task<ResponseDto> AskAboutExamAsync(Guid examId, AskAboutExamDto dto, ClaimsPrincipal user);
+
+        /// <summary>
+        /// ✅ NEW: Streaming message (SignalR)
+        /// </summary>
+        Task SendMessageStreamAsync(Guid conversationId, SendMessageDto dto, ClaimsPrincipal user, string connectionId);
     }
 }

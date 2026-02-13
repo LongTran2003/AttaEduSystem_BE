@@ -80,7 +80,7 @@ namespace AttaEduSystem.DataAccess.Seed
                 MaxGeneratedExamsPerMonth = 0, // Không cho tạo đề
                 MaxSolvesPerMonth = 0, // Free không được giải đề
                 // MaxTokensPerMonth = 1000, // (Nếu entity bạn có field này)
-                IsActive = true,
+                Status = "Active",
                 CreatedBy = "System",
                 CreatedTime = DateTime.UtcNow
             };
@@ -97,7 +97,7 @@ namespace AttaEduSystem.DataAccess.Seed
                 MaxGeneratedExamsPerMonth = 50, // Tạo đề thoải mái
                 MaxSolvesPerMonth = 100, // Solve tùm lum
                 // MaxTokensPerMonth = 100000, 
-                IsActive = true,
+                Status = "Active",
                 CreatedBy = "System",
                 CreatedTime = DateTime.UtcNow
             };
