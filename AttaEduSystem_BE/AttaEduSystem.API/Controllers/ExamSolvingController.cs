@@ -75,6 +75,7 @@ namespace AttaEduSystem.API.Controllers
         }
 
         [HttpGet("my-solutions")]
+        [ApiExplorerSettings(IgnoreApi = true)]
         [SwaggerOperation(Summary = "🧾 List my solutions",
             Description = "Returns solutions created by the current user.")]
         public async Task<ActionResult<ResponseDto>> GetSolutionsByUser()
