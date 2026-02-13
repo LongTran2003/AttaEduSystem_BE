@@ -51,7 +51,7 @@ namespace AttaEduSystem.Services.Services
                 // Map DTO -> Entity
                 var examRoom = _mapper.Map<ExamRoom>(dto);
                 examRoom.RoomCode = code;
-                examRoom.CreatedBy = user.FindFirstValue("FullName");
+                examRoom.CreatedBy = userId;
                 examRoom.CreatedTime = StaticOperationStatus.Timezone.Vietnam;
                 examRoom.Status = StaticOperationStatus.ExamRoom.Waiting;
 
@@ -122,7 +122,7 @@ namespace AttaEduSystem.Services.Services
                     return ErrorResponse.Build("Cannot cancel a finished room", 400);
 
                 room.Status = StaticOperationStatus.ExamRoom.Cancelled;
-                room.UpdatedBy = user.FindFirstValue("FullName");
+                room.UpdatedBy = userId;
                 room.UpdatedTime = StaticOperationStatus.Timezone.Vietnam;
 
                 _unitOfWork.ExamRoom.Update(room);
