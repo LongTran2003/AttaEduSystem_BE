@@ -30,6 +30,81 @@ namespace AttaEduSystem.Services.Services
             _payOsService = payOsService;
         }
 
+        public async Task<ResponseDto> CreateSubscriptionPlan(CreateSubscriptionPlanDto dto, ClaimsPrincipal adminUser)
+        {
+            // Basic validation: unique code
+            var exists = await _unitOfWork.SubscriptionPlan.GetAsync(p => p.Code == dto.Code);
+            if (exists != null)
+                return ErrorResponse.Build("Subscription plan code already exists", 400);
+
+            var plan = new SubscriptionPlan
+            {
+                SubscriptionPlanId = Guid.NewGuid(),
+                Code = dto.Code,
+                Name = dto.Name,
+                Description = dto.Description,
+                PricePerMonth = dto.PricePerMonth,
+                MaxScansPerMonth = dto.MaxScansPerMonth,
+                MaxGeneratedExamsPerMonth = dto.MaxGeneratedExamsPerMonth,
+                MaxSolvesPerMonth = dto.MaxSolvesPerMonth,
+                Status = "Active",
+                CreatedBy = adminUser.FindFirstValue(ClaimTypes.NameIdentifier) ?? "Admin",
+                CreatedTime = DateTime.UtcNow
+            };
+
+            await _unitOfWork.SubscriptionPlan.AddAsync(plan);
+            await _unitOfWork.SaveAsync();
+
+            var resultDto = _mapper.Map<AdminSubscriptionPlanDto>(plan);
+            return SuccessResponse.Build("Subscription plan created successfully", 201, resultDto);
+        }
+
+        public async Task<ResponseDto> UpdateSubscriptionPlan(Guid planId, UpdateSubscriptionPlanDto dto, ClaimsPrincipal adminUser)
+        {
+            var plan = await _unitOfWork.SubscriptionPlan.GetAsync(p => p.SubscriptionPlanId == planId);
+            if (plan == null) return ErrorResponse.Build("Subscription plan not found", 404);
+
+            if (!string.IsNullOrWhiteSpace(dto.Name)) plan.Name = dto.Name;
+            if (dto.Description != null) plan.Description = dto.Description;
+            if (dto.PricePerMonth.HasValue) plan.PricePerMonth = dto.PricePerMonth.Value;
+            if (dto.MaxScansPerMonth.HasValue) plan.MaxScansPerMonth = dto.MaxScansPerMonth.Value;
+            if (dto.MaxGeneratedExamsPerMonth.HasValue) plan.MaxGeneratedExamsPerMonth = dto.MaxGeneratedExamsPerMonth.Value;
+            if (dto.MaxSolvesPerMonth.HasValue) plan.MaxSolvesPerMonth = dto.MaxSolvesPerMonth.Value;
+            if (!string.IsNullOrWhiteSpace(dto.Status)) plan.Status = dto.Status;
+
+            plan.UpdatedBy = adminUser.FindFirstValue(ClaimTypes.NameIdentifier) ?? "Admin";
+            plan.UpdatedTime = DateTime.UtcNow;
+
+            _unitOfWork.SubscriptionPlan.Update(plan);
+            await _unitOfWork.SaveAsync();
+
+            var resultDto = _mapper.Map<AdminSubscriptionPlanDto>(plan);
+            return SuccessResponse.Build("Subscription plan updated successfully", 200, resultDto);
+        }
+
+        public async Task<ResponseDto> UpdateStatusSubscriptionPlan(Guid planId, UpdateStatusSubscriptionPlanDto dto, ClaimsPrincipal adminUser)
+        {
+            var plan = await _unitOfWork.SubscriptionPlan.GetAsync(p => p.SubscriptionPlanId == planId);
+            if (plan == null)
+                return ErrorResponse.Build("Subscription plan not found", 404);
+
+            // Avoid no-op
+            if (string.Equals(plan.Status ?? string.Empty, dto.Status, StringComparison.OrdinalIgnoreCase))
+            {
+                return ErrorResponse.Build("Subscription plan already in the requested status", 400);
+            }
+
+            plan.Status = dto.Status;
+            plan.UpdatedBy = adminUser.FindFirstValue(ClaimTypes.NameIdentifier) ?? "Admin";
+            plan.UpdatedTime = StaticOperationStatus.Timezone.Vietnam;
+
+            _unitOfWork.SubscriptionPlan.Update(plan);
+            await _unitOfWork.SaveAsync();
+
+            var resultDto = _mapper.Map<AdminSubscriptionPlanDto>(plan);
+            return SuccessResponse.Build("Subscription plan status updated successfully", 200, resultDto);
+        }
+
         public async Task<ResponseDto> GetAvailablePlans()
         {
             var plans = await _unitOfWork.SubscriptionPlan.GetActivePlansAsync();
@@ -155,8 +230,9 @@ namespace AttaEduSystem.Services.Services
 
             // 1. Lấy plan
             var plan = await _unitOfWork.SubscriptionPlan.GetAsync(p => p.SubscriptionPlanId == request.SubscriptionPlanId);
-            if (plan == null || !plan.IsActive)
+            if (plan == null || !string.Equals(plan.Status, "Active", StringComparison.OrdinalIgnoreCase))
                 return ErrorResponse.Build("Subscription plan not found or inactive", 404);
+
 
             // 2. Tạo Order
             var order = new Order

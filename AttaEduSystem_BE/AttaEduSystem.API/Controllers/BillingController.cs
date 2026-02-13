@@ -1,6 +1,7 @@
 ﻿using AttaEduSystem.Models.DTOs;
 using AttaEduSystem.Models.DTOs.Billing;
 using AttaEduSystem.Services.IServices;
+using AttaEduSystem.Services.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
@@ -35,7 +36,38 @@ namespace AttaEduSystem.API.Controllers
                 Result = ModelState.Values.SelectMany(v => v.Errors.Select(e => e.ErrorMessage))
             });
         }
-        
+
+        [HttpPost("subscription-plan")]
+        [Authorize(Roles = "ADMIN")]
+        [SwaggerOperation(Summary = "🔧 Create subscription plan (Admin)", Description = "Admin only")]
+        public async Task<ActionResult<ResponseDto>> CreatePlan([FromBody] CreateSubscriptionPlanDto dto)
+        {
+            if (!ModelState.IsValid) return ReturnInvalidInputResponse();
+            var result = await _subscriptionService.CreateSubscriptionPlan(dto, User);
+            return StatusCode(result.StatusCode, result);
+        }
+
+        [HttpPut("subscription-plan/{id:guid}")]
+        [Authorize(Roles = "ADMIN")]
+        [SwaggerOperation(Summary = "🔧 Update subscription plan (Admin)", Description = "Admin only")]
+        public async Task<ActionResult<ResponseDto>> UpdatePlan(Guid id, [FromBody] UpdateSubscriptionPlanDto dto)
+        {
+            if (!ModelState.IsValid) return ReturnInvalidInputResponse();
+            var result = await _subscriptionService.UpdateSubscriptionPlan(id, dto, User);
+            return StatusCode(result.StatusCode, result);
+        }
+
+        [HttpPut("subscription-plan/{id:guid}/status")]
+        [Authorize(Roles = "ADMIN")]
+        [SwaggerOperation(Summary = "🔧 Update subscription plan status (Admin)", 
+            Description = "Set plan status (e.g. Active, Removed). Admin only")]
+        public async Task<ActionResult<ResponseDto>> UpdatePlanStatus(Guid id, [FromBody] UpdateStatusSubscriptionPlanDto dto)
+        {
+            if (!ModelState.IsValid) return ReturnInvalidInputResponse();
+            var result = await _subscriptionService.UpdateStatusSubscriptionPlan(id, dto, User);
+            return StatusCode(result.StatusCode, result);
+        }
+
         [HttpGet("plans")]
         [AllowAnonymous]
         [SwaggerOperation(Summary = "💎 List subscription plans", 
