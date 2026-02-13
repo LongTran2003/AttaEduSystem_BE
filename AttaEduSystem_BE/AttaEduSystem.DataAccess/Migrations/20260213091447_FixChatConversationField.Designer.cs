@@ -3,6 +3,7 @@ using System;
 using AttaEduSystem.DataAccess.DBContext;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace AttaEduSystem.DataAccess.Migrations
 {
     [DbContext(typeof(ApplicationDBContext))]
-    partial class ApplicationDBContextModelSnapshot : ModelSnapshot
+    [Migration("20260213091447_FixChatConversationField")]
+    partial class FixChatConversationField
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -123,7 +126,7 @@ namespace AttaEduSystem.DataAccess.Migrations
                             AccessFailedCount = 0,
                             Address = "123 Admin St",
                             BirthDate = new DateTime(2001, 6, 5, 0, 0, 0, 0, DateTimeKind.Utc),
-                            ConcurrencyStamp = "fab66f3a-49a3-4591-be68-270844be55a2",
+                            ConcurrencyStamp = "6f6a9e3e-d774-42df-9ce6-ac63ddaadf63",
                             Email = "admin@gmail.com",
                             EmailConfirmed = true,
                             FullName = "Admin",
@@ -131,10 +134,10 @@ namespace AttaEduSystem.DataAccess.Migrations
                             LockoutEnabled = true,
                             NormalizedEmail = "ADMIN@GMAIL.COM",
                             NormalizedUserName = "ADMIN@GMAIL.COM",
-                            PasswordHash = "AQAAAAIAAYagAAAAEACXv5I0hx3Q6MftRkfFmj4CizYXZitMLuObpQFLKIYVDp0RbS6d+xOHy541HL2xaw==",
+                            PasswordHash = "AQAAAAIAAYagAAAAEArMDeXZdZXeHvkcMQk9GcfJLqsGMrDiWssszUgKm95Ss0070gPES2qR74JNQ2dgeA==",
                             PhoneNumber = "1234567890",
                             PhoneNumberConfirmed = true,
-                            SecurityStamp = "524fef2e-fe93-4a6f-90fd-3f31d4e11335",
+                            SecurityStamp = "9f093f5f-677d-4e04-804f-e91ec9bca5a7",
                             Status = "Active",
                             TwoFactorEnabled = false,
                             UserName = "admin@gmail.com"
@@ -939,7 +942,7 @@ namespace AttaEduSystem.DataAccess.Migrations
                             SubscriptionPlanId = new Guid("11111111-1111-1111-1111-111111111111"),
                             Code = "FREE",
                             CreatedBy = "System",
-                            CreatedTime = new DateTime(2026, 2, 13, 9, 18, 30, 803, DateTimeKind.Utc).AddTicks(537),
+                            CreatedTime = new DateTime(2026, 2, 13, 9, 14, 46, 958, DateTimeKind.Utc).AddTicks(9881),
                             Description = "Dành cho người mới bắt đầu, giới hạn tính năng.",
                             MaxGeneratedExamsPerMonth = 0,
                             MaxScansPerMonth = 5,
@@ -954,7 +957,7 @@ namespace AttaEduSystem.DataAccess.Migrations
                             SubscriptionPlanId = new Guid("22222222-2222-2222-2222-222222222222"),
                             Code = "PRO",
                             CreatedBy = "System",
-                            CreatedTime = new DateTime(2026, 2, 13, 9, 18, 30, 803, DateTimeKind.Utc).AddTicks(546),
+                            CreatedTime = new DateTime(2026, 2, 13, 9, 14, 46, 958, DateTimeKind.Utc).AddTicks(9890),
                             Description = "Mở khóa toàn bộ tính năng AI & Giải đề.",
                             MaxGeneratedExamsPerMonth = 50,
                             MaxScansPerMonth = 100,

@@ -59,6 +59,7 @@ namespace AttaEduSystem.API.Controllers
 
         [HttpPut("subscription-plan/{id:guid}/status")]
         [Authorize(Roles = "ADMIN")]
+        [ApiExplorerSettings(IgnoreApi = true)]
         [SwaggerOperation(Summary = "🔧 Update subscription plan status (Admin)", 
             Description = "Set plan status (e.g. Active, Removed). Admin only")]
         public async Task<ActionResult<ResponseDto>> UpdatePlanStatus(Guid id, [FromBody] UpdateStatusSubscriptionPlanDto dto)
