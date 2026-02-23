@@ -30,6 +30,7 @@ namespace AttaEduSystem.DataAccess.Repositories
         public ISharedExamRepository SharedExam { get; private set; }
         public IChatConversationRepository ChatConversation { get; private set; }
         public IChatMessageRepository ChatMessage { get; private set; }
+        public IStudyPlanRepository StudyPlan { get; private set; }
 
 
         public UnitOfWork(ApplicationDBContext context, UserManager<ApplicationUser> userManager)
@@ -56,6 +57,7 @@ namespace AttaEduSystem.DataAccess.Repositories
             SharedExam = new SharedExamRepository(_context);
             ChatConversation = new ChatConversationRepository(_context);
             ChatMessage = new ChatMessageRepository(_context);
+            StudyPlan = new StudyPlanRepository(_context);
         }
 
 

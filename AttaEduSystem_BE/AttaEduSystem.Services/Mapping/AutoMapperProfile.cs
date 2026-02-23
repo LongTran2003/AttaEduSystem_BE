@@ -17,6 +17,7 @@ using AttaEduSystem.Models.DTOs.Profile;
 using AttaEduSystem.Models.DTOs.QuestionBank;
 using AttaEduSystem.Models.DTOs.SharedExam;
 using AttaEduSystem.Models.DTOs.Student;
+using AttaEduSystem.Models.DTOs.StudyPlan;
 using AttaEduSystem.Models.Entities;
 using AttaEduSystem.Services.IServices;
 using AttaEduSystem.Utilities.Constants;
@@ -402,6 +403,67 @@ namespace AttaEduSystem.Services.Mapping
             //    .ForMember(dest => dest.CreatedTime, opt => opt.Ignore())
             //    .ForMember(dest => dest.Status, opt => opt.Ignore());
 
+
+            // =========================================================
+            // Study Plan mapping 
+            // =========================================================
+            CreateMap<StudyPlan, WeeklyStudyPlanDto>()
+                .ForMember(dest => dest.StudyPlanId, opt => opt.MapFrom(src => src.StudyPlanId))
+                .ForMember(dest => dest.WeekStart, opt => opt.MapFrom(src => src.WeekStart))
+                .ForMember(dest => dest.WeekEnd, opt => opt.MapFrom(src => src.WeekEnd))
+                .ForMember(dest => dest.GeneratedAt, opt => opt.MapFrom(src => src.CreatedTime ?? DateTime.UtcNow))
+                .ForMember(dest => dest.SavedAt, opt => opt.MapFrom(src => src.CreatedTime ?? StaticOperationStatus.Timezone.Vietnam))
+                .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status))
+                .ForMember(dest => dest.Notes, opt => opt.MapFrom(src => src.Notes))
+                .ForMember(dest => dest.CompletionPercentage, opt => opt.MapFrom(src => src.CompletionPercentage))
+                // leave core plan fields -> fill in AfterMap by deserializing PlanJson
+                .ForMember(dest => dest.Summary, opt => opt.Ignore())
+                .ForMember(dest => dest.Performance, opt => opt.Ignore())
+                .ForMember(dest => dest.DailyPlans, opt => opt.Ignore())
+                .ForMember(dest => dest.ConfidenceScore, opt => opt.Ignore())
+                .AfterMap((src, dest) =>
+                {
+                    if (string.IsNullOrWhiteSpace(src.PlanJson)) return;
+                    try
+                    {
+                        var inner = JsonSerializer.Deserialize<WeeklyStudyPlanDto>(src.PlanJson);
+                        if (inner == null) return;
+                        dest.Summary = inner.Summary;
+                        dest.Performance = inner.Performance;
+                        dest.DailyPlans = inner.DailyPlans ?? new List<DailyPlanDto>();
+                        dest.ConfidenceScore = inner.ConfidenceScore;
+                    }
+                    catch
+                    {
+                        // ignore parse errors and keep metadata-only DTO
+                    }
+                });
+
+            CreateMap<StudyPlan, PlanHistoryDto>()
+                .ForMember(dest => dest.StudyPlanId, opt => opt.MapFrom(src => src.StudyPlanId))
+                .ForMember(dest => dest.WeekStart, opt => opt.MapFrom(src => src.WeekStart))
+                .ForMember(dest => dest.WeekEnd, opt => opt.MapFrom(src => src.WeekEnd))
+                .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status))
+                .ForMember(dest => dest.CompletionPercentage, opt => opt.MapFrom(src => src.CompletionPercentage))
+                .ForMember(dest => dest.CreatedAt, opt => opt.MapFrom(src => src.CreatedTime ?? DateTime.UtcNow))
+                .ForMember(dest => dest.Notes, opt => opt.MapFrom(src => src.Notes))
+                .ForMember(dest => dest.TotalSessions, opt => opt.Ignore())
+                .ForMember(dest => dest.CompletedSessions, opt => opt.Ignore())
+                .AfterMap((src, dest) =>
+                {
+                    if (string.IsNullOrWhiteSpace(src.PlanJson)) return;
+                    try
+                    {
+                        var inner = JsonSerializer.Deserialize<WeeklyStudyPlanDto>(src.PlanJson);
+                        if (inner == null) return;
+                        dest.TotalSessions = inner.DailyPlans?.Sum(d => d.Sessions.Count) ?? 0;
+                        dest.CompletedSessions = inner.DailyPlans?.Sum(d => d.Sessions.Count(s => s.IsCompleted)) ?? 0;
+                    }
+                    catch
+                    {
+                        // ignore parse errors
+                    }
+                });
 
         }
 
