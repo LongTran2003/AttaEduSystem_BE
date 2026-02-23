@@ -99,8 +99,8 @@ namespace AttaEduSystem.API.Controllers
             return StatusCode(response.StatusCode, response);
         }
 
-        [HttpPost("{planId:guid}/regenerate (need to fix the logic)")]
-        [SwaggerOperation(Summary = "Regenerate plan for remaining days", 
+        [HttpPost("{planId:guid}/regenerate")]
+        [SwaggerOperation(Summary = "Regenerate plan for remaining days (BROKEN LOGIC)", 
             Description = "Regenerate part of an existing plan (e.g., student wants a replan for remaining days).")]
         public async Task<ActionResult<ResponseDto>> Regenerate([FromRoute] Guid planId, [FromBody] RegeneratePlanDto dto)
         {
