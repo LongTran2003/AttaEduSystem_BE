@@ -5,7 +5,7 @@
         public static class BaseEntity
         {
             public const string Active = "1";
-            public const string Deleted = "0";
+            public const string Inactive = "0";
         }
 
         public static class File

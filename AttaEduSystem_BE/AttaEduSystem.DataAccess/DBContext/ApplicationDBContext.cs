@@ -32,6 +32,7 @@ namespace AttaEduSystem.DataAccess.DBContext
         public DbSet<SharedExam> SharedExams { get; set; }
         public DbSet<ChatConversation> ChatConversations { get; set; }
         public DbSet<ChatMessage> ChatMessages { get; set; }
+        public DbSet<StudyPlan> StudyPlans { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -269,6 +270,23 @@ namespace AttaEduSystem.DataAccess.DBContext
             modelBuilder.Entity<ChatMessage>()
                 .Property(m => m.Role)
                 .HasConversion<string>(); // Lưu enum dạng string trong DB
+
+            // StudyPlan
+            modelBuilder.Entity<StudyPlan>()
+                .HasKey(sp => sp.StudyPlanId);
+
+            modelBuilder.Entity<StudyPlan>()
+                .HasOne(sp => sp.User)
+                .WithMany()
+                .HasForeignKey(sp => sp.UserId)
+                .OnDelete(DeleteBehavior.Cascade); // Xóa user thì xóa luôn study plans
+
+            modelBuilder.Entity<StudyPlan>()
+                .HasIndex(sp => new { sp.UserId, sp.WeekStart })
+                .IsUnique(); // 1 user chỉ có 1 plan cho 1 tuần cụ thể
+
+            modelBuilder.Entity<StudyPlan>()
+                .HasIndex(sp => new { sp.UserId, sp.Status }); // Query optimization
         }
     }
 }

@@ -130,6 +130,87 @@ namespace AttaEduSystem.Services.Services
         }
 
         // =========================================================
+        // 4. GENERATE STUDY PLAN (TẠO LỊCH HỌC TỪ KẾT QUẢ HỌC TẬP)
+        // =========================================================
+        public async Task<string> GenerateStudyPlan(string subjectPerformanceJson, string preferencesJson)
+        {
+            var prompt = $@"
+        Bạn là chuyên gia tư vấn học tập. Hãy tạo lịch học tuần cho sinh viên dựa trên:
+
+        📊 KẾT QUẢ HỌC TẬP GẦN ĐÂY:
+        {subjectPerformanceJson}
+
+        🎯 YÊU CẦU CỦA SINH VIÊN:
+        {preferencesJson}
+
+        📝 YÊU CẦU OUTPUT:
+        1. Phân tích điểm yếu và đề xuất thứ tự ưu tiên
+        2. Lịch học 7 ngày (Monday -> Sunday) với:
+           - Mỗi ngày: Môn học, mục tiêu cụ thể, thời lượng, lý do
+           - Cân đối giữa các môn, tránh quá tải
+           - Ưu tiên môn yếu nhưng không bỏ qua môn mạnh hoàn toàn
+        3. Gợi ý tài nguyên học tập (nếu có thể)
+        4. Đánh giá confidence (0-100) về hiệu quả của plan
+
+        OUTPUT JSON SCHEMA (STRICT):
+        {{
+            ""summary"": ""Tóm tắt tình hình và chiến lược học tập"",
+            ""performance"": {{
+                ""weakSubjects"": [
+                    {{
+                        ""subject"": ""Toán"",
+                        ""averageScore"": 5.5,
+                        ""attemptCount"": 3,
+                        ""trend"": ""Declining"",
+                        ""priority"": 1,
+                        ""correctRate"": 55.0
+                    }}
+                ],
+                ""strongSubjects"": [...]
+            }},
+            ""dailyPlans"": [
+                {{
+                    ""dayOfWeek"": ""Monday"",
+                    ""date"": ""2026-03-02"",
+                    ""sessions"": [
+                        {{
+                            ""sessionOrder"": 1,
+                            ""subject"": ""Toán"",
+                            ""goal"": ""Ôn lại phần hàm số bậc 2, làm 10 bài tập"",
+                            ""duration"": 1.5,
+                            ""reasoning"": ""Điểm TB 5.5, xu hướng giảm - cần ưu tiên cao nhất"",
+                            ""suggestedResources"": [""Bài tập SGK chương 3"", ""Video Khan Academy - Quadratic Functions""],
+                            ""isCompleted"": false,
+                            ""completionNotes"": null,
+                            ""completedAt"": null
+                        }}
+                    ],
+                    ""totalHours"": 2.0
+                }}
+            ],
+            ""confidenceScore"": 85
+        }}
+
+        QUY TẮC QUAN TRỌNG:
+        - Nếu không có dữ liệu học tập, tạo plan chung chung dựa trên môn ưu tiên (nếu có)
+        - Mỗi ngày PHẢI có ít nhất 1 session (không để trống)
+        - Tổng giờ học mỗi ngày không vượt quá yêu cầu
+        - Trend chỉ có 3 giá trị: ""Improving"", ""Declining"", ""Stable""
+        - Priority từ 1-5 (1 = cao nhất)
+
+        CHỈ TRẢ VỀ JSON THUẦN, KHÔNG MARKDOWN.
+    ";
+
+            var payload = new
+            {
+                contents = new[] { new { parts = new object[] { new { text = prompt } } } },
+                generationConfig = new { response_mime_type = "application/json" }
+            };
+
+            return await CallGeminiApi(payload);
+        }
+
+        // =========================================================
         // HELPER: GỌI API CHUNG
         // =========================================================
         private async Task<string> CallGeminiApi(object payload)
