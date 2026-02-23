@@ -3,6 +3,7 @@ using System;
 using AttaEduSystem.DataAccess.DBContext;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace AttaEduSystem.DataAccess.Migrations
 {
     [DbContext(typeof(ApplicationDBContext))]
-    partial class ApplicationDBContextModelSnapshot : ModelSnapshot
+    [Migration("20260223061100_AddStudyPlan")]
+    partial class AddStudyPlan
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -123,7 +126,7 @@ namespace AttaEduSystem.DataAccess.Migrations
                             AccessFailedCount = 0,
                             Address = "123 Admin St",
                             BirthDate = new DateTime(2001, 6, 5, 0, 0, 0, 0, DateTimeKind.Utc),
-                            ConcurrencyStamp = "6fd46845-38a2-4365-b53f-c8303f7d0720",
+                            ConcurrencyStamp = "4c486035-54c1-4e52-9a4e-779e4f2b8e4f",
                             Email = "admin@gmail.com",
                             EmailConfirmed = true,
                             FullName = "Admin",
@@ -131,10 +134,10 @@ namespace AttaEduSystem.DataAccess.Migrations
                             LockoutEnabled = true,
                             NormalizedEmail = "ADMIN@GMAIL.COM",
                             NormalizedUserName = "ADMIN@GMAIL.COM",
-                            PasswordHash = "AQAAAAIAAYagAAAAECsCSiSMs1oj4bqmWpB6Wmkd4VwJzt0um4PJY/oSP3Ff0wPiFVgw6LD2ulKrhBuOTw==",
+                            PasswordHash = "AQAAAAIAAYagAAAAEHzVjnkyZZCEKVY+Xww/MV5UVOn7HXIKdY3wJ2s3CfeC2rVGR5BmY7Dz0j87kSTHaA==",
                             PhoneNumber = "1234567890",
                             PhoneNumberConfirmed = true,
-                            SecurityStamp = "ee464f17-38fc-40ef-8240-7dac610975b4",
+                            SecurityStamp = "c23c64fa-dc44-40d3-b27e-e05e08a17d23",
                             Status = "Active",
                             TwoFactorEnabled = false,
                             UserName = "admin@gmail.com"
@@ -873,58 +876,6 @@ namespace AttaEduSystem.DataAccess.Migrations
                     b.ToTable("Students");
                 });
 
-            modelBuilder.Entity("AttaEduSystem.Models.Entities.StudyPlan", b =>
-                {
-                    b.Property<Guid>("StudyPlanId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<double>("CompletionPercentage")
-                        .HasColumnType("double precision");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("CreatedTime")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Notes")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<string>("PlanJson")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Status")
-                        .HasColumnType("text");
-
-                    b.Property<string>("UpdatedBy")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("UpdatedTime")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("UserId")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("WeekEnd")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime>("WeekStart")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("StudyPlanId");
-
-                    b.HasIndex("UserId", "Status");
-
-                    b.HasIndex("UserId", "WeekStart")
-                        .IsUnique();
-
-                    b.ToTable("StudyPlans");
-                });
-
             modelBuilder.Entity("AttaEduSystem.Models.Entities.SubscriptionPlan", b =>
                 {
                     b.Property<Guid>("SubscriptionPlanId")
@@ -991,7 +942,7 @@ namespace AttaEduSystem.DataAccess.Migrations
                             SubscriptionPlanId = new Guid("11111111-1111-1111-1111-111111111111"),
                             Code = "FREE",
                             CreatedBy = "System",
-                            CreatedTime = new DateTime(2026, 2, 23, 10, 44, 59, 755, DateTimeKind.Utc).AddTicks(8627),
+                            CreatedTime = new DateTime(2026, 2, 23, 6, 10, 58, 844, DateTimeKind.Utc).AddTicks(6736),
                             Description = "Dành cho người mới bắt đầu, giới hạn tính năng.",
                             MaxGeneratedExamsPerMonth = 0,
                             MaxScansPerMonth = 5,
@@ -1006,7 +957,7 @@ namespace AttaEduSystem.DataAccess.Migrations
                             SubscriptionPlanId = new Guid("22222222-2222-2222-2222-222222222222"),
                             Code = "PRO",
                             CreatedBy = "System",
-                            CreatedTime = new DateTime(2026, 2, 23, 10, 44, 59, 755, DateTimeKind.Utc).AddTicks(8637),
+                            CreatedTime = new DateTime(2026, 2, 23, 6, 10, 58, 844, DateTimeKind.Utc).AddTicks(6746),
                             Description = "Mở khóa toàn bộ tính năng AI & Giải đề.",
                             MaxGeneratedExamsPerMonth = 50,
                             MaxScansPerMonth = 100,
@@ -1513,17 +1464,6 @@ namespace AttaEduSystem.DataAccess.Migrations
                         .IsRequired();
 
                     b.Navigation("ApplicationUser");
-                });
-
-            modelBuilder.Entity("AttaEduSystem.Models.Entities.StudyPlan", b =>
-                {
-                    b.HasOne("AttaEduSystem.Models.Entities.ApplicationUser", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("AttaEduSystem.Models.Entities.Teacher", b =>

@@ -53,6 +53,7 @@ namespace AttaEduSystem.API.Extension
             services.AddScoped<IExamRoomService, ExamRoomService>();
             services.AddScoped<IExportService, ExportService>();
             services.AddScoped<IShareService, ShareService>();
+            services.AddScoped<IStudyPlanService, StudyPlanService>();
 
             // --- A. Cấu hình cho OpenAI ---
             // OpenAiService dùng IHttpClientFactory, nên đăng ký Scoped bình thường

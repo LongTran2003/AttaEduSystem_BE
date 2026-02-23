@@ -3,6 +3,7 @@ using System;
 using AttaEduSystem.DataAccess.DBContext;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace AttaEduSystem.DataAccess.Migrations
 {
     [DbContext(typeof(ApplicationDBContext))]
-    partial class ApplicationDBContextModelSnapshot : ModelSnapshot
+    [Migration("20260223061455_AddStudyPlan#2")]
+    partial class AddStudyPlan2
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -123,7 +126,7 @@ namespace AttaEduSystem.DataAccess.Migrations
                             AccessFailedCount = 0,
                             Address = "123 Admin St",
                             BirthDate = new DateTime(2001, 6, 5, 0, 0, 0, 0, DateTimeKind.Utc),
-                            ConcurrencyStamp = "6fd46845-38a2-4365-b53f-c8303f7d0720",
+                            ConcurrencyStamp = "99353484-e5de-4d8a-8beb-fcfd4a1ab8f9",
                             Email = "admin@gmail.com",
                             EmailConfirmed = true,
                             FullName = "Admin",
@@ -131,10 +134,10 @@ namespace AttaEduSystem.DataAccess.Migrations
                             LockoutEnabled = true,
                             NormalizedEmail = "ADMIN@GMAIL.COM",
                             NormalizedUserName = "ADMIN@GMAIL.COM",
-                            PasswordHash = "AQAAAAIAAYagAAAAECsCSiSMs1oj4bqmWpB6Wmkd4VwJzt0um4PJY/oSP3Ff0wPiFVgw6LD2ulKrhBuOTw==",
+                            PasswordHash = "AQAAAAIAAYagAAAAEB7zwCNgsoU9HKB2YPmB9ND/qrysSAEw56hh5lQO/f5olP+ieeCKqgEDrSkoe4e76g==",
                             PhoneNumber = "1234567890",
                             PhoneNumberConfirmed = true,
-                            SecurityStamp = "ee464f17-38fc-40ef-8240-7dac610975b4",
+                            SecurityStamp = "bb613711-c42c-4585-aeb6-7e555a9df773",
                             Status = "Active",
                             TwoFactorEnabled = false,
                             UserName = "admin@gmail.com"
@@ -888,6 +891,9 @@ namespace AttaEduSystem.DataAccess.Migrations
                     b.Property<DateTime?>("CreatedTime")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("Notes")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
@@ -917,10 +923,10 @@ namespace AttaEduSystem.DataAccess.Migrations
 
                     b.HasKey("StudyPlanId");
 
-                    b.HasIndex("UserId", "Status");
-
                     b.HasIndex("UserId", "WeekStart")
                         .IsUnique();
+
+                    b.HasIndex("UserId", "IsActive", "Status");
 
                     b.ToTable("StudyPlans");
                 });
@@ -991,7 +997,7 @@ namespace AttaEduSystem.DataAccess.Migrations
                             SubscriptionPlanId = new Guid("11111111-1111-1111-1111-111111111111"),
                             Code = "FREE",
                             CreatedBy = "System",
-                            CreatedTime = new DateTime(2026, 2, 23, 10, 44, 59, 755, DateTimeKind.Utc).AddTicks(8627),
+                            CreatedTime = new DateTime(2026, 2, 23, 6, 14, 54, 957, DateTimeKind.Utc).AddTicks(752),
                             Description = "Dành cho người mới bắt đầu, giới hạn tính năng.",
                             MaxGeneratedExamsPerMonth = 0,
                             MaxScansPerMonth = 5,
@@ -1006,7 +1012,7 @@ namespace AttaEduSystem.DataAccess.Migrations
                             SubscriptionPlanId = new Guid("22222222-2222-2222-2222-222222222222"),
                             Code = "PRO",
                             CreatedBy = "System",
-                            CreatedTime = new DateTime(2026, 2, 23, 10, 44, 59, 755, DateTimeKind.Utc).AddTicks(8637),
+                            CreatedTime = new DateTime(2026, 2, 23, 6, 14, 54, 957, DateTimeKind.Utc).AddTicks(760),
                             Description = "Mở khóa toàn bộ tính năng AI & Giải đề.",
                             MaxGeneratedExamsPerMonth = 50,
                             MaxScansPerMonth = 100,
