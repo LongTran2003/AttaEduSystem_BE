@@ -23,7 +23,7 @@ namespace AttaEduSystem.DataAccess.Repositories
         {
             return await _context.SubscriptionPlans
                 .Where(p => p.Status != null && p.Status == "Active")
-                .OrderBy(p => p.PricePerMonth)
+                .OrderBy(p => p.Price)
                 .ToListAsync();
         }
 
