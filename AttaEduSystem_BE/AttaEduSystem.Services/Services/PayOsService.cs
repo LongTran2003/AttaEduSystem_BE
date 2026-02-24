@@ -313,12 +313,12 @@ namespace AttaEduSystem.Services.Services
         }
 
         public async Task<ResponseDto> GetAllPayments(
-    ClaimsPrincipal user,
-    int pageNumber = 1,
-    int pageSize = 10,
-    string? filterOn = null,
-    string? filterQuery = null,
-    string? sortBy = null)
+            ClaimsPrincipal user,
+            int pageNumber = 1,
+            int pageSize = 10,
+            string? filterOn = null,
+            string? filterQuery = null,
+            string? sortBy = null)
         {
             var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(userId))
@@ -363,7 +363,24 @@ namespace AttaEduSystem.Services.Services
 
             var totalPages = (int)Math.Ceiling((double)totalPayments / pageSize);
 
-            var paymentDtos = _mapper.Map<IEnumerable<GetAllPaymentDto>>(payments); 
+            var paymentDtos = _mapper.Map<IEnumerable<GetAllPaymentDto>>(payments).ToList();
+
+            var orderNumbers = payments.Select(p => p.OrderNumber).Where(o => o > 0).Distinct().ToList();
+            var orders = await _unitOfWork.Order.GetAllAsync(o => orderNumbers.Contains(o.OrderNumber));
+            var orderNameDict = orders.ToDictionary(o => o.OrderNumber, o => o.CreatedBy);
+
+            foreach (var dto in paymentDtos)
+            {
+                // Thay thế userId bằng FullName
+                if (dto.OrderNumber.HasValue && orderNameDict.TryGetValue(dto.OrderNumber.Value, out var fullName))
+                {
+                    dto.CreatedBy = fullName;
+                }
+                else
+                {
+                    dto.CreatedBy = "Unknown User";
+                }
+            }
 
             return SuccessResponse.Build(
                 message: "Get all payments successfully",
@@ -419,6 +436,9 @@ namespace AttaEduSystem.Services.Services
             }
 
             var paymentDto = _mapper.Map<Payment, GetAllPaymentDto>(payment);
+
+            var orderForName = await _unitOfWork.Order.GetByOrderNumberAsync(payment.OrderNumber);
+            paymentDto.CreatedBy = orderForName?.CreatedBy ?? "Unknown User";
 
             return SuccessResponse.Build(
                 message: "Get payment by Id successfully",
