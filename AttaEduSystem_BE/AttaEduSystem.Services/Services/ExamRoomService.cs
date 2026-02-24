@@ -29,6 +29,8 @@ namespace AttaEduSystem.Services.Services
             try
             {
                 var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+                var fullName = user.FindFirstValue("FullName");
+
                 if (string.IsNullOrEmpty(userId))
                     return ErrorResponse.Build(StaticOperationStatus.User.UserNotFound, 401);
 
@@ -40,7 +42,14 @@ namespace AttaEduSystem.Services.Services
                     return ErrorResponse.Build(
                         "You do not have permission to create room for this exam paper", 403);
 
-                if (dto.StartTime < StaticOperationStatus.Timezone.Vietnam)
+                var vietnamNow = StaticOperationStatus.Timezone.Vietnam;
+
+                // 🔴 SỬA Ở ĐÂY: Đồng bộ giờ FE gửi lên thành giờ VN nếu FE gửi UTC
+                var startTime = dto.StartTime.Kind == DateTimeKind.Utc
+                                ? dto.StartTime.AddHours(7)
+                                : dto.StartTime;
+
+                if (startTime < vietnamNow)
                     return ErrorResponse.Build("Start time must be in the future", 400);
 
                 // Generate unique code
@@ -51,7 +60,9 @@ namespace AttaEduSystem.Services.Services
                 // Map DTO -> Entity
                 var examRoom = _mapper.Map<ExamRoom>(dto);
                 examRoom.RoomCode = code;
-                examRoom.CreatedBy = userId;
+                examRoom.StartTime = startTime;
+                examRoom.EndTime = startTime.AddMinutes(dto.TimeLimit);
+                examRoom.CreatedBy = fullName;
                 examRoom.CreatedTime = StaticOperationStatus.Timezone.Vietnam;
                 examRoom.Status = StaticOperationStatus.ExamRoom.Waiting;
 
@@ -229,15 +240,30 @@ namespace AttaEduSystem.Services.Services
                     Status = StaticOperationStatus.ExamRoomParticipant.Joined
                 };
 
-                // If room is InProgress, create ExamAttempt
-                if (currentStatus == StaticOperationStatus.ExamRoom.InProgress)
-                {
-                    var fullName = user.FindFirstValue("FullName");
-                    var attempt = CreateExamAttempt(room.ExamPaperId, userId, fullName);
-                    await _unitOfWork.ExamAttempt.AddAsync(attempt);
-                    participant.ExamAttemptId = attempt.ExamAttemptId;
-                    participant.Status = StaticOperationStatus.ExamRoomParticipant.InProgress;
-                }
+                // 🔴 SỬA Ở ĐÂY: LUÔN LUÔN TẠO EXAM ATTEMPT KHI JOIN (Dù phòng đang Waiting)
+                var fullName = user.FindFirstValue("FullName");
+                var attempt = CreateExamAttempt(room.ExamPaperId, userId, fullName);
+
+                // Trạng thái của Attempt sẽ phụ thuộc vào việc phòng đã thi hay chưa
+                attempt.Status = currentStatus == StaticOperationStatus.ExamRoom.Waiting ? "Waiting" : "InProgress";
+
+                //// If room is InProgress, create ExamAttempt
+                //if (currentStatus == StaticOperationStatus.ExamRoom.InProgress)
+                //{
+                //    var fullName = user.FindFirstValue("FullName");
+                //    var attempt = CreateExamAttempt(room.ExamPaperId, userId, fullName);
+                //    await _unitOfWork.ExamAttempt.AddAsync(attempt);
+                //    participant.ExamAttemptId = attempt.ExamAttemptId;
+                //    participant.Status = StaticOperationStatus.ExamRoomParticipant.InProgress;
+                //}
+
+                //await _unitOfWork.ExamRoomParticipant.AddAsync(participant);
+                //await _unitOfWork.SaveAsync();
+
+                await _unitOfWork.ExamAttempt.AddAsync(attempt);
+
+                // Gán AttemptId vào Participant để FE nhận được
+                participant.ExamAttemptId = attempt.ExamAttemptId;
 
                 await _unitOfWork.ExamRoomParticipant.AddAsync(participant);
                 await _unitOfWork.SaveAsync();
