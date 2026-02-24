@@ -1,5 +1,5 @@
 ﻿using AttaEduSystem.Models.DTOs;
-using AttaEduSystem.Models.DTOs.ExamRoom;
+using AttaEduSystem.Models.DTOs.ExamRoom.Room;
 using AttaEduSystem.Services.IServices;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -133,6 +133,19 @@ namespace AttaEduSystem.API.Controllers
             var qrCodeBytes = _qrCodeService.GenerateQrCode(joinUrl);
 
             return File(qrCodeBytes, "image/png", $"room-{code}-qr.png");
+        }
+
+        // =========================================================
+        // GET /api/exam-rooms/{code}/paper - Lấy đề thi (Đã ẩn đáp án)
+        // =========================================================
+        [HttpGet("{code}/paper")]
+        [Authorize]
+        [SwaggerOperation(Summary = "🏠 Get exam paper for taking",
+            Description = "Retrieves exam questions WITHOUT correct answers. User must have joined the room.")]
+        public async Task<ActionResult<ResponseDto>> GetPaperForTaking(string code)
+        {
+            var result = await _examRoomService.GetPaperForTaking(code, User);
+            return StatusCode(result.StatusCode, result);
         }
     }
 }

@@ -1,6 +1,7 @@
 ﻿using AttaEduSystem.DataAccess.IRepositories;
 using AttaEduSystem.Models.DTOs;
-using AttaEduSystem.Models.DTOs.ExamRoom;
+using AttaEduSystem.Models.DTOs.ExamRoom.Room;
+using AttaEduSystem.Models.DTOs.ExamRoom.TakeExam;
 using AttaEduSystem.Models.Entities;
 using AttaEduSystem.Services.Helpers.Responses;
 using AttaEduSystem.Services.IServices;
@@ -273,6 +274,57 @@ namespace AttaEduSystem.Services.Services
             catch (Exception ex)
             {
                 return ErrorResponse.Build($"Failed to join room: {ex.Message}", 500);
+            }
+        }
+
+        // =========================================================
+        // GET PAPER FOR TAKING (Secure)
+        // =========================================================
+        public async Task<ResponseDto> GetPaperForTaking(string code, ClaimsPrincipal user)
+        {
+            try
+            {
+                var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrEmpty(userId))
+                    return ErrorResponse.Build(StaticOperationStatus.User.UserNotFound, 401);
+
+                // 1. Tìm phòng
+                var room = await _unitOfWork.ExamRoom.GetByCodeWithParticipantsAsync(code.ToUpper());
+                if (room == null)
+                    return ErrorResponse.Build("Room not found", 404);
+
+                // 2. Kiểm tra xem User đã Join chưa
+                var participant = await _unitOfWork.ExamRoomParticipant.GetByRoomAndUserAsync(room.ExamRoomId, userId);
+                if (participant == null)
+                    return ErrorResponse.Build("You must join the room first before getting the exam paper", 403);
+
+                // 3. Kiểm tra trạng thái phòng
+                var currentStatus = GetCurrentRoomStatus(room);
+                if (currentStatus == StaticOperationStatus.ExamRoom.Waiting)
+                    return ErrorResponse.Build("The exam has not started yet", 400);
+                if (currentStatus == StaticOperationStatus.ExamRoom.Cancelled || currentStatus == StaticOperationStatus.ExamRoom.Finished)
+                    return ErrorResponse.Build("The exam room is closed", 400);
+
+                // 4. Lấy Đề thi + Câu hỏi + Lựa chọn (Options)
+                var paper = await _unitOfWork.ExamPaper.GetAsync(
+                    p => p.ExamPaperId == room.ExamPaperId,
+                    includeProperties: "Questions,Questions.Options");
+
+                if (paper == null)
+                    return ErrorResponse.Build("Exam paper not found", 404);
+
+                // 5. Map sang DTO ẩn đáp án
+                var resultDto = _mapper.Map<TakeExamPaperDto>(paper);
+                resultDto.TimeLimit = room.TimeLimit; // Gán thời gian làm bài của phòng cho FE hiển thị
+
+                // Sắp xếp lại câu hỏi theo đúng thứ tự
+                resultDto.Questions = resultDto.Questions.OrderBy(q => q.OrderIndex).ToList();
+
+                return SuccessResponse.Build("Exam paper retrieved successfully", 200, resultDto);
+            }
+            catch (Exception ex)
+            {
+                return ErrorResponse.Build($"Failed to retrieve exam paper: {ex.Message}", 500);
             }
         }
 

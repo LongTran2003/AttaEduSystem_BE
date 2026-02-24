@@ -254,7 +254,7 @@ namespace AttaEduSystem.Services.Services
                 SubscriptionPlanId = plan.SubscriptionPlanId,
                 TotalPrice = plan.Price,
                 CreatedBy = fullName,
-                CreatedTime = DateTime.UtcNow,
+                CreatedTime = StaticOperationStatus.Timezone.Vietnam,
                 Status = "Pending"
             };
 
