@@ -155,21 +155,23 @@ namespace AttaEduSystem.Services.Services
 
             // Lấy số ngày của gói cước, mặc định 30 nếu có lỗi data
             int durationDays = order.Plan.DurationInDays > 0 ? order.Plan.DurationInDays : 30;
+            var now = StaticOperationStatus.Timezone.Vietnam;
 
             // Kiểm tra xem user đã có subscription chưa
-            var existingSub = await _unitOfWork.UserSubscription.GetActiveByUserIdAsync(order.UserId);
+            //var existingSub = await _unitOfWork.UserSubscription.GetActiveByUserIdAsync(order.UserId);
+            var existingSub = await _unitOfWork.UserSubscription.GetAsync(s => s.UserId == order.UserId);
             if (existingSub != null)
             {
                 // 1. Cập nhật sang Plan mới (QUAN TRỌNG NHẤT)
-                existingSub.SubscriptionPlanId = order.SubscriptionPlanId; 
-        
+                existingSub.SubscriptionPlanId = order.SubscriptionPlanId;
+
                 // 2. Reset ngày bắt đầu và kết thúc theo gói mới
-                existingSub.StartDate = DateTime.UtcNow;
-                existingSub.EndDate = DateTime.UtcNow.AddDays(durationDays);
+                existingSub.StartDate = now;
+                existingSub.EndDate = now.AddDays(durationDays);
         
                 // 3. Cập nhật trạng thái
                 existingSub.Status = "Active";
-                existingSub.UpdatedTime = DateTime.UtcNow;
+                existingSub.UpdatedTime = now;
         
                 _unitOfWork.UserSubscription.Update(existingSub);
             }
@@ -181,31 +183,33 @@ namespace AttaEduSystem.Services.Services
                     UserSubscriptionId = Guid.NewGuid(),
                     UserId = order.UserId,
                     SubscriptionPlanId = order.SubscriptionPlanId,
-                    StartDate = DateTime.UtcNow,
-                    EndDate = DateTime.UtcNow.AddDays(durationDays),
+                    StartDate = now,
+                    EndDate = now.AddDays(durationDays),
                     Status = "Active",
                     IsAutoRenew = false,
                     CreatedBy = order.UserId,
-                    CreatedTime = DateTime.UtcNow
+                    CreatedTime = now
                 };
                 await _unitOfWork.UserSubscription.AddAsync(newSub);
             }
 
             // Reset usage cho chu kỳ mới
-            var currentUsage = await _unitOfWork.UserUsage.GetCurrentPeriodAsync(order.UserId, DateTime.UtcNow);
+            //var currentUsage = await _unitOfWork.UserUsage.GetCurrentPeriodAsync(order.UserId, DateTime.UtcNow);
+            var currentUsage = await _unitOfWork.UserUsage.GetAsync(u => u.UserId == order.UserId);
             if (currentUsage == null)
             {
                 var newUsage = new UserUsage
                 {
                     UserUsageId = Guid.NewGuid(),
                     UserId = order.UserId,
-                    PeriodStart = DateTime.UtcNow,
-                    PeriodEnd = DateTime.UtcNow.AddDays(durationDays),
+                    PeriodStart = now,
+                    PeriodEnd = now.AddDays(durationDays),
                     TokensUsed = 0,
                     ScansUsed = 0,
                     GeneratedExamsUsed = 0,
+                    SolvesUsed = 0,
                     CreatedBy = order.UserId,
-                    CreatedTime = DateTime.UtcNow
+                    CreatedTime = now
                 };
                 await _unitOfWork.UserUsage.AddAsync(newUsage);
             }
@@ -214,9 +218,10 @@ namespace AttaEduSystem.Services.Services
                 currentUsage.TokensUsed = 0;
                 currentUsage.ScansUsed = 0;
                 currentUsage.GeneratedExamsUsed = 0;
-                currentUsage.PeriodStart = DateTime.UtcNow;
-                currentUsage.PeriodEnd = DateTime.UtcNow.AddDays(durationDays);
-                currentUsage.UpdatedTime = DateTime.UtcNow;
+                currentUsage.SolvesUsed = 0;
+                currentUsage.PeriodStart = now;
+                currentUsage.PeriodEnd = now.AddDays(durationDays);
+                currentUsage.UpdatedTime = now;
                 _unitOfWork.UserUsage.Update(currentUsage);
             }
 
