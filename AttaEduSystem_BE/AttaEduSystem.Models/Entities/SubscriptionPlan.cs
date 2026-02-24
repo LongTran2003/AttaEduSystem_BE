@@ -19,7 +19,10 @@ namespace AttaEduSystem.Models.Entities
             public string? Description { get; set; }
 
             [Range(0, double.MaxValue)]
-            public decimal PricePerMonth { get; set; } // VND / tháng
+            public decimal Price { get; set; } // Đổi từ PricePerMonth -> Price cho linh hoạt
+
+            [Range(1, 3650)]
+             public int DurationInDays { get; set; } = 30; // Mặc định 30 ngày nếu không truyền
 
             // Giới hạn sử dụng (tùy bạn có dùng hết hay không)
             public int MaxTokensPerMonth { get; set; }

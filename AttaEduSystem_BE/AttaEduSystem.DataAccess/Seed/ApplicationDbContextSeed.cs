@@ -75,7 +75,8 @@ namespace AttaEduSystem.DataAccess.Seed
                 Code = "FREE",
                 Name = "Gói Cơ Bản (Free)",
                 Description = "Dành cho người mới bắt đầu, giới hạn tính năng.",
-                PricePerMonth = 0, // Miễn phí
+                Price = 0, // Miễn phí
+                DurationInDays = 30, // Mặc định 30 ngày
                 MaxScansPerMonth = 5, // Cho scan thử 5 lần
                 MaxGeneratedExamsPerMonth = 0, // Không cho tạo đề
                 MaxSolvesPerMonth = 0, // Free không được giải đề
@@ -92,7 +93,8 @@ namespace AttaEduSystem.DataAccess.Seed
                 Code = "PRO",
                 Name = "Gói Nâng Cao (Pro)",
                 Description = "Mở khóa toàn bộ tính năng AI & Giải đề.",
-                PricePerMonth = 2000, // 2,000 VND (Rẻ hơn ly trà đá để test PayOS)
+                Price = 2000, // 2,000 VND (Rẻ hơn ly trà đá để test PayOS)
+                DurationInDays = 30, // Gói này có thời hạn 30 ngày
                 MaxScansPerMonth = 100, // Scan thoải mái
                 MaxGeneratedExamsPerMonth = 50, // Tạo đề thoải mái
                 MaxSolvesPerMonth = 100, // Solve tùm lum
