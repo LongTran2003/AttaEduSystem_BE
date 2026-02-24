@@ -16,7 +16,10 @@ namespace AttaEduSystem.Models.DTOs.Billing
         public string? Description { get; set; }
 
         [Range(0, double.MaxValue)]
-        public decimal PricePerMonth { get; set; }
+        public decimal Price { get; set; }
+
+        [Range(1, 3650)]
+        public int DurationInDays { get; set; } = 30; // Thêm số ngày
 
         public int MaxScansPerMonth { get; set; } = 0;
         public int MaxGeneratedExamsPerMonth { get; set; } = 0;
