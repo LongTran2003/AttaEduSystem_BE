@@ -6,7 +6,8 @@ using AttaEduSystem.Models.DTOs.ExamFormat;
 using AttaEduSystem.Models.DTOs.ExamPaper;
 using AttaEduSystem.Models.DTOs.ExamQuestion;
 using AttaEduSystem.Models.DTOs.ExamResult;
-using AttaEduSystem.Models.DTOs.ExamRoom;
+using AttaEduSystem.Models.DTOs.ExamRoom.Room;
+using AttaEduSystem.Models.DTOs.ExamRoom.TakeExam;
 using AttaEduSystem.Models.DTOs.ExamShuffle;
 using AttaEduSystem.Models.DTOs.ExamTaking;
 using AttaEduSystem.Models.DTOs.Folder;
@@ -464,6 +465,13 @@ namespace AttaEduSystem.Services.Mapping
                         // ignore parse errors
                     }
                 });
+
+            // =========================================================
+            // Take Exam Paper (Ẩn đáp án)
+            // =========================================================
+            CreateMap<ExamPaper, TakeExamPaperDto>();
+            CreateMap<ExamQuestion, TakeExamQuestionDto>();
+            CreateMap<QuestionOption, TakeExamOptionDto>();
 
         }
 

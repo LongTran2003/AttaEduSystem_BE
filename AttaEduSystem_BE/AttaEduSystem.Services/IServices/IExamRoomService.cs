@@ -1,5 +1,5 @@
 ﻿using AttaEduSystem.Models.DTOs;
-using AttaEduSystem.Models.DTOs.ExamRoom;
+using AttaEduSystem.Models.DTOs.ExamRoom.Room;
 using System.Security.Claims;
 
 namespace AttaEduSystem.Services.IServices
@@ -17,5 +17,6 @@ namespace AttaEduSystem.Services.IServices
 
         // Student APIs
         Task<ResponseDto> JoinRoom(string code, ClaimsPrincipal user);
+        Task<ResponseDto> GetPaperForTaking(string code, ClaimsPrincipal user);
     }
 }

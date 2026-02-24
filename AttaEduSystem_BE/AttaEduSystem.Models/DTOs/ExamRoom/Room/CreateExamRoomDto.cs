@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace AttaEduSystem.Models.DTOs.ExamRoom
+namespace AttaEduSystem.Models.DTOs.ExamRoom.Room
 {
     public class CreateExamRoomDto
     {
