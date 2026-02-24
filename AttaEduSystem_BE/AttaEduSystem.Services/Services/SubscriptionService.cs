@@ -43,13 +43,14 @@ namespace AttaEduSystem.Services.Services
                 Code = dto.Code,
                 Name = dto.Name,
                 Description = dto.Description,
-                PricePerMonth = dto.PricePerMonth,
+                Price = dto.Price,
+                DurationInDays = dto.DurationInDays > 0 ? dto.DurationInDays : 30,
                 MaxScansPerMonth = dto.MaxScansPerMonth,
                 MaxGeneratedExamsPerMonth = dto.MaxGeneratedExamsPerMonth,
                 MaxSolvesPerMonth = dto.MaxSolvesPerMonth,
                 Status = "Active",
-                CreatedBy = adminUser.FindFirstValue(ClaimTypes.NameIdentifier) ?? "Admin",
-                CreatedTime = DateTime.UtcNow
+                CreatedBy = adminUser.FindFirstValue("FullName") ?? "Admin",
+                CreatedTime = StaticOperationStatus.Timezone.Vietnam
             };
 
             await _unitOfWork.SubscriptionPlan.AddAsync(plan);
@@ -66,14 +67,15 @@ namespace AttaEduSystem.Services.Services
 
             if (!string.IsNullOrWhiteSpace(dto.Name)) plan.Name = dto.Name;
             if (dto.Description != null) plan.Description = dto.Description;
-            if (dto.PricePerMonth.HasValue) plan.PricePerMonth = dto.PricePerMonth.Value;
+            if (dto.Price.HasValue) plan.Price = dto.Price.Value; // Đã đổi
+            if (dto.DurationInDays.HasValue) plan.DurationInDays = dto.DurationInDays.Value;
             if (dto.MaxScansPerMonth.HasValue) plan.MaxScansPerMonth = dto.MaxScansPerMonth.Value;
             if (dto.MaxGeneratedExamsPerMonth.HasValue) plan.MaxGeneratedExamsPerMonth = dto.MaxGeneratedExamsPerMonth.Value;
             if (dto.MaxSolvesPerMonth.HasValue) plan.MaxSolvesPerMonth = dto.MaxSolvesPerMonth.Value;
             if (!string.IsNullOrWhiteSpace(dto.Status)) plan.Status = dto.Status;
 
-            plan.UpdatedBy = adminUser.FindFirstValue(ClaimTypes.NameIdentifier) ?? "Admin";
-            plan.UpdatedTime = DateTime.UtcNow;
+            plan.UpdatedBy = adminUser.FindFirstValue("FullName") ?? "Admin";
+            plan.UpdatedTime = StaticOperationStatus.Timezone.Vietnam;
 
             _unitOfWork.SubscriptionPlan.Update(plan);
             await _unitOfWork.SaveAsync();
@@ -95,7 +97,7 @@ namespace AttaEduSystem.Services.Services
             }
 
             plan.Status = dto.Status;
-            plan.UpdatedBy = adminUser.FindFirstValue(ClaimTypes.NameIdentifier) ?? "Admin";
+            plan.UpdatedBy = adminUser.FindFirstValue("FullName") ?? "Admin";
             plan.UpdatedTime = StaticOperationStatus.Timezone.Vietnam;
 
             _unitOfWork.SubscriptionPlan.Update(plan);
@@ -151,6 +153,9 @@ namespace AttaEduSystem.Services.Services
                 return ErrorResponse.Build("Order not found", 404);
             }
 
+            // Lấy số ngày của gói cước, mặc định 30 nếu có lỗi data
+            int durationDays = order.Plan.DurationInDays > 0 ? order.Plan.DurationInDays : 30;
+
             // Kiểm tra xem user đã có subscription chưa
             var existingSub = await _unitOfWork.UserSubscription.GetActiveByUserIdAsync(order.UserId);
             if (existingSub != null)
@@ -160,7 +165,7 @@ namespace AttaEduSystem.Services.Services
         
                 // 2. Reset ngày bắt đầu và kết thúc theo gói mới
                 existingSub.StartDate = DateTime.UtcNow;
-                existingSub.EndDate = DateTime.UtcNow.AddMonths(1);
+                existingSub.EndDate = DateTime.UtcNow.AddDays(durationDays);
         
                 // 3. Cập nhật trạng thái
                 existingSub.Status = "Active";
@@ -177,7 +182,7 @@ namespace AttaEduSystem.Services.Services
                     UserId = order.UserId,
                     SubscriptionPlanId = order.SubscriptionPlanId,
                     StartDate = DateTime.UtcNow,
-                    EndDate = DateTime.UtcNow.AddMonths(1),
+                    EndDate = DateTime.UtcNow.AddDays(durationDays),
                     Status = "Active",
                     IsAutoRenew = false,
                     CreatedBy = order.UserId,
@@ -195,7 +200,7 @@ namespace AttaEduSystem.Services.Services
                     UserUsageId = Guid.NewGuid(),
                     UserId = order.UserId,
                     PeriodStart = DateTime.UtcNow,
-                    PeriodEnd = DateTime.UtcNow.AddMonths(1),
+                    PeriodEnd = DateTime.UtcNow.AddDays(durationDays),
                     TokensUsed = 0,
                     ScansUsed = 0,
                     GeneratedExamsUsed = 0,
@@ -210,7 +215,7 @@ namespace AttaEduSystem.Services.Services
                 currentUsage.ScansUsed = 0;
                 currentUsage.GeneratedExamsUsed = 0;
                 currentUsage.PeriodStart = DateTime.UtcNow;
-                currentUsage.PeriodEnd = DateTime.UtcNow.AddMonths(1);
+                currentUsage.PeriodEnd = DateTime.UtcNow.AddDays(durationDays);
                 currentUsage.UpdatedTime = DateTime.UtcNow;
                 _unitOfWork.UserUsage.Update(currentUsage);
             }
@@ -225,6 +230,8 @@ namespace AttaEduSystem.Services.Services
         public async Task<ResponseDto> CreateCheckout(ClaimsPrincipal user, CreateCheckoutRequestDto request)
         {
             var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+            var fullName = user.FindFirstValue("FullName") ?? "Unknown";
+
             if (string.IsNullOrEmpty(userId))
                 return ErrorResponse.Build(StaticOperationStatus.User.UserNotFound, 401);
 
@@ -240,8 +247,8 @@ namespace AttaEduSystem.Services.Services
                 OrderId = Guid.NewGuid(),
                 UserId = userId,
                 SubscriptionPlanId = plan.SubscriptionPlanId,
-                TotalPrice = plan.PricePerMonth,
-                CreatedBy = userId,
+                TotalPrice = plan.Price,
+                CreatedBy = fullName,
                 CreatedTime = DateTime.UtcNow,
                 Status = "Pending"
             };
@@ -272,7 +279,7 @@ namespace AttaEduSystem.Services.Services
                     orderNumber = order.OrderNumber,
                     planCode = plan.Code,
                     planName = plan.Name,
-                    amount = plan.PricePerMonth,
+                    amount = plan.Price,
                     payment = paymentResult.Result // chứa result từ PayOS (checkoutUrl,...)
                 });
         }
