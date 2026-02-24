@@ -146,6 +146,83 @@ namespace AttaEduSystem.Services.Services
                 // 1. Lấy Order
                 var order = await _unitOfWork.Order.GetByOrderNumberAsync(confirmPaymentDto.OrderNumber);
                 if (order == null)
+                    return new ResponseDto { Message = "Order not found", IsSuccess = false, StatusCode = 404 };
+
+                // 2. Lấy Payment nội bộ theo OrderNumber
+                var payment = await _unitOfWork.Payment.GetPaymentByOrderNumberAsync(confirmPaymentDto.OrderNumber);
+                if (payment == null)
+                    return new ResponseDto { Message = "Payment record not found", IsSuccess = false, StatusCode = 404 };
+
+                // 🔴 FIX: CHẶN XỬ LÝ LẠI NẾU ĐƠN HÀNG ĐÃ ĐƯỢC THANH TOÁN TRƯỚC ĐÓ
+                // (Phòng trường hợp User F5 lại trang callback nhiều lần để lách luật gia hạn gói)
+                if (payment.Status == PaymentStatus.Paid || order.Status == "Paid")
+                {
+                    return new ResponseDto
+                    {
+                        Message = "Payment already processed",
+                        IsSuccess = true,
+                        StatusCode = 200,
+                        Result = new Dictionary<string, object>
+                        {
+                            { "orderNumber", payment.OrderNumber },
+                            { "orderId", order.OrderId },
+                            { "paymentStatus", payment.Status.ToString() },
+                            { "payOsStatus", "ALREADY_PAID" } // Trả về chữ này để Controller KHÔNG gọi ActivateFromOrder nữa
+                        }
+                    };
+                }
+
+                // 3. Lấy thông tin giao dịch từ PayOS
+                var transactionInfo = await _payOs.getPaymentLinkInformation(confirmPaymentDto.OrderNumber);
+                if (transactionInfo == null)
+                    return new ResponseDto { Message = "Transaction not found", IsSuccess = false, StatusCode = 400 };
+
+                // 4. Cập nhật trạng thái dựa vào PayOS
+                if (transactionInfo.status == "PAID")
+                {
+                    payment.Status = PaymentStatus.Paid;
+                    payment.UpdatedTime = StaticOperationStatus.Timezone.Vietnam;
+                    order.Status = "Paid";
+                    order.UpdatedTime = StaticOperationStatus.Timezone.Vietnam;
+                }
+                else if (transactionInfo.status == "CANCELLED")
+                {
+                    payment.Status = PaymentStatus.Cancelled;
+                    payment.UpdatedTime = StaticOperationStatus.Timezone.Vietnam;
+                }
+                else
+                {
+                    return new ResponseDto { Message = $"Payment status from gateway: {transactionInfo.status}", IsSuccess = false, StatusCode = 400 };
+                }
+
+                _unitOfWork.Payment.Update(payment);
+                await _unitOfWork.SaveAsync();
+
+                return new ResponseDto
+                {
+                    Message = "Payment status updated successfully",
+                    IsSuccess = true,
+                    StatusCode = 200,
+                    Result = new Dictionary<string, object>
+                    {
+                        { "orderNumber", payment.OrderNumber },
+                        { "orderId", order.OrderId },
+                        { "paymentStatus", payment.Status.ToString() },
+                        { "payOsStatus", transactionInfo.status } // Nếu trả về PAID thì Controller sẽ kích hoạt gói
+                    }
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error while confirming PayOS transaction");
+                return new ResponseDto { Message = ex.Message, IsSuccess = false, StatusCode = 500 };
+            }
+
+            /*try
+            {
+                // 1. Lấy Order
+                var order = await _unitOfWork.Order.GetByOrderNumberAsync(confirmPaymentDto.OrderNumber);
+                if (order == null)
                 {
                     return new ResponseDto
                     {
@@ -232,7 +309,7 @@ namespace AttaEduSystem.Services.Services
                     IsSuccess = false,
                     StatusCode = 500
                 };
-            }
+            }*/
         }
 
         public async Task<ResponseDto> GetAllPayments(
