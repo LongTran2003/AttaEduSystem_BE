@@ -26,6 +26,10 @@ namespace AttaEduSystem.DataAccess.IRepositories
         IChatConversationRepository ChatConversation { get; }
         IChatMessageRepository ChatMessage { get; }
         IStudyPlanRepository StudyPlan { get; }
+        INotificationRepository Notification { get; }
+
+
+
 
         Task<int> SaveAsync();
 

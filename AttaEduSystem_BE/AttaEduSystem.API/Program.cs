@@ -1,6 +1,8 @@
 ﻿using AttaEduSystem.API.BackgroundServices;
 using AttaEduSystem.API.Extension;
-using AttaEduSystem.API.Hubs;
+using AttaEduSystem.API.Hubs.Chat;
+using AttaEduSystem.API.Hubs.Exam;
+using AttaEduSystem.API.Hubs.Notification;
 using AttaEduSystem.API.Middleware;
 using AttaEduSystem.DataAccess.DBContext;
 using AttaEduSystem.Models.Entities;
@@ -96,7 +98,26 @@ builder.Services.AddAuthentication(options =>
         IssuerSigningKey =
             new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["JWT:Secret"]))
     };
+
+    // ✅ THÊM: Cho phép SignalR sử dụng JWT token từ query string
+    options.Events = new JwtBearerEvents
+    {
+        OnMessageReceived = context =>
+        {
+            var accessToken = context.Request.Query["access_token"];
+            var path = context.HttpContext.Request.Path;
+
+            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
+            {
+                context.Token = accessToken;
+            }
+
+            return Task.CompletedTask;
+        }
+    };
 });
+
+
 
 builder.Services.AddAuthorization(options =>
 {
@@ -183,12 +204,6 @@ app.Use(async (context, next) =>
             $"Response Access-Control-Allow-Origin: {context.Response.Headers["Access-Control-Allow-Origin"]}");
 });
 
-app.UseCors("AllowAttaEduSystem");
-app.UseMiddleware<GlobalExceptionHandllingMiddleware>();
-
-// Map SignalR Hub
-app.MapHub<ExamHub>("/hubs/exam");
-
 // Configure the HTTP request pipeline.
 //if (app.Environment.IsDevelopment())
 //{
@@ -196,13 +211,21 @@ app.UseSwagger();
 app.UseSwaggerUI();
 //}
 
+// Add custom exception middleware
+app.UseMiddleware<GlobalExceptionHandllingMiddleware>();
+
 app.UseHttpsRedirection();
+
+app.UseCors("AllowAttaEduSystem");
 
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapHub<ChatHub>("/hubs/chat");
-
 app.MapControllers();
+
+// ✅ THÊM: Map SignalR Hubs
+app.MapHub<ChatHub>("/hubs/chat");
+app.MapHub<ExamHub>("/hubs/exam");
+app.MapHub<NotificationHub>("/hubs/notifications");
 
 app.Run();
