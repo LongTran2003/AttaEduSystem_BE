@@ -1,4 +1,5 @@
-﻿using AttaEduSystem.API.Hubs;
+﻿using AttaEduSystem.API.Hubs.Exam;
+using AttaEduSystem.API.Hubs.Notification;
 using AttaEduSystem.DataAccess.IRepositories;
 using AttaEduSystem.DataAccess.Repositories;
 using AttaEduSystem.Services.IServices;
@@ -33,6 +34,8 @@ namespace AttaEduSystem.API.Extension
             services.AddScoped<IManageUserAccountService, ManageUserAccountService>();
             services.AddScoped<IProfileService, ProfileService>();
             services.AddScoped<IAdminService, AdminService>();
+            services.AddScoped<INotificationService, NotificationService>();
+
 
             // 4. Cloudinary
             services.AddScoped<ICloudinaryService, CloudinaryService>();
@@ -85,7 +88,7 @@ namespace AttaEduSystem.API.Extension
 
             // 9. SignalR Hub Service
             services.AddScoped<IExamHubService, ExamHubService>();
-
+            services.AddScoped<INotificationHubService, NotificationHubService>();
 
 
             return services;

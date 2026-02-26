@@ -8,5 +8,6 @@
         Task<bool> SendChangePasswordEmailAsync(string toEmail, string changePasswordDto);
         Task<bool> SendAccountVerificationOtpAsync(string toEmail, string otp, string userName);
         Task<bool> SendPasswordResetOtpAsync(string toEmail, string otp, string userName);
+        Task<bool> SendNotificationEmailAsync(string toEmail, string title, string message, string? actionUrl);
     }
 }

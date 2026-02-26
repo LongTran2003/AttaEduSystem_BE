@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 
-namespace AttaEduSystem.API.Hubs
+namespace AttaEduSystem.API.Hubs.Exam
 {
     [Authorize]
     public class ExamHub : Hub
@@ -16,7 +16,7 @@ namespace AttaEduSystem.API.Hubs
             {
                 RoomCode = roomCode,
                 Message = $"Successfully joined room {roomCode}",
-                ConnectionId = Context.ConnectionId
+                Context.ConnectionId
             });
         }
 
@@ -40,7 +40,7 @@ namespace AttaEduSystem.API.Hubs
         {
             await Clients.Caller.SendAsync("Connected", new
             {
-                ConnectionId = Context.ConnectionId,
+                Context.ConnectionId,
                 UserId = Context.UserIdentifier,
                 Message = "Connected to ExamHub"
             });

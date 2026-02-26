@@ -18,6 +18,7 @@ namespace AttaEduSystem.Services.Services
         private readonly IGeminiAiService _geminiAiService;
         private readonly IMapper _mapper;
         private readonly ILogger<StudyPlanService> _logger;
+        private readonly INotificationService _notificationService;
         private static readonly JsonSerializerOptions _jsonOptions = new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true
@@ -27,12 +28,14 @@ namespace AttaEduSystem.Services.Services
             IUnitOfWork unitOfWork,
             IGeminiAiService geminiAiService,
             IMapper mapper,
-            ILogger<StudyPlanService> logger)
+            ILogger<StudyPlanService> logger,
+            INotificationService notificationService)
         {
             _unitOfWork = unitOfWork;
             _geminiAiService = geminiAiService;
             _mapper = mapper;
             _logger = logger;
+            _notificationService = notificationService;
         }
 
         // =========================================================
@@ -140,6 +143,17 @@ namespace AttaEduSystem.Services.Services
 
                 await _unitOfWork.StudyPlan.AddAsync(previewEntity);
                 await _unitOfWork.SaveAsync();
+
+                var email = user.FindFirstValue(ClaimTypes.Email);
+
+                await _notificationService.CreateAndSendNotificationAsync(
+                    userId: userId,
+                    title: "🎯 Lịch học mới đã sẵn sàng!",
+                    message: "Hệ thống AI của AttaEdu vừa tạo xong một lộ trình học tập mới dành riêng cho bạn. Hãy vào kiểm tra và bắt đầu học nhé!",
+                    type: "StudyPlan",
+                    actionUrl: $"/study-plan/detail/{planDto.StudyPlanId}",
+                    emailAddress: email
+                    );
 
                 return SuccessResponse.Build(
                     message: "Study plan generated successfully",
@@ -495,6 +509,17 @@ namespace AttaEduSystem.Services.Services
 
                 _unitOfWork.StudyPlan.Update(planEntity);
                 await _unitOfWork.SaveAsync();
+
+                var email = user.FindFirstValue(ClaimTypes.Email);
+
+                await _notificationService.CreateAndSendNotificationAsync(
+                    userId: userId,
+                    title: "🔄 Lịch học đã được cập nhật!",
+                    message: "Lịch học của bạn đã được tái tạo và điều chỉnh thành công theo yêu cầu mới.",
+                    type: "StudyPlan",
+                    actionUrl: $"/study-plan/detail/{planId}",
+                    emailAddress: email
+                );
 
                 return SuccessResponse.Build("Plan regenerated successfully", 200, currentPlan);
             }
