@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using System.Security.Claims;
 
-namespace AttaEduSystem.API.Hubs
+namespace AttaEduSystem.API.Hubs.Chat
 {
     [Authorize]
     public class ChatHub : Hub
