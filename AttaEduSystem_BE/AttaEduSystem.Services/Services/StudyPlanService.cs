@@ -408,117 +408,127 @@ namespace AttaEduSystem.Services.Services
         public async Task<ResponseDto> RegeneratePlanAsync(Guid planId, RegeneratePlanDto dto, ClaimsPrincipal user)
         {
             var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (string.IsNullOrEmpty(userId))
-                return ErrorResponse.Build("Unauthorized", 401);
+            if (string.IsNullOrEmpty(userId)) return ErrorResponse.Build("Unauthorized", 401);
 
             var planEntity = await _unitOfWork.StudyPlan.GetAsync(p => p.StudyPlanId == planId && p.UserId == userId);
-            if (planEntity == null)
-                return ErrorResponse.Build("Plan not found", 404);
+            if (planEntity == null) return ErrorResponse.Build("Plan not found", 404);
 
-            // Parse current plan
+            // 1. Parse Plan cũ
             var currentPlan = JsonSerializer.Deserialize<WeeklyStudyPlanDto>(planEntity.PlanJson, _jsonOptions);
-            if (currentPlan == null)
-                return ErrorResponse.Build("Invalid stored plan format", 500);
+            if (currentPlan == null) return ErrorResponse.Build("Invalid stored plan format", 500);
 
-            // Validate start date
+            // 2. Tính toán ngày bắt đầu và số ngày còn lại
             var startDate = dto.StartDate.Date;
-            if (startDate < planEntity.WeekStart || startDate > planEntity.WeekEnd)
-                return ErrorResponse.Build("StartDate must be within the plan's week range", 400);
 
-            var remainingDays = Math.Clamp(dto.RemainingDays, 1, 7);
-            // Ensure we don't exceed week end
-            var maxRemaining = (int)(planEntity.WeekEnd.Date - startDate).TotalDays + 1;
-            remainingDays = Math.Min(remainingDays, maxRemaining);
+            if (startDate < currentPlan.WeekStart.Date || startDate > currentPlan.WeekEnd.Date)
+            {
+                return ErrorResponse.Build(
+                    $"StartDate ({startDate:yyyy-MM-dd}) must be within the plan's week " +
+                    $"({currentPlan.WeekStart:yyyy-MM-dd} to {currentPlan.WeekEnd:yyyy-MM-dd}).",
+                    400
+                );
+            }
+
+            // Nếu FE không gửi RemainingDays (null), tự động tính số ngày từ StartDate đến WeekEnd
+            var remainingDays = dto.RemainingDays ?? (int)(planEntity.WeekEnd.Date - startDate).TotalDays + 1;
+            remainingDays = Math.Clamp(remainingDays, 1, 7);
 
             try
             {
-                // 1. Recalculate performance (fresh)
+                // 3. Cập nhật lại kết quả học tập mới nhất
                 var performance = await AnalyzeSubjectPerformance(userId, dto.LookbackDays);
 
-                // 2. Prepare preferences for AI (use weekStart = startDate)
+                // 4. Fallback Logic: Sử dụng `??` để lấy giá trị mặc định hoặc từ Plan cũ nếu FE không gửi
                 var preferencesJson = JsonSerializer.Serialize(new
                 {
-                    dailyStudyHours = dto.DailyStudyHours,
-                    maxSessionsPerDay = dto.MaxSessionsPerDay,
-                    focusSubjects = dto.FocusSubjects ?? new List<string>(),
-                    includeStrongSubjects = dto.IncludeStrongSubjects,
+                    dailyStudyHours = dto.DailyStudyHours ?? 2.0,
+                    maxSessionsPerDay = dto.MaxSessionsPerDay ?? 2,
+                    focusSubjects = dto.FocusSubjects ?? currentPlan.Performance.WeakSubjects.Select(s => s.Subject).ToList(),
+                    includeStrongSubjects = dto.IncludeStrongSubjects ?? false,
                     weekStart = startDate.ToString("yyyy-MM-dd"),
                     remainingDays = remainingDays
                 });
 
-                // 3. Call AI to generate plan starting from startDate
-                var aiResponseJson = await _geminiAiService.GenerateStudyPlan(
-                    JsonSerializer.Serialize(performance),
-                    preferencesJson
-                );
-
+                // 5. Gọi AI
+                var aiResponseJson = await _geminiAiService.GenerateStudyPlan(JsonSerializer.Serialize(performance), preferencesJson);
                 var generated = JsonSerializer.Deserialize<WeeklyStudyPlanDto>(aiResponseJson, _jsonOptions);
-                if (generated == null || generated.DailyPlans == null || !generated.DailyPlans.Any())
-                {
-                    _logger.LogError("Regenerate: AI returned invalid plan: {Response}", aiResponseJson);
-                    return ErrorResponse.Build("AI returned invalid plan for regeneration", 500);
-                }
 
-                // 4. Build map of generated days by Date for the remaining window
-                var genByDate = generated.DailyPlans
-                    .Where(d => d.Date.Date >= startDate && d.Date.Date <= startDate.AddDays(remainingDays - 1))
-                    .ToDictionary(d => d.Date.Date, d => d);
+                if (generated?.DailyPlans == null || !generated.DailyPlans.Any())
+                    return ErrorResponse.Build("AI failed to regenerate plan segment", 500);
 
-                // 5. Merge into currentPlan: replace days in [startDate .. startDate+remainingDays-1]
-                for (var day = 0; day < remainingDays; day++)
+                // 6. Merge Logic: Bảo toàn dữ liệu cũ
+                var newDaysMap = generated.DailyPlans.ToDictionary(d => d.Date.Date, d => d);
+
+                for (var i = 0; i < currentPlan.DailyPlans.Count; i++)
                 {
-                    var targetDate = startDate.AddDays(day).Date;
-                    var existingDay = currentPlan.DailyPlans.FirstOrDefault(d => d.Date.Date == targetDate);
-                    if (genByDate.TryGetValue(targetDate, out var newDay))
+                    var targetDate = currentPlan.DailyPlans[i].Date.Date;
+
+                    if (newDaysMap.TryGetValue(targetDate, out var newDay))
                     {
-                        // preserve completion flags when possible: match by SessionOrder
-                        if (existingDay != null)
+                        // Bảo toàn trạng thái IsCompleted của các session trùng lặp
+                        foreach (var newSess in newDay.Sessions)
                         {
-                            foreach (var newSession in newDay.Sessions)
+                            var oldSess = currentPlan.DailyPlans[i].Sessions
+                                .FirstOrDefault(s => s.SessionOrder == newSess.SessionOrder);
+
+                            if (oldSess != null && oldSess.IsCompleted)
                             {
-                                var oldSession = existingDay.Sessions.FirstOrDefault(s => s.SessionOrder == newSession.SessionOrder);
-                                if (oldSession != null && oldSession.IsCompleted)
-                                {
-                                    newSession.IsCompleted = oldSession.IsCompleted;
-                                    newSession.CompletionNotes = oldSession.CompletionNotes;
-                                    newSession.CompletedAt = oldSession.CompletedAt;
-                                }
+                                newSess.IsCompleted = true;
+                                newSess.CompletedAt = oldSess.CompletedAt;
+                                newSess.CompletionNotes = oldSess.CompletionNotes;
                             }
-                            // Replace existing day
-                            var idx = currentPlan.DailyPlans.FindIndex(d => d.Date.Date == targetDate);
-                            if (idx >= 0) currentPlan.DailyPlans[idx] = newDay;
                         }
-                        else
-                        {
-                            // If day didn't exist in original (edge case), add it
-                            currentPlan.DailyPlans.Add(newDay);
-                        }
+
+                        // Cập nhật ngày mới vào Plan hiện tại
+                        currentPlan.DailyPlans[i] = newDay;
                     }
-                    // else: if AI didn't provide that date, keep existing day unchanged
                 }
 
-                // Normalize DailyPlans order by Date ascending
-                currentPlan.DailyPlans = currentPlan.DailyPlans.OrderBy(d => d.Date).ToList();
+                // 7. Cập nhật tiến độ và lưu DB
+                var total = currentPlan.DailyPlans.Sum(d => d.Sessions.Count);
+                var completed = currentPlan.DailyPlans.Sum(d => d.Sessions.Count(s => s.IsCompleted));
+                planEntity.CompletionPercentage = total > 0 ? Math.Round((double)completed / total * 100, 2) : 0;
 
-                // 6. Recompute completion percentage
-                var totalSessions = currentPlan.DailyPlans.Sum(d => d.Sessions.Count);
-                var completedSessions = currentPlan.DailyPlans.Sum(d => d.Sessions.Count(s => s.IsCompleted));
-                planEntity.CompletionPercentage = totalSessions > 0 ? Math.Round((double)completedSessions / totalSessions * 100, 2) : 0;
-
-                // 7. Save back to entity and DB
                 planEntity.PlanJson = JsonSerializer.Serialize(currentPlan);
-                planEntity.UpdatedTime = StaticOperationStatus.Timezone.Vietnam;
                 planEntity.UpdatedBy = user.FindFirstValue("FullName");
+                planEntity.UpdatedTime = StaticOperationStatus.Timezone.Vietnam;
 
+                _unitOfWork.StudyPlan.Update(planEntity);
                 await _unitOfWork.SaveAsync();
 
                 return SuccessResponse.Build("Plan regenerated successfully", 200, currentPlan);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error regenerating plan {PlanId} for user {UserId}", planId, userId);
-                return ErrorResponse.Build($"Failed to regenerate plan: {ex.Message}", 500);
+                _logger.LogError(ex, "Regeneration error for plan {Id}", planId);
+                return ErrorResponse.Build($"Regeneration failed: {ex.Message}", 500);
             }
+        }
+
+        // =========================================================
+        // 8.5 GET PLAN DETAIL (Dùng cho xem chi tiết từ History)
+        // =========================================================
+        public async Task<ResponseDto> GetPlanDetailAsync(Guid planId, ClaimsPrincipal user)
+        {
+            var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId)) return ErrorResponse.Build("Unauthorized", 401);
+
+            // Lấy entity từ DB
+            var plan = await _unitOfWork.StudyPlan.GetAsync(p => p.StudyPlanId == planId && p.UserId == userId);
+            if (plan == null) return ErrorResponse.Build("Plan not found", 404);
+
+            // Parse JSON nội dung chi tiết
+            var planDto = JsonSerializer.Deserialize<WeeklyStudyPlanDto>(plan.PlanJson, _jsonOptions);
+            if (planDto == null) return ErrorResponse.Build("Invalid data format", 500);
+
+            // Sync metadata mới nhất từ DB vào DTO
+            planDto.StudyPlanId = plan.StudyPlanId;
+            planDto.Status = plan.Status;
+            planDto.Notes = plan.Notes;
+            planDto.CompletionPercentage = plan.CompletionPercentage;
+            planDto.GeneratedAt = plan.CreatedTime ?? DateTime.MinValue;
+
+            return SuccessResponse.Build("Plan detail retrieved", 200, planDto);
         }
 
         // =========================================================

@@ -79,6 +79,13 @@ namespace AttaEduSystem.API.Controllers
             return StatusCode(response.StatusCode, response);
         }
 
+        [HttpGet("{planId}")]
+        public async Task<ActionResult<ResponseDto>> GetDetail([FromRoute] Guid planId)
+        {
+            var response = await _studyPlanService.GetPlanDetailAsync(planId, User);
+            return StatusCode(response.StatusCode, response);
+        }
+
         [HttpDelete("{planId:guid}")]
         [SwaggerOperation(Summary = "Delete a saved plan", 
             Description = "Soft-delete a saved study plan.")]

@@ -17,6 +17,6 @@ namespace AttaEduSystem.Models.DTOs.StudyPlan
         /// Số ngày còn lại cần plan (default = đến hết tuần)
         /// </summary>
         [Range(1, 7, ErrorMessage = "Remaining days must be 1-7")]
-        public int RemainingDays { get; set; } = 7;
+        public int? RemainingDays { get; set; } = 7;
     }
 }

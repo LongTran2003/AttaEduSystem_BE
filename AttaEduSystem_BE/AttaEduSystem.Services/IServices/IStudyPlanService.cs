@@ -37,6 +37,11 @@ namespace AttaEduSystem.Services.IServices
         Task<ResponseDto> GetPlanHistoryAsync(ClaimsPrincipal user, int months = 3, int page = 1, int pageSize = 10);
 
         /// <summary>
+        /// Get plan detail by planId
+        /// </summary>
+        Task<ResponseDto> GetPlanDetailAsync(Guid planId, ClaimsPrincipal user);
+
+        /// <summary>
         /// Delete saved plan
         /// </summary>
         Task<ResponseDto> DeletePlanAsync(Guid planId, ClaimsPrincipal user);
