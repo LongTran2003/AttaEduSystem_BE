@@ -22,13 +22,13 @@ namespace AttaEduSystem.Models.DTOs.StudyPlan
         /// Số giờ học mỗi ngày (ví dụ: 2.5h)
         /// </summary>
         [Range(0.5, 10, ErrorMessage = "Daily study hours must be 0.5-10")]
-        public double DailyStudyHours { get; set; } = 2.0;
+        public double? DailyStudyHours { get; set; } = 2.0;
 
         /// <summary>
         /// Số buổi học tối đa mỗi ngày (default = 2)
         /// </summary>
         [Range(1, 5, ErrorMessage = "Max sessions per day must be 1-5")]
-        public int MaxSessionsPerDay { get; set; } = 2;
+        public int? MaxSessionsPerDay { get; set; } = 2;
 
         /// <summary>
         /// Danh sách môn ưu tiên (optional, null = AI tự chọn)
@@ -38,6 +38,6 @@ namespace AttaEduSystem.Models.DTOs.StudyPlan
         /// <summary>
         /// Có bao gồm môn đã học tốt không? (default = false, chỉ focus yếu)
         /// </summary>
-        public bool IncludeStrongSubjects { get; set; } = false;
+        public bool? IncludeStrongSubjects { get; set; } = false;
     }
 }
