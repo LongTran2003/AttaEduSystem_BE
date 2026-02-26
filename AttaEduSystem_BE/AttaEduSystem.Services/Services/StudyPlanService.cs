@@ -285,19 +285,24 @@ namespace AttaEduSystem.Services.Services
             if (string.IsNullOrEmpty(userId))
                 return ErrorResponse.Build("Unauthorized", 401);
 
-            // Normalize date to date-only (drop time component)
             var dateOnly = weekStart.Date;
-
-            // Ensure the DateTime passed to Npgsql has Kind = Utc, because Postgres "timestamp with time zone"
-            // requires UTC DateTimes when writing via Npgsql. We don't convert timezone values here — we
-            // simply mark this date as UTC to avoid Npgsql ArgumentException.
             var weekStartParam = DateTime.SpecifyKind(dateOnly, DateTimeKind.Utc);
 
             var plan = await _unitOfWork.StudyPlan.GetPlanByWeekAsync(userId, weekStartParam);
             if (plan == null)
                 return ErrorResponse.Build("No plan found for this week", 404);
 
-            var planDto = _mapper.Map<WeeklyStudyPlanDto>(plan);
+            // [SỬA LỖI]: Tương tự như trên
+            var planDto = JsonSerializer.Deserialize<WeeklyStudyPlanDto>(plan.PlanJson, _jsonOptions);
+            if (planDto == null)
+                return ErrorResponse.Build("Invalid plan data format in database", 500);
+
+            planDto.StudyPlanId = plan.StudyPlanId;
+            planDto.Status = plan.Status;
+            planDto.Notes = plan.Notes;
+            planDto.CompletionPercentage = plan.CompletionPercentage;
+            planDto.SavedAt = plan.UpdatedTime ?? plan.CreatedTime;
+
             return SuccessResponse.Build("Plan retrieved successfully", 200, planDto);
         }
 
@@ -314,7 +319,18 @@ namespace AttaEduSystem.Services.Services
             if (plan == null)
                 return ErrorResponse.Build("No active plan found", 404);
 
-            var planDto = _mapper.Map<WeeklyStudyPlanDto>(plan);
+            // [SỬA LỖI]: Giải nén dữ liệu từ cột PlanJson thay vì dùng AutoMapper
+            var planDto = JsonSerializer.Deserialize<WeeklyStudyPlanDto>(plan.PlanJson, _jsonOptions);
+            if (planDto == null)
+                return ErrorResponse.Build("Invalid plan data format in database", 500);
+
+            // Đồng bộ lại các thông tin Metadata mới nhất từ Entity (DB) sang DTO
+            planDto.StudyPlanId = plan.StudyPlanId;
+            planDto.Status = plan.Status;
+            planDto.Notes = plan.Notes;
+            planDto.CompletionPercentage = plan.CompletionPercentage;
+            planDto.SavedAt = plan.UpdatedTime ?? plan.CreatedTime;
+
             return SuccessResponse.Build("Active plan retrieved successfully", 200, planDto);
         }
 
