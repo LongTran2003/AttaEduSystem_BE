@@ -107,7 +107,7 @@ namespace AttaEduSystem.API.Controllers
         }
 
         [HttpPost("{planId:guid}/regenerate")]
-        [SwaggerOperation(Summary = "Regenerate plan for remaining days (BROKEN LOGIC)", 
+        [SwaggerOperation(Summary = "Regenerate plan for remaining days", 
             Description = "Regenerate part of an existing plan (e.g., student wants a replan for remaining days).")]
         public async Task<ActionResult<ResponseDto>> Regenerate([FromRoute] Guid planId, [FromBody] RegeneratePlanDto dto)
         {
