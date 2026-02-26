@@ -1,7 +1,7 @@
 ﻿using AttaEduSystem.Services.IServices;
 using Microsoft.AspNetCore.SignalR;
 
-namespace AttaEduSystem.API.Hubs
+namespace AttaEduSystem.API.Hubs.Exam
 {
     public class ExamHubService : IExamHubService
     {

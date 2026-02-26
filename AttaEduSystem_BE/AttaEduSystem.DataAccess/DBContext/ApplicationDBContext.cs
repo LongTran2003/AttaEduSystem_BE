@@ -12,27 +12,29 @@ namespace AttaEduSystem.DataAccess.DBContext
         }
 
         // DbSet các entity, sắp xếp A-Z
-        public DbSet<Student> Students { get; set; }
-        public DbSet<Teacher> Teachers { get; set; }
-        public DbSet<ExamPaper> ExamPapers { get; set; }
-        public DbSet<ExamQuestion> ExamQuestions { get; set; }
-        public DbSet<QuestionOption> QuestionOptions { get; set; }
-        public DbSet<ExamSolution> ExamSolutions { get; set; }
-        public DbSet<GeneratedExamPaper> GeneratedExamPapers { get; set; }
-        public DbSet<SubscriptionPlan> SubscriptionPlans { get; set; }
-        public DbSet<UserSubscription> UserSubscriptions { get; set; }
-        public DbSet<UserUsage> UserUsages { get; set; }
-        public DbSet<Order> Orders { get; set; }
-        public DbSet<Payment> Payments { get; set; }
+        public DbSet<ChatConversation> ChatConversations { get; set; }
+        public DbSet<ChatMessage> ChatMessages { get; set; }
         public DbSet<ExamAttempt> ExamAttempts { get; set; }
         public DbSet<ExamAttemptDetail> ExamAttemptDetails { get; set; }
         public DbSet<ExamFolder> ExamFolders { get; set; }
+        public DbSet<ExamPaper> ExamPapers { get; set; }
+        public DbSet<ExamQuestion> ExamQuestions { get; set; }
         public DbSet<ExamRoom> ExamRooms { get; set; }
         public DbSet<ExamRoomParticipant> ExamRoomParticipants { get; set; }
+        public DbSet<ExamSolution> ExamSolutions { get; set; }
+        public DbSet<GeneratedExamPaper> GeneratedExamPapers { get; set; }
+        public DbSet<Notification> Notifications { get; set; }
+        public DbSet<Order> Orders { get; set; }
+        public DbSet<Payment> Payments { get; set; }
+        public DbSet<QuestionOption> QuestionOptions { get; set; }
         public DbSet<SharedExam> SharedExams { get; set; }
-        public DbSet<ChatConversation> ChatConversations { get; set; }
-        public DbSet<ChatMessage> ChatMessages { get; set; }
+        public DbSet<Student> Students { get; set; }
         public DbSet<StudyPlan> StudyPlans { get; set; }
+        public DbSet<SubscriptionPlan> SubscriptionPlans { get; set; }
+        public DbSet<Teacher> Teachers { get; set; }
+        public DbSet<UserSubscription> UserSubscriptions { get; set; }
+        public DbSet<UserUsage> UserUsages { get; set; }
+
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -287,6 +289,22 @@ namespace AttaEduSystem.DataAccess.DBContext
 
             modelBuilder.Entity<StudyPlan>()
                 .HasIndex(sp => new { sp.UserId, sp.Status }); // Query optimization
+
+            // Notification
+            modelBuilder.Entity<Notification>()
+                .HasKey(n => n.NotificationId);
+
+            modelBuilder.Entity<Notification>()
+                .HasOne(n => n.User)
+                .WithMany()
+                .HasForeignKey(n => n.UserId)
+                .OnDelete(DeleteBehavior.Cascade); // Xóa user thì xóa luôn notifications
+
+            modelBuilder.Entity<Notification>()
+                .HasIndex(n => new { n.UserId, n.IsRead }); // Query optimization cho việc lấy unread
+
+            modelBuilder.Entity<Notification>()
+                .HasIndex(n => n.CreatedAt); // Sắp xếp theo thời gian
         }
     }
 }

@@ -139,5 +139,18 @@ namespace AttaEduSystem.Services.Services
             return await SendEmailAsync(toEmail, template.Subject, body);
         }
 
+        public async Task<bool> SendNotificationEmailAsync(string toEmail, string title, string message, string? actionUrl)
+        {
+            var placeholders = new Dictionary<string, string>
+    {
+        { "{{Title}}", title },
+        { "{{Message}}", message },
+        { "{{ActionUrl}}", actionUrl ?? "#" },
+        { "{{ActionText}}", string.IsNullOrEmpty(actionUrl) ? "" : "Xem chi tiết" }
+    };
+
+            return await SendEmailFromTemplateAsync(toEmail, new NotificationEmailTemplate(), placeholders);
+        }
+
     }
 }
