@@ -8,6 +8,11 @@
 .qoder/rules/byterover-rules.md
 .augment/rules/byterover-rules.md
 
-# Seed files with sensitive data
+# Seed files with sensitive credentials
 **/Seed/ApplicationDbContextSeed.cs
 AttaEduSystem.DataAccess/Seed/ApplicationDbContextSeed.cs
+
+# Local appsettings with secrets
+appsettings.Development.json
+appsettings.*.json
+!appsettings.json
