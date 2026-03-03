@@ -46,7 +46,6 @@ namespace AttaEduSystem.API.Extension
             services.AddScoped<IExamScanningService, ExamScanningService>();
             services.AddScoped<IExamSolvingService, ExamSolvingService>();
             services.AddScoped<IExamGeneratingService, ExamGeneratingService>();
-            services.AddScoped<IOcrService, GoogleVisionOcrService>();
             services.AddScoped<IExamFormatParser, RegexExamFormatParser>();
             services.AddScoped<IExamTakingService, ExamTakingService>();
             services.AddScoped<IStatisticsService, StatisticsService>();
@@ -76,6 +75,10 @@ namespace AttaEduSystem.API.Extension
             services.AddHttpClient<IChatAiService, ChatAiService>();
             services.AddScoped<IChatService, ChatService>();
 
+            // --- C. AI Analysis Service với Fallback Strategy ---
+            // Service này sẽ tự động chuyển từ Gemini sang OpenAI khi cần
+            services.AddScoped<IAiAnalysisService, AiAnalysisService>();
+
             // 6. Payment Services
             services.AddScoped<IPayOsService, PayOsService>();
 
@@ -90,6 +93,9 @@ namespace AttaEduSystem.API.Extension
             services.AddScoped<IExamHubService, ExamHubService>();
             services.AddScoped<INotificationHubService, NotificationHubService>();
 
+            // 10. OCR Services
+            //services.AddScoped<IOcrService, GoogleVisionOcrService>();
+            services.AddScoped<IOcrService, AzureVisionOcrService>();
 
             return services;
         }
