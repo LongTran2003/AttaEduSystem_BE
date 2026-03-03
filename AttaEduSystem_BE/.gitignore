@@ -7,3 +7,7 @@
 .kiro/steering/byterover-rules.md
 .qoder/rules/byterover-rules.md
 .augment/rules/byterover-rules.md
+
+# Seed files with sensitive data
+**/Seed/ApplicationDbContextSeed.cs
+AttaEduSystem.DataAccess/Seed/ApplicationDbContextSeed.cs
