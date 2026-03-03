@@ -26,6 +26,7 @@ namespace AttaEduSystem.Services.Services
         private readonly ILogger<ExamScanningService> _logger;
         private readonly IOcrService _ocrService;
         private readonly IGeminiAiService _geminiAiService;
+        private readonly IAiAnalysisService _aiAnalysisService;
         private readonly IUsageTrackerService _usageTracker;
         private readonly UserManager<ApplicationUser> _userManager;
 
@@ -38,7 +39,8 @@ namespace AttaEduSystem.Services.Services
             IOcrService ocrService,
             IGeminiAiService geminiAiService,
             IUsageTrackerService usageTracker,
-            UserManager<ApplicationUser> userManager)
+            UserManager<ApplicationUser> userManager,
+            IAiAnalysisService aiAnalysisService)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
@@ -49,6 +51,7 @@ namespace AttaEduSystem.Services.Services
             _geminiAiService = geminiAiService;
             _usageTracker = usageTracker;
             _userManager = userManager;
+            _aiAnalysisService = aiAnalysisService;
         }
         public async Task<ResponseDto> ScanExamPaper(UploadExamPaperDto uploadDto, ClaimsPrincipal user)
         {
@@ -132,20 +135,37 @@ namespace AttaEduSystem.Services.Services
                         statusCode: StaticOperationStatus.StatusCode.InternalServerError);
                 }
 
-                // 8. Gọi Gemini
+                // 8. Gọi AI Analysis với Fallback Strategy (Gemini -> OpenAI)
+
                 string aiResponseJson;
                 try
                 {
-                    aiResponseJson = await _geminiAiService.AnalyzeExamStructure(
+                    _logger.LogInformation("Starting AI analysis for exam paper");
+                    aiResponseJson = await _aiAnalysisService.AnalyzeExamStructureWithFallback(
                         base64Image,
                         uploadDto.ExamImage.ContentType ?? "image/jpeg");
+                    _logger.LogInformation("AI analysis completed successfully");
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Error calling Gemini API");
-                    return ErrorResponse.Build("AI Service Unreachable: " + ex.Message, 500);
+                    _logger.LogError(ex, "All AI services failed to analyze exam structure");
+                    return ErrorResponse.Build(
+                        message: $"AI analysis failed: {ex.Message}. Please try again later or contact support.",
+                        statusCode: StaticOperationStatus.StatusCode.InternalServerError);
                 }
-                
+                //string aiResponseJson;
+                //try
+                //{
+                //    aiResponseJson = await _geminiAiService.AnalyzeExamStructure(
+                //        base64Image,
+                //        uploadDto.ExamImage.ContentType ?? "image/jpeg");
+                //}
+                //catch (Exception ex)
+                //{
+                //    _logger.LogError(ex, "Error calling Gemini API");
+                //    return ErrorResponse.Build("AI Service Unreachable: " + ex.Message, 500);
+                //}
+
                 // 9. Lưu ExamPaper (Header)
                 var examPaper = _mapper.Map<ExamPaper>(uploadDto);
                 examPaper.ExamPaperId = Guid.NewGuid();
