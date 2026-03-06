@@ -85,8 +85,8 @@ namespace AttaEduSystem.Services.Mapping
                 .ForMember(dest => dest.Roles, opt => opt.Ignore()) // Roles cần query riêng (manual mapping), ignore để tránh lỗi
                 .ForMember(dest => dest.StudentCode, opt => opt.Ignore()) // Map manually
                 .ForMember(dest => dest.TeacherCode, opt => opt.Ignore()) // Map manually
-                .ForMember(dest => dest.CreatedBy, opt => opt.Ignore()) // Chưa có logic nên ignore
-                .ForMember(dest => dest.CreatedAt, opt => opt.Ignore()); // Chưa có logic nên ignore
+                .ForMember(dest => dest.CreatedBy, opt => opt.MapFrom(src => "System")) // Chưa có logic nên ignore
+                .ForMember(dest => dest.CreatedAt, opt => opt.MapFrom(src => StaticOperationStatus.Timezone.Vietnam)); // Chưa có logic nên ignore
 
             // Admin: UpdateUserDto to ApplicationUser
             CreateMap<UpdateUserDto, ApplicationUser>()

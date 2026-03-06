@@ -18,7 +18,7 @@
         // Additional info
         public string? StudentCode { get; set; } // Nếu là Student
         public string? TeacherCode { get; set; } // Nếu là Teacher
-        public string CreatedBy { get; set; } = null!;
+        public string? CreatedBy { get; set; }
         public DateTime? CreatedAt { get; set; }
     }
 }
