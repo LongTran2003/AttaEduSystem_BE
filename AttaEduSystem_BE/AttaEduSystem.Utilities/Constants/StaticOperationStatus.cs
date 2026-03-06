@@ -40,7 +40,7 @@
 
         public static class Timezone
         {
-            public static readonly DateTime Vietnam = DateTime.UtcNow.AddHours(7.0);
+            public static DateTime Vietnam => DateTime.UtcNow.AddHours(7.0);
         }
 
         public static class Database

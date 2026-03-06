@@ -469,7 +469,11 @@ namespace AttaEduSystem.Services.Mapping
             // =========================================================
             // Take Exam Paper (Ẩn đáp án)
             // =========================================================
-            CreateMap<ExamPaper, TakeExamPaperDto>();
+            CreateMap<ExamPaper, TakeExamPaperDto>()
+                .ForMember(dest => dest.Questions,
+                    opt => opt.MapFrom(src => src.Questions != null
+                        ? src.Questions.OrderBy(q => q.OrderIndex)
+                        : Enumerable.Empty<ExamQuestion>()));
             CreateMap<ExamQuestion, TakeExamQuestionDto>();
             CreateMap<QuestionOption, TakeExamOptionDto>();
 

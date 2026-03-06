@@ -317,8 +317,8 @@ namespace AttaEduSystem.Services.Services
                 var resultDto = _mapper.Map<TakeExamPaperDto>(paper);
                 resultDto.TimeLimit = room.TimeLimit; // Gán thời gian làm bài của phòng cho FE hiển thị
 
-                // Sắp xếp lại câu hỏi theo đúng thứ tự
-                resultDto.Questions = resultDto.Questions.OrderBy(q => q.OrderIndex).ToList();
+                //// Sắp xếp lại câu hỏi theo đúng thứ tự
+                //resultDto.Questions = resultDto.Questions.OrderBy(q => q.OrderIndex).ToList();
 
                 return SuccessResponse.Build("Exam paper retrieved successfully", 200, resultDto);
             }
