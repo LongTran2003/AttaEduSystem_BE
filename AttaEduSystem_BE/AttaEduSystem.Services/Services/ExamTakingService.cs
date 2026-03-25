@@ -142,7 +142,8 @@ public class ExamTakingService : IExamTakingService
                 IsCorrect = d.IsCorrect,
                 CorrectAnswer = questionMap.TryGetValue(d.ExamQuestionId, out var q) ? q.CorrectAnswer ?? string.Empty : string.Empty
             }).ToList(),
-            LearningRecommendations = BuildLearningRecommendations(questions, attemptDetails, examPaper.Subject)
+            LearningRecommendations = BuildLearningRecommendations(questions, attemptDetails, examPaper.Subject),
+            LearningAnalytics = BuildLearningAnalytics(questions, attemptDetails)
         };
 
         return SuccessResponse.Build("Exam submitted successfully", 200, resultDto);
@@ -196,8 +197,105 @@ public class ExamTakingService : IExamTakingService
             .DistinctBy(q => q.QuestionId)
             .ToList();
         resultDto.LearningRecommendations = BuildLearningRecommendations(questions, attempt.Details.ToList(), attempt.ExamPaper?.Subject);
+        resultDto.LearningAnalytics = BuildLearningAnalytics(questions, attempt.Details.ToList());
 
         return SuccessResponse.Build("Exam result retrieved successfully", 200, resultDto);
+    }
+
+    public async Task<ResponseDto> AutoSaveAnswer(Guid examAttemptId, AutoSaveAnswerDto dto, ClaimsPrincipal user)
+    {
+        var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userId))
+            return ErrorResponse.Build(StaticOperationStatus.User.UserNotFound, 401);
+
+        var attempt = await _unitOfWork.ExamAttempt.GetAttemptWithDetailsAsync(examAttemptId);
+        if (attempt == null)
+            return ErrorResponse.Build("Exam attempt not found", 404);
+
+        if (attempt.UserId != userId)
+            return ErrorResponse.Build("You are not authorized to update this exam attempt", 403);
+
+        if (attempt.CompletedAt.HasValue)
+            return ErrorResponse.Build("Exam has already been submitted", 400);
+
+        var question = await _unitOfWork.ExamQuestion.GetAsync(q => q.QuestionId == dto.ExamQuestionId);
+        if (question == null || question.ExamPaperId != attempt.ExamPaperId)
+            return ErrorResponse.Build("Question does not belong to this exam attempt", 400);
+
+        var normalizedAnswer = dto.UserAnswer?.Trim() ?? string.Empty;
+        var existingDetail = attempt.Details.FirstOrDefault(d => d.ExamQuestionId == dto.ExamQuestionId);
+
+        if (string.IsNullOrWhiteSpace(normalizedAnswer))
+        {
+            if (existingDetail != null)
+                _unitOfWork.ExamAttemptDetail.Remove(existingDetail);
+        }
+        else if (existingDetail != null)
+        {
+            existingDetail.UserAnswer = normalizedAnswer;
+            existingDetail.UpdatedBy = userId;
+            existingDetail.UpdatedTime = StaticOperationStatus.Timezone.Vietnam;
+        }
+        else
+        {
+            var detail = new ExamAttemptDetail
+            {
+                ExamAttemptDetailId = Guid.NewGuid(),
+                ExamAttemptId = attempt.ExamAttemptId,
+                ExamQuestionId = dto.ExamQuestionId,
+                UserAnswer = normalizedAnswer,
+                IsCorrect = false,
+                CreatedBy = userId,
+                CreatedTime = StaticOperationStatus.Timezone.Vietnam
+            };
+            await _unitOfWork.ExamAttemptDetail.AddAsync(detail);
+        }
+
+        if (attempt.TotalQuestions <= 0)
+        {
+            var totalQuestions = await _unitOfWork.ExamQuestion.GetByExamPaperIdAsync(attempt.ExamPaperId);
+            attempt.TotalQuestions = totalQuestions.Count;
+        }
+
+        attempt.UpdatedBy = userId;
+        attempt.UpdatedTime = StaticOperationStatus.Timezone.Vietnam;
+        _unitOfWork.ExamAttempt.Update(attempt);
+        await _unitOfWork.SaveAsync();
+
+        return await GetAttemptLiveStatus(examAttemptId, user);
+    }
+
+    public async Task<ResponseDto> GetAttemptLiveStatus(Guid examAttemptId, ClaimsPrincipal user)
+    {
+        var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userId))
+            return ErrorResponse.Build(StaticOperationStatus.User.UserNotFound, 401);
+
+        var attempt = await _unitOfWork.ExamAttempt.GetAttemptWithDetailsAsync(examAttemptId);
+        if (attempt == null)
+            return ErrorResponse.Build("Exam attempt not found", 404);
+
+        if (attempt.UserId != userId)
+            return ErrorResponse.Build("You are not authorized to view this exam attempt", 403);
+
+        var totalQuestions = attempt.TotalQuestions;
+        if (totalQuestions <= 0)
+        {
+            var questions = await _unitOfWork.ExamQuestion.GetByExamPaperIdAsync(attempt.ExamPaperId);
+            totalQuestions = questions.Count;
+        }
+
+        var answeredCount = attempt.Details.Count(d => !string.IsNullOrWhiteSpace(d.UserAnswer));
+        var statusDto = new ExamAttemptLiveStatusDto
+        {
+            ExamAttemptId = attempt.ExamAttemptId,
+            AnsweredCount = answeredCount,
+            TotalQuestions = totalQuestions,
+            LastSavedAt = attempt.UpdatedTime ?? attempt.CreatedTime,
+            TimeRemainingSeconds = await CalculateAttemptRemainingSeconds(examAttemptId)
+        };
+
+        return SuccessResponse.Build("Live status retrieved successfully", 200, statusDto);
     }
 
     // =========================================================
@@ -256,8 +354,23 @@ public class ExamTakingService : IExamTakingService
         // 5. Trả về kết quả
         var resultDto = _mapper.Map<ExamResultDto>(attempt);
         resultDto.LearningRecommendations = BuildLearningRecommendations(questions.ToList(), attempt.Details.ToList(), attempt.ExamPaper?.Subject);
+        resultDto.LearningAnalytics = BuildLearningAnalytics(questions.ToList(), attempt.Details.ToList());
 
         return SuccessResponse.Build("Exam auto-submitted successfully", 200, resultDto);
+    }
+
+    private async Task<int?> CalculateAttemptRemainingSeconds(Guid examAttemptId)
+    {
+        var participant = await _unitOfWork.ExamRoomParticipant.GetAsync(
+            p => p.ExamAttemptId == examAttemptId,
+            includeProperties: "ExamRoom");
+
+        var room = participant?.ExamRoom;
+        if (room?.EndTime == null)
+            return null;
+
+        var remaining = (int)(room.EndTime.Value - StaticOperationStatus.Timezone.Vietnam).TotalSeconds;
+        return remaining > 0 ? remaining : 0;
     }
 
     private static List<string> BuildLearningRecommendations(
@@ -307,5 +420,38 @@ public class ExamTakingService : IExamTakingService
             recommendations.Add($"Gợi ý lộ trình {subject}: học lại lý thuyết cốt lõi, làm 20-30 câu theo chuyên đề sai, rồi làm lại 1 đề tổng hợp.");
 
         return recommendations.Take(5).ToList();
+    }
+
+    private static List<LearningAnalyticsItemDto> BuildLearningAnalytics(
+        List<ExamQuestion> questions,
+        List<ExamAttemptDetail> attemptDetails)
+    {
+        var questionMap = questions.ToDictionary(q => q.QuestionId);
+        var wrongDetails = attemptDetails
+            .Where(d => !d.IsCorrect && questionMap.ContainsKey(d.ExamQuestionId))
+            .ToList();
+
+        var byQuestionType = wrongDetails
+            .GroupBy(d => questionMap[d.ExamQuestionId].QuestionType ?? "Unknown")
+            .Select(g => new LearningAnalyticsItemDto
+            {
+                Category = "QuestionType",
+                Label = g.Key,
+                WrongCount = g.Count()
+            });
+
+        var byDifficulty = wrongDetails
+            .GroupBy(d => questionMap[d.ExamQuestionId].DifficultyLevel ?? "Unknown")
+            .Select(g => new LearningAnalyticsItemDto
+            {
+                Category = "Difficulty",
+                Label = g.Key,
+                WrongCount = g.Count()
+            });
+
+        return byQuestionType
+            .Concat(byDifficulty)
+            .OrderByDescending(x => x.WrongCount)
+            .ToList();
     }
 }

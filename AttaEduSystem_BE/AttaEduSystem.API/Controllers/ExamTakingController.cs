@@ -1,4 +1,4 @@
-﻿using AttaEduSystem.Models.DTOs;
+using AttaEduSystem.Models.DTOs;
 using AttaEduSystem.Models.DTOs.SubmitExam;
 using AttaEduSystem.Services.IServices;
 using Microsoft.AspNetCore.Authorization;
@@ -59,6 +59,26 @@ public class ExamTakingController : ControllerBase
     public async Task<ActionResult<ResponseDto>> GetResult(Guid attemptId)
     {
         var result = await _examTakingService.GetExamResult(attemptId, User);
+        return StatusCode(result.StatusCode, result);
+    }
+
+    [HttpPost("{attemptId:guid}/autosave")]
+    [SwaggerOperation(Summary = "💾 Auto-save current answer",
+        Description = "Auto-saves one answer during exam taking and returns latest live status.")]
+    public async Task<ActionResult<ResponseDto>> AutoSaveAnswer(Guid attemptId, [FromBody] AutoSaveAnswerDto dto)
+    {
+        if (!ModelState.IsValid) return ReturnInvalidInputResponse();
+
+        var result = await _examTakingService.AutoSaveAnswer(attemptId, dto, User);
+        return StatusCode(result.StatusCode, result);
+    }
+
+    [HttpGet("{attemptId:guid}/live-status")]
+    [SwaggerOperation(Summary = "📊 Get attempt live status",
+        Description = "Gets latest exam attempt live status: answered count, last saved time and time remaining.")]
+    public async Task<ActionResult<ResponseDto>> GetAttemptLiveStatus(Guid attemptId)
+    {
+        var result = await _examTakingService.GetAttemptLiveStatus(attemptId, User);
         return StatusCode(result.StatusCode, result);
     }
 

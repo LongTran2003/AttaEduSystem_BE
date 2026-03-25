@@ -1,6 +1,7 @@
-﻿using AttaEduSystem.Services.IServices;
+using AttaEduSystem.Services.IServices;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 
@@ -9,7 +10,9 @@ namespace AttaEduSystem.Services.Services
     public class ChatAiService : IChatAiService
     {
         private readonly HttpClient _httpClient;
-        private readonly string _apiUrl;
+        private readonly string? _geminiApiUrl;
+        private readonly string? _openAiApiKey;
+        private readonly string _openAiModel;
         private readonly ILogger<ChatAiService> _logger;
 
         public ChatAiService(HttpClient httpClient, IConfiguration configuration, ILogger<ChatAiService> logger)
@@ -17,9 +20,14 @@ namespace AttaEduSystem.Services.Services
             _httpClient = httpClient;
             _logger = logger;
 
-            var apiKey = configuration["Gemini:ApiKey"]
-                ?? throw new InvalidOperationException("Gemini API Key not configured");
-            _apiUrl = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={apiKey}";
+            var geminiApiKey = configuration["Gemini:ApiKey"];
+            if (!string.IsNullOrWhiteSpace(geminiApiKey))
+            {
+                _geminiApiUrl = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={geminiApiKey}";
+            }
+
+            _openAiApiKey = configuration["OpenAI:ApiKey"];
+            _openAiModel = configuration["ChatAI:OpenAIModel"] ?? "gpt-4o-mini";
         }
 
         public async Task<string> GetChatResponseAsync(string userMessage, List<(string Role, string Content)>? conversationHistory = null)
@@ -60,8 +68,15 @@ namespace AttaEduSystem.Services.Services
             });
 
             var payload = new { contents };
+            var geminiReply = await TryCallGeminiApi(payload);
+            if (!string.IsNullOrWhiteSpace(geminiReply))
+                return geminiReply;
 
-            return await CallGeminiApi(payload);
+            var openAiReply = await TryCallOpenAiAsync(userMessage, conversationHistory);
+            if (!string.IsNullOrWhiteSpace(openAiReply))
+                return openAiReply;
+
+            throw new InvalidOperationException("No AI provider available");
         }
 
         private string GetSystemPrompt()
@@ -75,38 +90,120 @@ Nhiệm vụ của bạn:
 5. Từ chối trả lời các nội dung không liên quan đến giáo dục hoặc không phù hợp";
         }
 
-        private async Task<string> CallGeminiApi(object payload)
+        private async Task<string?> TryCallGeminiApi(object payload)
         {
+            if (string.IsNullOrWhiteSpace(_geminiApiUrl))
+                return null;
+
             var jsonPayload = JsonSerializer.Serialize(payload);
             var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
 
             try
             {
-                var response = await _httpClient.PostAsync(_apiUrl, content);
+                var response = await _httpClient.PostAsync(_geminiApiUrl, content);
 
                 if (!response.IsSuccessStatusCode)
                 {
                     var errorBody = await response.Content.ReadAsStringAsync();
                     _logger.LogError("Gemini API Error: {StatusCode} - {Body}", response.StatusCode, errorBody);
-                    throw new Exception($"AI Service error: {response.StatusCode}");
+                    return null;
                 }
 
                 var responseString = await response.Content.ReadAsStringAsync();
 
                 using var doc = JsonDocument.Parse(responseString);
-                var text = doc.RootElement
-                    .GetProperty("candidates")[0]
-                    .GetProperty("content")
-                    .GetProperty("parts")[0]
-                    .GetProperty("text")
-                    .GetString();
+                if (!doc.RootElement.TryGetProperty("candidates", out var candidates) ||
+                    candidates.ValueKind != JsonValueKind.Array ||
+                    candidates.GetArrayLength() == 0)
+                {
+                    _logger.LogWarning("Gemini response has no candidates: {Body}", responseString);
+                    return null;
+                }
+
+                var firstCandidate = candidates[0];
+                if (!firstCandidate.TryGetProperty("content", out var candidateContent))
+                    return null;
+                if (!candidateContent.TryGetProperty("parts", out var parts) ||
+                    parts.ValueKind != JsonValueKind.Array ||
+                    parts.GetArrayLength() == 0)
+                    return null;
+                if (!parts[0].TryGetProperty("text", out var textNode))
+                    return null;
+
+                var text = textNode.GetString();
 
                 return text ?? "Không có phản hồi từ AI";
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error calling Gemini Chat API");
-                throw;
+                return null;
+            }
+        }
+
+        private async Task<string?> TryCallOpenAiAsync(string userMessage, List<(string Role, string Content)>? conversationHistory)
+        {
+            if (string.IsNullOrWhiteSpace(_openAiApiKey))
+                return null;
+
+            try
+            {
+                using var request = new HttpRequestMessage(HttpMethod.Post, "https://api.openai.com/v1/chat/completions");
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _openAiApiKey);
+
+                var messages = new List<object>
+                {
+                    new { role = "system", content = GetSystemPrompt() }
+                };
+
+                if (conversationHistory != null)
+                {
+                    foreach (var (role, content) in conversationHistory.TakeLast(10))
+                    {
+                        messages.Add(new
+                        {
+                            role = role.ToLower() == "user" ? "user" : "assistant",
+                            content
+                        });
+                    }
+                }
+
+                messages.Add(new { role = "user", content = userMessage });
+
+                var payload = new
+                {
+                    model = _openAiModel,
+                    messages,
+                    temperature = 0.3
+                };
+
+                request.Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+                using var response = await _httpClient.SendAsync(request);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    var errorBody = await response.Content.ReadAsStringAsync();
+                    _logger.LogError("OpenAI API Error: {StatusCode} - {Body}", response.StatusCode, errorBody);
+                    return null;
+                }
+
+                var responseString = await response.Content.ReadAsStringAsync();
+                using var doc = JsonDocument.Parse(responseString);
+                if (!doc.RootElement.TryGetProperty("choices", out var choices) ||
+                    choices.ValueKind != JsonValueKind.Array ||
+                    choices.GetArrayLength() == 0)
+                    return null;
+                if (!choices[0].TryGetProperty("message", out var message))
+                    return null;
+                if (!message.TryGetProperty("content", out var contentNode))
+                    return null;
+
+                return contentNode.GetString();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error calling OpenAI Chat API");
+                return null;
             }
         }
     }

@@ -18,17 +18,20 @@ namespace AttaEduSystem.Services.Services
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IChatAiService _chatAiService;
+        private readonly IUsageTrackerService _usageTrackerService;
         private readonly IMapper _mapper;
         private readonly ILogger<ChatService> _logger;
 
         public ChatService(
             IUnitOfWork unitOfWork,
             IChatAiService chatAiService,
+            IUsageTrackerService usageTrackerService,
             IMapper mapper,
             ILogger<ChatService> logger)
         {
             _unitOfWork = unitOfWork;
             _chatAiService = chatAiService;
+            _usageTrackerService = usageTrackerService;
             _mapper = mapper;
             _logger = logger;
         }
@@ -70,37 +73,18 @@ namespace AttaEduSystem.Services.Services
             await _unitOfWork.ChatMessage.AddAsync(userMessage);
 
             // 3. Gọi AI
-            ChatMessageDto? aiResponseDto = null;
-            try
+            var aiResponse = await GetAssistantResponseAsync(user, dto.Message, null, false);
+            var assistantMessage = new ChatMessage
             {
-                var aiResponse = await _chatAiService.GetChatResponseAsync(dto.Message);
-
-                var assistantMessage = new ChatMessage
-                {
-                    ChatMessageId = Guid.NewGuid(),
-                    ChatConversationId = conversation.ChatConversationId,
-                    Role = MessageRole.Assistant,
-                    Content = aiResponse,
-                    CreatedBy = "AI",
-                    CreatedTime = StaticOperationStatus.Timezone.Vietnam
-                };
-                await _unitOfWork.ChatMessage.AddAsync(assistantMessage);
-
-                aiResponseDto = _mapper.Map<ChatMessageDto>(assistantMessage);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting AI response");
-
-                // Vẫn trả về error message cho user
-                aiResponseDto = new ChatMessageDto
-                {
-                    ChatMessageId = Guid.NewGuid(),
-                    Role = "Assistant",
-                    Content = "Sorry, I'm having trouble. Please try again later.",
-                    CreatedTime = StaticOperationStatus.Timezone.Vietnam
-                };
-            }
+                ChatMessageId = Guid.NewGuid(),
+                ChatConversationId = conversation.ChatConversationId,
+                Role = MessageRole.Assistant,
+                Content = aiResponse,
+                CreatedBy = "AI",
+                CreatedTime = StaticOperationStatus.Timezone.Vietnam
+            };
+            await _unitOfWork.ChatMessage.AddAsync(assistantMessage);
+            var aiResponseDto = _mapper.Map<ChatMessageDto>(assistantMessage);
 
             await _unitOfWork.SaveAsync();
 
@@ -214,16 +198,7 @@ namespace AttaEduSystem.Services.Services
                 .ToList();
 
             // 3. Gọi AI
-            string aiResponseContent;
-            try
-            {
-                aiResponseContent = await _chatAiService.GetChatResponseAsync(dto.Content, history);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting AI response");
-                aiResponseContent = "Xin lỗi, tôi đang gặp sự cố. Vui lòng thử lại sau.";
-            }
+            var aiResponseContent = await GetAssistantResponseAsync(user, dto.Content, history, false);
 
             // 4. Lưu AI response
             var assistantMessage = new ChatMessage
@@ -394,16 +369,7 @@ namespace AttaEduSystem.Services.Services
             var enhancedMessage = $"{examContext}\n\n---\n\nCâu hỏi của học sinh: {dto.Message}";
 
             // 9. Call AI with exam context
-            string aiResponseContent;
-            try
-            {
-                aiResponseContent = await _chatAiService.GetChatResponseAsync(enhancedMessage, history);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting AI response for exam {ExamId}", examId);
-                aiResponseContent = "Xin lỗi, tôi đang gặp sự cố khi phân tích đề thi này. Vui lòng thử lại sau.";
-            }
+            var aiResponseContent = await GetAssistantResponseAsync(user, enhancedMessage, history, true);
 
             // 10. Save AI response
             var assistantMessage = new ChatMessage
@@ -467,6 +433,70 @@ namespace AttaEduSystem.Services.Services
 
             // Remove newlines
             return title.Replace("\n", " ").Replace("\r", "").Trim();
+        }
+
+        private async Task<string> GetAssistantResponseAsync(
+            ClaimsPrincipal user,
+            string message,
+            List<(string Role, string Content)>? history,
+            bool isExamContext)
+        {
+            var cleanMessage = (message ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(cleanMessage))
+                return "Bạn hãy nhập câu hỏi cụ thể để mình hỗ trợ chính xác hơn.";
+
+            if (!isExamContext)
+            {
+                var predefinedAnswer = TryGetPredefinedAnswer(cleanMessage);
+                if (!string.IsNullOrWhiteSpace(predefinedAnswer))
+                    return predefinedAnswer;
+            }
+
+            var canUseAi = await _usageTrackerService.TryConsumeAsync(user, UsageType.Token, 1);
+            if (!canUseAi)
+            {
+                return "Bạn đã dùng hết lượt AI trong gói hiện tại. Mình vẫn hỗ trợ câu hỏi cơ bản về tính năng hệ thống, hoặc bạn có thể nâng cấp gói để tiếp tục hỏi AI.";
+            }
+
+            try
+            {
+                return await _chatAiService.GetChatResponseAsync(cleanMessage, history);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting AI response");
+                return isExamContext
+                    ? "Mình chưa phân tích đề thi được lúc này. Bạn thử gửi lại sau vài phút."
+                    : "Mình đang bận xử lý hệ thống. Bạn thử lại sau ít phút nhé.";
+            }
+        }
+
+        private static string? TryGetPredefinedAnswer(string message)
+        {
+            var normalized = message.Trim().ToLowerInvariant();
+
+            if (normalized.Contains("tham gia phòng") || normalized.Contains("join phòng") || normalized.Contains("mã phòng"))
+                return "Bạn vào mục Phòng thi, nhập mã phòng hoặc mở link join theo roomId. Khi vào phòng thành công, hệ thống sẽ cấp đề và tạo lượt làm bài tự động.";
+
+            if (normalized.Contains("nộp bài") || normalized.Contains("submit") || normalized.Contains("kết quả"))
+                return "Sau khi bấm Nộp bài, hệ thống chấm điểm tự động và trả kết quả ngay. Bạn có thể xem chi tiết câu đúng/sai và gợi ý ôn tập trong phần kết quả.";
+
+            if (normalized.Contains("quên mật khẩu") || normalized.Contains("đổi mật khẩu"))
+                return "Bạn dùng chức năng Quên mật khẩu ở trang đăng nhập để nhận hướng dẫn đặt lại mật khẩu qua email đã đăng ký.";
+
+            if (normalized.Contains("gói") || normalized.Contains("nâng cấp") || normalized.Contains("free") || normalized.Contains("pro"))
+                return "Hệ thống có giới hạn lượt AI theo gói dịch vụ. Bạn có thể xem mức sử dụng trong trang tài khoản và nâng cấp gói để mở rộng lượt dùng.";
+
+            if (normalized.Contains("lớp học") || normalized.Contains("quản lý lớp"))
+                return "Mục Lớp học cho phép tạo lớp, thêm giáo viên/học sinh, xem thống kê lớp và theo dõi các hoạt động học tập.";
+
+            if (normalized.Contains("đề thi") || normalized.Contains("tạo đề") || normalized.Contains("ocr"))
+                return "Bạn có thể tạo đề từ OCR, chỉnh sửa câu hỏi/đáp án, sau đó mở phòng thi hoặc làm đề luyện tập trực tiếp.";
+
+            if (normalized.Contains("xin chào") || normalized.Contains("hello") || normalized == "hi")
+                return "Chào bạn, mình là trợ lý hỗ trợ học tập của AttaEdu. Bạn cần hỗ trợ về lớp học, phòng thi, nộp bài hay AI giải thích đề?";
+
+            return null;
         }
 
         // =========================================================
