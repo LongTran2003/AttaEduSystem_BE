@@ -1,4 +1,4 @@
-﻿using AttaEduSystem.Models.DTOs;
+using AttaEduSystem.Models.DTOs;
 using AttaEduSystem.Models.DTOs.ExamRoom.Room;
 using AttaEduSystem.Services.IServices;
 using Microsoft.AspNetCore.Authorization;
@@ -114,6 +114,16 @@ namespace AttaEduSystem.API.Controllers
             return StatusCode(result.StatusCode, result);
         }
 
+        [HttpPost("join/{id:guid}")]
+        [Authorize]
+        [SwaggerOperation(Summary = "🏠 Join exam room by id",
+            Description = "Joins an exam room by room id. Requires authentication.")]
+        public async Task<ActionResult<ResponseDto>> JoinRoomById(Guid id)
+        {
+            var result = await _examRoomService.JoinRoomById(id, User);
+            return StatusCode(result.StatusCode, result);
+        }
+
         // =========================================================
         // GET /api/exam-rooms/{code}/qrcode - QR Code để join phòng
         // =========================================================
@@ -145,6 +155,16 @@ namespace AttaEduSystem.API.Controllers
         public async Task<ActionResult<ResponseDto>> GetPaperForTaking(string code)
         {
             var result = await _examRoomService.GetPaperForTaking(code, User);
+            return StatusCode(result.StatusCode, result);
+        }
+
+        [HttpGet("{id:guid}/paper")]
+        [Authorize]
+        [SwaggerOperation(Summary = "🏠 Get exam paper by room id",
+            Description = "Retrieves exam questions by room id. User must have joined the room.")]
+        public async Task<ActionResult<ResponseDto>> GetPaperForTakingById(Guid id)
+        {
+            var result = await _examRoomService.GetPaperForTakingByRoomId(id, User);
             return StatusCode(result.StatusCode, result);
         }
     }

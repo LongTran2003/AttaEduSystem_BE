@@ -1,4 +1,4 @@
-﻿using AttaEduSystem.DataAccess.IRepositories;
+using AttaEduSystem.DataAccess.IRepositories;
 using AttaEduSystem.Models.DTOs;
 using AttaEduSystem.Models.DTOs.ExamRoom.Room;
 using AttaEduSystem.Models.DTOs.ExamRoom.TakeExam;
@@ -212,64 +212,27 @@ namespace AttaEduSystem.Services.Services
                 if (room == null)
                     return ErrorResponse.Build("Room not found", 404);
 
-                var currentStatus = GetCurrentRoomStatus(room);
+                return await JoinRoomInternal(room, user, userId);
+            }
+            catch (Exception ex)
+            {
+                return ErrorResponse.Build($"Failed to join room: {ex.Message}", 500);
+            }
+        }
 
-                // Validate room status
-                var validationResult = ValidateJoinRoom(room, currentStatus);
-                if (validationResult != null)
-                    return validationResult;
+        public async Task<ResponseDto> JoinRoomById(Guid examRoomId, ClaimsPrincipal user)
+        {
+            try
+            {
+                var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrEmpty(userId))
+                    return ErrorResponse.Build(StaticOperationStatus.User.UserNotFound, 401);
 
-                // Check if user already joined
-                var existingParticipant = await _unitOfWork.ExamRoomParticipant
-                    .GetByRoomAndUserAsync(room.ExamRoomId, userId);
-                if (existingParticipant != null)
-                    return BuildJoinResponse(
-                        room, 
-                        existingParticipant, 
-                        currentStatus, 
-                        "You have already joined this room");
+                var room = await _unitOfWork.ExamRoom.GetByIdWithParticipantsAsync(examRoomId);
+                if (room == null)
+                    return ErrorResponse.Build("Room not found", 404);
 
-                // Create new participant
-                var participant = new ExamRoomParticipant
-                {
-                    ParticipantId = Guid.NewGuid(),
-                    ExamRoomId = room.ExamRoomId,
-                    UserId = userId,
-                    JoinedAt = StaticOperationStatus.Timezone.Vietnam,
-                    CreatedBy = user.FindFirstValue("FullName"),
-                    CreatedTime = StaticOperationStatus.Timezone.Vietnam,
-                    Status = StaticOperationStatus.ExamRoomParticipant.Joined
-                };
-
-                // 🔴 SỬA Ở ĐÂY: LUÔN LUÔN TẠO EXAM ATTEMPT KHI JOIN (Dù phòng đang Waiting)
-                var fullName = user.FindFirstValue("FullName");
-                var attempt = CreateExamAttempt(room.ExamPaperId, userId, fullName);
-
-                // Trạng thái của Attempt sẽ phụ thuộc vào việc phòng đã thi hay chưa
-                attempt.Status = currentStatus == StaticOperationStatus.ExamRoom.Waiting ? "Waiting" : "InProgress";
-
-                //// If room is InProgress, create ExamAttempt
-                //if (currentStatus == StaticOperationStatus.ExamRoom.InProgress)
-                //{
-                //    var fullName = user.FindFirstValue("FullName");
-                //    var attempt = CreateExamAttempt(room.ExamPaperId, userId, fullName);
-                //    await _unitOfWork.ExamAttempt.AddAsync(attempt);
-                //    participant.ExamAttemptId = attempt.ExamAttemptId;
-                //    participant.Status = StaticOperationStatus.ExamRoomParticipant.InProgress;
-                //}
-
-                //await _unitOfWork.ExamRoomParticipant.AddAsync(participant);
-                //await _unitOfWork.SaveAsync();
-
-                await _unitOfWork.ExamAttempt.AddAsync(attempt);
-
-                // Gán AttemptId vào Participant để FE nhận được
-                participant.ExamAttemptId = attempt.ExamAttemptId;
-
-                await _unitOfWork.ExamRoomParticipant.AddAsync(participant);
-                await _unitOfWork.SaveAsync();
-
-                return BuildJoinResponse(room, participant, currentStatus, "Joined room successfully");
+                return await JoinRoomInternal(room, user, userId);
             }
             catch (Exception ex)
             {
@@ -288,39 +251,31 @@ namespace AttaEduSystem.Services.Services
                 if (string.IsNullOrEmpty(userId))
                     return ErrorResponse.Build(StaticOperationStatus.User.UserNotFound, 401);
 
-                // 1. Tìm phòng
                 var room = await _unitOfWork.ExamRoom.GetByCodeWithParticipantsAsync(code.ToUpper());
                 if (room == null)
                     return ErrorResponse.Build("Room not found", 404);
 
-                // 2. Kiểm tra xem User đã Join chưa
-                var participant = await _unitOfWork.ExamRoomParticipant.GetByRoomAndUserAsync(room.ExamRoomId, userId);
-                if (participant == null)
-                    return ErrorResponse.Build("You must join the room first before getting the exam paper", 403);
+                return await GetPaperForTakingInternal(room, userId);
+            }
+            catch (Exception ex)
+            {
+                return ErrorResponse.Build($"Failed to retrieve exam paper: {ex.Message}", 500);
+            }
+        }
 
-                // 3. Kiểm tra trạng thái phòng
-                var currentStatus = GetCurrentRoomStatus(room);
-                if (currentStatus == StaticOperationStatus.ExamRoom.Waiting)
-                    return ErrorResponse.Build("The exam has not started yet", 400);
-                if (currentStatus == StaticOperationStatus.ExamRoom.Cancelled || currentStatus == StaticOperationStatus.ExamRoom.Finished)
-                    return ErrorResponse.Build("The exam room is closed", 400);
+        public async Task<ResponseDto> GetPaperForTakingByRoomId(Guid examRoomId, ClaimsPrincipal user)
+        {
+            try
+            {
+                var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrEmpty(userId))
+                    return ErrorResponse.Build(StaticOperationStatus.User.UserNotFound, 401);
 
-                // 4. Lấy Đề thi + Câu hỏi + Lựa chọn (Options)
-                var paper = await _unitOfWork.ExamPaper.GetAsync(
-                    p => p.ExamPaperId == room.ExamPaperId,
-                    includeProperties: "Questions,Questions.Options");
+                var room = await _unitOfWork.ExamRoom.GetByIdWithParticipantsAsync(examRoomId);
+                if (room == null)
+                    return ErrorResponse.Build("Room not found", 404);
 
-                if (paper == null)
-                    return ErrorResponse.Build("Exam paper not found", 404);
-
-                // 5. Map sang DTO ẩn đáp án
-                var resultDto = _mapper.Map<TakeExamPaperDto>(paper);
-                resultDto.TimeLimit = room.TimeLimit; // Gán thời gian làm bài của phòng cho FE hiển thị
-
-                //// Sắp xếp lại câu hỏi theo đúng thứ tự
-                //resultDto.Questions = resultDto.Questions.OrderBy(q => q.OrderIndex).ToList();
-
-                return SuccessResponse.Build("Exam paper retrieved successfully", 200, resultDto);
+                return await GetPaperForTakingInternal(room, userId);
             }
             catch (Exception ex)
             {
@@ -435,6 +390,65 @@ namespace AttaEduSystem.Services.Services
                 var s when s == StaticOperationStatus.ExamRoom.InProgress && room.EndTime.HasValue => (int)(room.EndTime.Value - now).TotalSeconds,
                 _ => null
             };
+        }
+
+        private async Task<ResponseDto> JoinRoomInternal(ExamRoom room, ClaimsPrincipal user, string userId)
+        {
+            var currentStatus = GetCurrentRoomStatus(room);
+            var validationResult = ValidateJoinRoom(room, currentStatus);
+            if (validationResult != null)
+                return validationResult;
+
+            var existingParticipant = await _unitOfWork.ExamRoomParticipant.GetByRoomAndUserAsync(room.ExamRoomId, userId);
+            if (existingParticipant != null)
+                return BuildJoinResponse(room, existingParticipant, currentStatus, "You have already joined this room");
+
+            var participant = new ExamRoomParticipant
+            {
+                ParticipantId = Guid.NewGuid(),
+                ExamRoomId = room.ExamRoomId,
+                UserId = userId,
+                JoinedAt = StaticOperationStatus.Timezone.Vietnam,
+                CreatedBy = user.FindFirstValue("FullName"),
+                CreatedTime = StaticOperationStatus.Timezone.Vietnam,
+                Status = StaticOperationStatus.ExamRoomParticipant.Joined
+            };
+
+            var fullName = user.FindFirstValue("FullName");
+            var attempt = CreateExamAttempt(room.ExamPaperId, userId, fullName);
+            attempt.Status = currentStatus == StaticOperationStatus.ExamRoom.Waiting ? "Waiting" : "InProgress";
+
+            await _unitOfWork.ExamAttempt.AddAsync(attempt);
+            participant.ExamAttemptId = attempt.ExamAttemptId;
+            await _unitOfWork.ExamRoomParticipant.AddAsync(participant);
+            await _unitOfWork.SaveAsync();
+
+            return BuildJoinResponse(room, participant, currentStatus, "Joined room successfully");
+        }
+
+        private async Task<ResponseDto> GetPaperForTakingInternal(ExamRoom room, string userId)
+        {
+            var participant = await _unitOfWork.ExamRoomParticipant.GetByRoomAndUserAsync(room.ExamRoomId, userId);
+            if (participant == null)
+                return ErrorResponse.Build("You must join the room first before getting the exam paper", 403);
+
+            var currentStatus = GetCurrentRoomStatus(room);
+            if (currentStatus == StaticOperationStatus.ExamRoom.Waiting)
+                return ErrorResponse.Build("The exam has not started yet", 400);
+            if (currentStatus == StaticOperationStatus.ExamRoom.Cancelled || currentStatus == StaticOperationStatus.ExamRoom.Finished)
+                return ErrorResponse.Build("The exam room is closed", 400);
+
+            var paper = await _unitOfWork.ExamPaper.GetAsync(
+                p => p.ExamPaperId == room.ExamPaperId,
+                includeProperties: "Questions,Questions.Options");
+
+            if (paper == null)
+                return ErrorResponse.Build("Exam paper not found", 404);
+
+            var resultDto = _mapper.Map<TakeExamPaperDto>(paper);
+            resultDto.TimeLimit = room.TimeLimit;
+
+            return SuccessResponse.Build("Exam paper retrieved successfully", 200, resultDto);
         }
     }
 }

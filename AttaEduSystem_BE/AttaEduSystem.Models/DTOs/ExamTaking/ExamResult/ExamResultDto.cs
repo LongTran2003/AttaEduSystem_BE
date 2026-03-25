@@ -1,4 +1,4 @@
-﻿namespace AttaEduSystem.Models.DTOs.ExamResult;
+namespace AttaEduSystem.Models.DTOs.ExamResult;
 
 public class ExamResultDto
 {
@@ -9,4 +9,5 @@ public class ExamResultDto
     public int TotalQuestions { get; set; }
     public DateTime CompletedAt { get; set; }
     public List<ExamResultDetailDto> Details { get; set; } = new();
+    public List<string> LearningRecommendations { get; set; } = new();
 }

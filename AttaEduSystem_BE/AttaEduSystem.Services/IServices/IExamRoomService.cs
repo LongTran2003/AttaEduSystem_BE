@@ -1,4 +1,4 @@
-﻿using AttaEduSystem.Models.DTOs;
+using AttaEduSystem.Models.DTOs;
 using AttaEduSystem.Models.DTOs.ExamRoom.Room;
 using System.Security.Claims;
 
@@ -18,5 +18,7 @@ namespace AttaEduSystem.Services.IServices
         // Student APIs
         Task<ResponseDto> JoinRoom(string code, ClaimsPrincipal user);
         Task<ResponseDto> GetPaperForTaking(string code, ClaimsPrincipal user);
+        Task<ResponseDto> JoinRoomById(Guid examRoomId, ClaimsPrincipal user);
+        Task<ResponseDto> GetPaperForTakingByRoomId(Guid examRoomId, ClaimsPrincipal user);
     }
 }
