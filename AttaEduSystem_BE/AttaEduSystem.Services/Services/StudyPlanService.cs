@@ -1,4 +1,4 @@
-﻿using AttaEduSystem.DataAccess.IRepositories;
+using AttaEduSystem.DataAccess.IRepositories;
 using AttaEduSystem.Models.DTOs;
 using AttaEduSystem.Models.DTOs.StudyPlan;
 using AttaEduSystem.Models.Entities;
@@ -79,6 +79,7 @@ namespace AttaEduSystem.Services.Services
 
                 // 4. Parse AI response
                 var planDto = JsonSerializer.Deserialize<WeeklyStudyPlanDto>(aiResponseJson, _jsonOptions);
+                if (planDto != null) EnrichDayLabels(planDto);
                 if (planDto == null)
                 {
                     _logger.LogError("Failed to parse AI response: {Response}", aiResponseJson);
@@ -107,26 +108,37 @@ namespace AttaEduSystem.Services.Services
                 {
                     // Update existing preview to avoid duplicate unique-key violation
                     existingPlan.PlanJson = serializedPlan;
-                    existingPlan.Notes = null;
-                    existingPlan.Status = "Generated";
+                    existingPlan.Notes = dto.Notes;
                     existingPlan.CompletionPercentage = 0;
                     existingPlan.UpdatedBy = user.FindFirstValue("FullName");
                     existingPlan.UpdatedTime = StaticOperationStatus.Timezone.Vietnam;
 
+                    if (dto.SaveImmediately)
+                    {
+                        await _unitOfWork.StudyPlan.DeactivateAllPlansAsync(userId);
+                        existingPlan.Status = StaticOperationStatus.BaseEntity.Active;
+                    }
+                    else
+                    {
+                        existingPlan.Status = "Generated";
+                    }
+
                     _unitOfWork.StudyPlan.Update(existingPlan);
                     await _unitOfWork.SaveAsync();
 
-                    // Ensure DTO StudyPlanId matches stored entity id
                     planDto.StudyPlanId = existingPlan.StudyPlanId;
+                    planDto.Status = existingPlan.Status;
 
                     return SuccessResponse.Build(
-                        message: "Study plan generated successfully (updated existing preview)",
-                        statusCode: 200,
-                        result: planDto
-                    );
+                        dto.SaveImmediately
+                            ? "Study plan generated and saved successfully"
+                            : "Study plan generated successfully (updated existing preview)",
+                        200, planDto);
                 }
 
-                // 7. Persist preview so FE can save by StudyPlanId later
+                var finalStatus = dto.SaveImmediately ? StaticOperationStatus.BaseEntity.Active : "Generated";
+
+                // 7. Persist plan
                 var previewEntity = new StudyPlan
                 {
                     StudyPlanId = planDto.StudyPlanId,
@@ -134,32 +146,32 @@ namespace AttaEduSystem.Services.Services
                     WeekStart = planDto.WeekStart,
                     WeekEnd = planDto.WeekEnd,
                     PlanJson = JsonSerializer.Serialize(planDto),
-                    Notes = null,
-                    Status = "Generated",
+                    Notes = dto.Notes,
+                    Status = finalStatus,
                     CompletionPercentage = 0,
                     CreatedBy = user.FindFirstValue("FullName"),
                     CreatedTime = StaticOperationStatus.Timezone.Vietnam
                 };
 
+                if (dto.SaveImmediately)
+                    await _unitOfWork.StudyPlan.DeactivateAllPlansAsync(userId);
+
                 await _unitOfWork.StudyPlan.AddAsync(previewEntity);
                 await _unitOfWork.SaveAsync();
 
                 var email = user.FindFirstValue(ClaimTypes.Email);
-
                 await _notificationService.CreateAndSendNotificationAsync(
                     userId: userId,
                     title: "🎯 Lịch học mới đã sẵn sàng!",
                     message: "Hệ thống AI của AttaEdu vừa tạo xong một lộ trình học tập mới dành riêng cho bạn. Hãy vào kiểm tra và bắt đầu học nhé!",
                     type: "StudyPlan",
                     actionUrl: $"/study-plan/detail/{planDto.StudyPlanId}",
-                    emailAddress: email
-                    );
+                    emailAddress: email);
 
+                planDto.Status = finalStatus;
                 return SuccessResponse.Build(
-                    message: "Study plan generated successfully",
-                    statusCode: 200,
-                    result: planDto
-                );
+                    dto.SaveImmediately ? "Study plan generated and saved successfully" : "Study plan generated successfully",
+                    200, planDto);
             }
             catch (Exception ex)
             {
@@ -183,7 +195,7 @@ namespace AttaEduSystem.Services.Services
                 if (entity == null)
                     return ErrorResponse.Build("Plan not found", 404);
 
-                // If requested, make this plan active (deactivate others)
+                // Deactivate other plans nếu muốn set plan này là active
                 if (dto.SetAsActive)
                 {
                     await _unitOfWork.StudyPlan.DeactivateAllPlansAsync(userId);
@@ -191,31 +203,23 @@ namespace AttaEduSystem.Services.Services
                 }
                 else
                 {
-                    entity.Status = StaticOperationStatus.BaseEntity.Inactive;
+                    entity.Status = "Saved";
                 }
 
-                // Update entity
                 entity.Notes = dto.Notes;
-                entity.Status = StaticOperationStatus.BaseEntity.Active;
                 entity.UpdatedBy = user.FindFirstValue("FullName");
                 entity.UpdatedTime = StaticOperationStatus.Timezone.Vietnam;
 
-                _unitOfWork.StudyPlan.Update(entity); // ensure update path (repository supports Update)
+                _unitOfWork.StudyPlan.Update(entity);
                 await _unitOfWork.SaveAsync();
 
-                // Return the stored plan DTO to caller
-                var planDto = JsonSerializer.Deserialize<WeeklyStudyPlanDto>
-                    (entity.PlanJson, _jsonOptions) ?? new WeeklyStudyPlanDto();
+                var planDto = JsonSerializer.Deserialize<WeeklyStudyPlanDto>(entity.PlanJson, _jsonOptions) ?? new WeeklyStudyPlanDto();
                 planDto.StudyPlanId = entity.StudyPlanId;
                 planDto.Status = entity.Status;
                 planDto.SavedAt = entity.UpdatedTime ?? entity.CreatedTime;
                 planDto.Notes = entity.Notes;
 
-                return SuccessResponse.Build(
-                    message: "Study plan saved successfully",
-                    statusCode: 200,
-                    result: planDto
-                );
+                return SuccessResponse.Build("Study plan saved successfully", 200, planDto);
             }
             catch (Exception ex)
             {
@@ -296,6 +300,7 @@ namespace AttaEduSystem.Services.Services
             var planDto = JsonSerializer.Deserialize<WeeklyStudyPlanDto>(plan.PlanJson, _jsonOptions);
             if (planDto == null)
                 return ErrorResponse.Build("Invalid plan data format in database", 500);
+            EnrichDayLabels(planDto);
 
             planDto.StudyPlanId = plan.StudyPlanId;
             planDto.Status = plan.Status;
@@ -323,6 +328,7 @@ namespace AttaEduSystem.Services.Services
             var planDto = JsonSerializer.Deserialize<WeeklyStudyPlanDto>(plan.PlanJson, _jsonOptions);
             if (planDto == null)
                 return ErrorResponse.Build("Invalid plan data format in database", 500);
+            EnrichDayLabels(planDto);
 
             // Đồng bộ lại các thông tin Metadata mới nhất từ Entity (DB) sang DTO
             planDto.StudyPlanId = plan.StudyPlanId;
@@ -561,6 +567,7 @@ namespace AttaEduSystem.Services.Services
             // Parse JSON nội dung chi tiết
             var planDto = JsonSerializer.Deserialize<WeeklyStudyPlanDto>(plan.PlanJson, _jsonOptions);
             if (planDto == null) return ErrorResponse.Build("Invalid data format", 500);
+            EnrichDayLabels(planDto);
 
             // Sync metadata mới nhất từ DB vào DTO
             planDto.StudyPlanId = plan.StudyPlanId;
@@ -677,9 +684,129 @@ namespace AttaEduSystem.Services.Services
 
         private static DateTime GetNextMonday()
         {
-            var today = DateTime.UtcNow.Date;
+            var today = StaticOperationStatus.Timezone.Vietnam.Date;
             var daysUntilMonday = ((int)DayOfWeek.Monday - (int)today.DayOfWeek + 7) % 7;
             return daysUntilMonday == 0 ? today.AddDays(7) : today.AddDays(daysUntilMonday);
+        }
+
+        /// <summary>
+        /// Gán DayLabel (T2-CN) cho tất cả DailyPlanDto trong plan dựa theo Date.
+        /// </summary>
+        private static void EnrichDayLabels(WeeklyStudyPlanDto plan)
+        {
+            if (plan.DailyPlans == null) return;
+            foreach (var day in plan.DailyPlans)
+                day.DayLabel = GetViDayLabel(day.Date);
+        }
+
+        private static string GetViDayLabel(DateTime date) => date.DayOfWeek switch
+        {
+            DayOfWeek.Monday    => "T2",
+            DayOfWeek.Tuesday   => "T3",
+            DayOfWeek.Wednesday => "T4",
+            DayOfWeek.Thursday  => "T5",
+            DayOfWeek.Friday    => "T6",
+            DayOfWeek.Saturday  => "T7",
+            DayOfWeek.Sunday    => "CN",
+            _                   => "??"
+        };
+
+        // =========================================================
+        // 10. GET TODAY'S PLAN
+        // =========================================================
+        public async Task<ResponseDto> GetTodayPlanAsync(ClaimsPrincipal user)
+        {
+            var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId))
+                return ErrorResponse.Build("Unauthorized", 401);
+
+            var plan = await _unitOfWork.StudyPlan.GetActivePlanAsync(userId);
+            if (plan == null)
+                return ErrorResponse.Build("No active plan found", 404);
+
+            var planDto = JsonSerializer.Deserialize<WeeklyStudyPlanDto>(plan.PlanJson, _jsonOptions);
+            if (planDto == null)
+                return ErrorResponse.Build("Invalid plan data format in database", 500);
+
+            EnrichDayLabels(planDto);
+
+            // Lọc đúng ngày hôm nay (Vietnam timezone)
+            var todayVn = StaticOperationStatus.Timezone.Vietnam.Date;
+            var todayPlan = planDto.DailyPlans.FirstOrDefault(d => d.Date.Date == todayVn);
+
+            if (todayPlan == null)
+                return SuccessResponse.Build("No sessions scheduled for today", 200, new
+                {
+                    Date = todayVn.ToString("yyyy-MM-dd"),
+                    DayLabel = GetViDayLabel(todayVn),
+                    Sessions = Array.Empty<StudySessionDto>()
+                });
+
+            return SuccessResponse.Build("Today's plan retrieved successfully", 200, new
+            {
+                StudyPlanId = plan.StudyPlanId,
+                Date = todayPlan.Date.ToString("yyyy-MM-dd"),
+                todayPlan.DayLabel,
+                todayPlan.DayOfWeek,
+                todayPlan.TotalHours,
+                todayPlan.Sessions,
+                CompletionPercentage = plan.CompletionPercentage
+            });
+        }
+
+        // =========================================================
+        // 11. GET PLANS BY DATE RANGE (filter tuần / tháng)
+        // =========================================================
+        public async Task<ResponseDto> GetPlansByRangeAsync(ClaimsPrincipal user, DateTime from, DateTime to)
+        {
+            var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId))
+                return ErrorResponse.Build("Unauthorized", 401);
+
+            from = from.Date;
+            to = to.Date;
+
+            if (from > to)
+                return ErrorResponse.Build("'from' must be less than or equal to 'to'", 400);
+
+            if ((to - from).TotalDays > 31)
+                return ErrorResponse.Build("Date range cannot exceed 31 days", 400);
+
+            // Lấy tất cả plans có weekStart hoặc weekEnd nằm trong khoảng [from, to]
+            var allPlans = await _unitOfWork.StudyPlan.GetAllAsync(p =>
+                p.UserId == userId &&
+                p.Status != "Deleted" &&
+                p.WeekStart.Date <= to &&
+                p.WeekEnd.Date >= from);
+
+            var result = allPlans
+                .OrderBy(p => p.WeekStart)
+                .Select(p =>
+                {
+                    var dto = JsonSerializer.Deserialize<WeeklyStudyPlanDto>(p.PlanJson, _jsonOptions);
+                    if (dto == null) return null;
+                    EnrichDayLabels(dto);
+                    dto.StudyPlanId = p.StudyPlanId;
+                    dto.Status = p.Status;
+                    dto.Notes = p.Notes;
+                    dto.CompletionPercentage = p.CompletionPercentage;
+                    dto.SavedAt = p.UpdatedTime ?? p.CreatedTime;
+                    // Chỉ giữ lại các ngày trong khoảng [from, to]
+                    dto.DailyPlans = dto.DailyPlans
+                        .Where(d => d.Date.Date >= from && d.Date.Date <= to)
+                        .ToList();
+                    return dto;
+                })
+                .Where(dto => dto != null)
+                .ToList();
+
+            return SuccessResponse.Build("Plans retrieved successfully", 200, new
+            {
+                From = from.ToString("yyyy-MM-dd"),
+                To = to.ToString("yyyy-MM-dd"),
+                TotalPlans = result.Count,
+                Plans = result
+            });
         }
     }
 }

@@ -1,4 +1,4 @@
-﻿using AttaEduSystem.DataAccess.IRepositories;
+using AttaEduSystem.DataAccess.IRepositories;
 using AttaEduSystem.Models.DTOs;
 using AttaEduSystem.Models.DTOs.ExamPaper;
 using AttaEduSystem.Models.DTOs.GeminiAi;
@@ -29,6 +29,7 @@ namespace AttaEduSystem.Services.Services
         private readonly IAiAnalysisService _aiAnalysisService;
         private readonly IUsageTrackerService _usageTracker;
         private readonly UserManager<ApplicationUser> _userManager;
+        private readonly IExamSolvingService _examSolvingService;
 
         public ExamScanningService(
             IUnitOfWork unitOfWork, 
@@ -40,7 +41,8 @@ namespace AttaEduSystem.Services.Services
             IGeminiAiService geminiAiService,
             IUsageTrackerService usageTracker,
             UserManager<ApplicationUser> userManager,
-            IAiAnalysisService aiAnalysisService)
+            IAiAnalysisService aiAnalysisService,
+            IExamSolvingService examSolvingService)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
@@ -52,6 +54,7 @@ namespace AttaEduSystem.Services.Services
             _usageTracker = usageTracker;
             _userManager = userManager;
             _aiAnalysisService = aiAnalysisService;
+            _examSolvingService = examSolvingService;
         }
         public async Task<ResponseDto> ScanExamPaper(UploadExamPaperDto uploadDto, ClaimsPrincipal user)
         {
@@ -216,8 +219,37 @@ namespace AttaEduSystem.Services.Services
                 // 11. Lưu vào DB
                 await _unitOfWork.SaveAsync();
                 
-                // 12. Response lại bằng ScanExamPaperResponseDto
+                // 12. Response
                 var responseDto = _mapper.Map<ScanExamPaperResponseDto>(examPaper);
+
+                // 13. Auto-solve nếu user tích "Giải đề ngay"
+                if (uploadDto.SolveImmediately)
+                {
+                    // Kiểm tra plan có phải Pro không (claim "plan" == "PRO")
+                    var planClaim = user.FindFirstValue("plan")?.ToUpperInvariant();
+                    if (planClaim != "PRO")
+                    {
+                        // Trả về đề đã scan thành công, nhưng cãnh báo không có Pro
+                        return SuccessResponse.Build(
+                            message: "Exam scanned successfully. Auto-solve requires a Pro subscription.",
+                            statusCode: StaticOperationStatus.StatusCode.Created,
+                            result: new { ExamPaper = responseDto, Solution = (object?)null, SolveError = "Pro plan required for auto-solve." });
+                    }
+
+                    var solveResult = await _examSolvingService.SolveExamPaper(examPaper.ExamPaperId, user);
+
+                    return SuccessResponse.Build(
+                        message: solveResult.IsSuccess
+                            ? "Exam scanned and solved successfully"
+                            : "Exam scanned successfully. Auto-solve failed.",
+                        statusCode: StaticOperationStatus.StatusCode.Created,
+                        result: new
+                        {
+                            ExamPaper = responseDto,
+                            Solution = solveResult.IsSuccess ? solveResult.Result : null,
+                            SolveError = solveResult.IsSuccess ? null : solveResult.Message
+                        });
+                }
 
                 return SuccessResponse.Build(
                     message: "Exam paper scanned successfully",

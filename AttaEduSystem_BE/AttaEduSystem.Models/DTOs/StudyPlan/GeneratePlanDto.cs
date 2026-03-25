@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace AttaEduSystem.Models.DTOs.StudyPlan
 {
@@ -39,5 +39,15 @@ namespace AttaEduSystem.Models.DTOs.StudyPlan
         /// Có bao gồm môn đã học tốt không? (default = false, chỉ focus yếu)
         /// </summary>
         public bool? IncludeStrongSubjects { get; set; } = false;
+
+        /// <summary>
+        /// Nếu true: generate xong sẽ lưu ngay + set làm active plan. Default = false (chỉ preview).
+        /// </summary>
+        public bool SaveImmediately { get; set; } = false;
+
+        /// <summary>
+        /// Ghi chú kèm theo khi lưu (chỉ dùng khi SaveImmediately = true)
+        /// </summary>
+        public string? Notes { get; set; }
     }
 }
