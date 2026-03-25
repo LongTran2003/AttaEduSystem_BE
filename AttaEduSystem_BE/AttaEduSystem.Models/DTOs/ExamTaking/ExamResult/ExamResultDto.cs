@@ -10,4 +10,5 @@ public class ExamResultDto
     public DateTime CompletedAt { get; set; }
     public List<ExamResultDetailDto> Details { get; set; } = new();
     public List<string> LearningRecommendations { get; set; } = new();
+    public List<LearningAnalyticsItemDto> LearningAnalytics { get; set; } = new();
 }

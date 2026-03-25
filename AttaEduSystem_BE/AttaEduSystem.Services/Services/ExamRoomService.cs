@@ -1,5 +1,6 @@
 using AttaEduSystem.DataAccess.IRepositories;
 using AttaEduSystem.Models.DTOs;
+using AttaEduSystem.Models.DTOs.Billing;
 using AttaEduSystem.Models.DTOs.ExamRoom.Room;
 using AttaEduSystem.Models.DTOs.ExamRoom.TakeExam;
 using AttaEduSystem.Models.Entities;
@@ -15,11 +16,13 @@ namespace AttaEduSystem.Services.Services
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
+        private readonly IUsageTrackerService _usageTrackerService;
 
-        public ExamRoomService(IUnitOfWork unitOfWork, IMapper mapper)
+        public ExamRoomService(IUnitOfWork unitOfWork, IMapper mapper, IUsageTrackerService usageTrackerService)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
+            _usageTrackerService = usageTrackerService;
         }
 
         // =========================================================
@@ -531,7 +534,7 @@ namespace AttaEduSystem.Services.Services
                 if (room == null)
                     return ErrorResponse.Build("Room not found", 404);
 
-                return await GetPaperForTakingInternal(room, userId);
+                return await GetPaperForTakingInternal(room, userId, user);
             }
             catch (Exception ex)
             {
@@ -551,7 +554,7 @@ namespace AttaEduSystem.Services.Services
                 if (room == null)
                     return ErrorResponse.Build("Room not found", 404);
 
-                return await GetPaperForTakingInternal(room, userId);
+                return await GetPaperForTakingInternal(room, userId, user);
             }
             catch (Exception ex)
             {
@@ -758,7 +761,7 @@ namespace AttaEduSystem.Services.Services
             return BuildJoinResponse(room, participant, currentStatus, "Joined room successfully");
         }
 
-        private async Task<ResponseDto> GetPaperForTakingInternal(ExamRoom room, string userId)
+        private async Task<ResponseDto> GetPaperForTakingInternal(ExamRoom room, string userId, ClaimsPrincipal user)
         {
             var participant = await _unitOfWork.ExamRoomParticipant.GetByRoomAndUserAsync(room.ExamRoomId, userId);
             if (participant == null)
@@ -779,6 +782,27 @@ namespace AttaEduSystem.Services.Services
 
             var resultDto = _mapper.Map<TakeExamPaperDto>(paper);
             resultDto.TimeLimit = room.TimeLimit;
+            resultDto.ExamAttemptId = participant.ExamAttemptId;
+            resultDto.TimeRemainingSeconds = CalculateRemainingSeconds(room, currentStatus);
+
+            if (participant.ExamAttemptId.HasValue)
+            {
+                var attempt = await _unitOfWork.ExamAttempt.GetAttemptWithDetailsAsync(participant.ExamAttemptId.Value);
+                resultDto.LastSavedAt = attempt?.UpdatedTime ?? attempt?.CreatedTime;
+            }
+
+            var usageInfoResponse = await _usageTrackerService.GetUsageInfo(user);
+            var usageInfo = usageInfoResponse.Result as GetUsageInfoDto;
+            if (usageInfo != null)
+            {
+                resultDto.RemainingAiSolveQuota = Math.Max(0, usageInfo.MaxSolves - usageInfo.SolvesUsed);
+                resultDto.CanUseAiSolve = resultDto.RemainingAiSolveQuota > 0;
+            }
+            else
+            {
+                resultDto.RemainingAiSolveQuota = 0;
+                resultDto.CanUseAiSolve = false;
+            }
 
             return SuccessResponse.Build("Exam paper retrieved successfully", 200, resultDto);
         }
