@@ -1,4 +1,4 @@
-﻿using AttaEduSystem.Models.DTOs;
+using AttaEduSystem.Models.DTOs;
 using AttaEduSystem.Models.DTOs.ExamPaper;
 using AttaEduSystem.Services.IServices;
 using Microsoft.AspNetCore.Authorization;
@@ -43,6 +43,7 @@ namespace AttaEduSystem.API.Controllers
         }
 
         [HttpGet("{examPaperId:guid}")]
+        [Authorize]
         [SwaggerOperation(Summary = "💡 Get solution for exam", 
             Description = "Retrieves the saved AI solution for a specific exam.")]
         public async Task<ActionResult<ResponseDto>> GetSolution(Guid examPaperId)

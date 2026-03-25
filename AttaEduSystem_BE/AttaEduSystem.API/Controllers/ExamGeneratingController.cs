@@ -1,4 +1,4 @@
-﻿using AttaEduSystem.Models.DTOs;
+using AttaEduSystem.Models.DTOs;
 using AttaEduSystem.Models.DTOs.ExamPaper;
 using AttaEduSystem.Services.IServices;
 using Microsoft.AspNetCore.Authorization;
@@ -32,13 +32,21 @@ namespace AttaEduSystem.API.Controllers
             });
         }
         
-        [HttpPost("{originalExamId:guid}/generate-similar")]
+        [HttpPost("{originalExamId}/generate-similar")]
         [Authorize(Policy = "RequireProPlan")]
         [SwaggerOperation(Summary = "🤖 Generate similar exam", 
             Description = "Uses AI to generate a new exam based on the structure of an original exam.")]
-        public async Task<ActionResult<ResponseDto>> GenerateSimilarExam(Guid originalExamId)
+        public async Task<ActionResult<ResponseDto>> GenerateSimilarExam(string originalExamId)
         {
-            var result = await _examGeneratingService.GenerateSimilarExam(originalExamId, User);
+            if (!Guid.TryParse(originalExamId, out var parsedId))
+                return StatusCode(400, new ResponseDto
+                {
+                    IsSuccess = false,
+                    StatusCode = 400,
+                    Message = "Invalid GUID format."
+                });
+
+            var result = await _examGeneratingService.GenerateSimilarExam(parsedId, User);
             return StatusCode(result.StatusCode, result);
         }
 

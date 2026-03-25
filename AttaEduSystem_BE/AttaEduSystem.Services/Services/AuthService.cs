@@ -1,4 +1,4 @@
-﻿using AttaEduSystem.DataAccess.IRepositories;
+using AttaEduSystem.DataAccess.IRepositories;
 using AttaEduSystem.Models.DTOs;
 using AttaEduSystem.Models.DTOs.Authentication;
 using AttaEduSystem.Models.DTOs.Email;
@@ -71,7 +71,7 @@ namespace AttaEduSystem.Services.Services
             var sub = await _unitOfWork.UserSubscription.GetActiveByUserIdAsync(user.Id);
             if (sub?.Plan != null && !string.IsNullOrWhiteSpace(sub.Plan.Code))
             {
-                planCode = sub.Plan.Code;
+                planCode = sub.Plan.Code.ToUpperInvariant();
             }
 
             // 2) Chuẩn bị extra claims cho token

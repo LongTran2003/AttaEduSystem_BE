@@ -1,4 +1,4 @@
-﻿using AttaEduSystem.Models.DTOs;
+using AttaEduSystem.Models.DTOs;
 using AttaEduSystem.Models.DTOs.ExamPaper;
 using AttaEduSystem.Services.IServices;
 using AttaEduSystem.Services.Services;
@@ -36,6 +36,7 @@ namespace AttaEduSystem.API.Controllers
             });
         }
 
+        [Authorize]
         [HttpPost("scan")]
         [SwaggerOperation(Summary = "📸 Upload & Scan exam paper", 
             Description = "Uploads an image, performs OCR, and extracts exam structure.")]
@@ -47,12 +48,20 @@ namespace AttaEduSystem.API.Controllers
             return StatusCode(result.StatusCode, result);
         }
 
-        [HttpGet("{id:guid}")]
+        [HttpGet("{id}")]
         [SwaggerOperation(Summary = "📸 Get exam paper details with questions label", 
             Description = "Retrieves metadata and OCR content of a specific exam paper with a question label.")]
-        public async Task<ActionResult<ResponseDto>> GetExamPaper(Guid id)
+        public async Task<ActionResult<ResponseDto>> GetExamPaper(string id)
         {
-            var result = await _examScanningService.GetExamPaperById(id);
+            if (!Guid.TryParse(id, out var parsedId))
+                return StatusCode(400, new ResponseDto
+                {
+                    IsSuccess = false,
+                    StatusCode = 400,
+                    Message = "Invalid GUID format."
+                });
+
+            var result = await _examScanningService.GetExamPaperById(parsedId);
             return StatusCode(result.StatusCode, result);
         }
 
@@ -67,6 +76,14 @@ namespace AttaEduSystem.API.Controllers
             [FromQuery] string? filterQuery = null,
             [FromQuery] string? sortBy = null)
         {
+            if (pageNumber < 1 || pageSize < 1)
+                return StatusCode(400, new ResponseDto
+                {
+                    IsSuccess = false,
+                    StatusCode = 400,
+                    Message = "pageNumber must be >= 1 and pageSize must be >= 1."
+                });
+
             var result = await _examScanningService.GetAllReadyExamPapers(pageNumber, pageSize, filterOn, filterQuery, sortBy);
             return StatusCode(result.StatusCode, result);
         }
