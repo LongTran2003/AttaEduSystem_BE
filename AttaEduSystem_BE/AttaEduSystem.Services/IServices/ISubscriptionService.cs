@@ -1,4 +1,4 @@
-﻿using AttaEduSystem.Models.DTOs;
+using AttaEduSystem.Models.DTOs;
 using AttaEduSystem.Models.DTOs.Billing;
 using System.Security.Claims;
 
@@ -14,5 +14,6 @@ namespace AttaEduSystem.Services.IServices
         Task<ResponseDto> CreateSubscriptionPlan(CreateSubscriptionPlanDto dto, ClaimsPrincipal adminUser);
         Task<ResponseDto> UpdateSubscriptionPlan(Guid planId, UpdateSubscriptionPlanDto dto, ClaimsPrincipal adminUser);
         Task<ResponseDto> UpdateStatusSubscriptionPlan(Guid planId, UpdateStatusSubscriptionPlanDto dto, ClaimsPrincipal adminUser);
+        Task<ResponseDto> DeleteSubscriptionPlan(Guid planId, ClaimsPrincipal adminUser);
     }
 }

@@ -1,4 +1,4 @@
-﻿using AttaEduSystem.DataAccess.IRepositories;
+using AttaEduSystem.DataAccess.IRepositories;
 using AttaEduSystem.Models.DTOs;
 using AttaEduSystem.Models.DTOs.Billing;
 using AttaEduSystem.Models.Entities;
@@ -105,6 +105,34 @@ namespace AttaEduSystem.Services.Services
 
             var resultDto = _mapper.Map<AdminSubscriptionPlanDto>(plan);
             return SuccessResponse.Build("Subscription plan status updated successfully", 200, resultDto);
+        }
+
+        public async Task<ResponseDto> DeleteSubscriptionPlan(Guid planId, ClaimsPrincipal adminUser)
+        {
+            var plan = await _unitOfWork.SubscriptionPlan.GetAsync(p => p.SubscriptionPlanId == planId);
+            if (plan == null)
+                return ErrorResponse.Build("Subscription plan not found", 404);
+
+            // Không cho xóa nếu plan đang được xóa rồi
+            if (string.Equals(plan.Status, "Deleted", StringComparison.OrdinalIgnoreCase))
+                return ErrorResponse.Build("Subscription plan has already been deleted", 400);
+
+            // Kiểm tra plan có đang được user subscribe không (bảo vệ dữ liệu)
+            var hasActiveSubscribers = await _unitOfWork.UserSubscription
+                .GetAsync(s => s.SubscriptionPlanId == planId && s.Status == "Active");
+            if (hasActiveSubscribers != null)
+                return ErrorResponse.Build(
+                    "Cannot delete plan while users are actively subscribed to it. Deactivate it instead.", 409);
+
+            // Soft delete: cập nhật Status → "Deleted"
+            plan.Status = "Deleted";
+            plan.UpdatedBy = adminUser.FindFirstValue("FullName") ?? "Admin";
+            plan.UpdatedTime = StaticOperationStatus.Timezone.Vietnam;
+
+            _unitOfWork.SubscriptionPlan.Update(plan);
+            await _unitOfWork.SaveAsync();
+
+            return SuccessResponse.Build("Subscription plan deleted successfully", 200);
         }
 
         public async Task<ResponseDto> GetAvailablePlans()

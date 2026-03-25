@@ -1,4 +1,4 @@
-﻿using AttaEduSystem.Models.DTOs;
+using AttaEduSystem.Models.DTOs;
 using AttaEduSystem.Models.DTOs.Billing;
 using AttaEduSystem.Services.IServices;
 using AttaEduSystem.Services.Services;
@@ -66,6 +66,18 @@ namespace AttaEduSystem.API.Controllers
         {
             if (!ModelState.IsValid) return ReturnInvalidInputResponse();
             var result = await _subscriptionService.UpdateStatusSubscriptionPlan(id, dto, User);
+            return StatusCode(result.StatusCode, result);
+        }
+
+        [HttpPut("subscription-plan/{id:guid}/delete")]
+        [Authorize(Roles = "ADMIN")]
+        [SwaggerOperation(
+            Summary = "🗑️ Delete subscription plan (Admin)",
+            Description = "Soft-deletes a subscription plan by setting its status to 'Deleted'. " +
+                          "Cannot delete a plan that has active subscribers. Admin only.")]
+        public async Task<ActionResult<ResponseDto>> DeletePlan(Guid id)
+        {
+            var result = await _subscriptionService.DeleteSubscriptionPlan(id, User);
             return StatusCode(result.StatusCode, result);
         }
 
