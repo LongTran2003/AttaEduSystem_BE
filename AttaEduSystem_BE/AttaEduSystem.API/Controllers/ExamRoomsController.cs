@@ -49,6 +49,18 @@ namespace AttaEduSystem.API.Controllers
             return StatusCode(result.StatusCode, result);
         }
 
+        [HttpPost("batch")]
+        [Authorize(Roles = "TEACHER, ADMIN")]
+        [SwaggerOperation(Summary = "🏠 Create multiple exam rooms",
+            Description = "Creates multiple exam rooms at once. Requires TEACHER or ADMIN role.")]
+        public async Task<ActionResult<ResponseDto>> CreateRoomsBatch([FromBody] List<CreateExamRoomDto> dtos)
+        {
+            if (!ModelState.IsValid) return ReturnInvalidInputResponse();
+
+            var result = await _examRoomService.CreateRoomsBatch(dtos, User);
+            return StatusCode(result.StatusCode, result);
+        }
+
         // =========================================================
         // GET /api/exam-rooms/my-rooms - Lấy danh sách phòng của mình
         // =========================================================
@@ -72,6 +84,26 @@ namespace AttaEduSystem.API.Controllers
         public async Task<ActionResult<ResponseDto>> CancelRoom(Guid id)
         {
             var result = await _examRoomService.CancelRoom(id, User);
+            return StatusCode(result.StatusCode, result);
+        }
+
+        [HttpGet("{id:guid}/selected-exam")]
+        [Authorize(Roles = "TEACHER, ADMIN")]
+        [SwaggerOperation(Summary = "🏠 Get selected exam by room",
+            Description = "Retrieves the selected exam (with questions) of a room. Only room owner/admin can access.")]
+        public async Task<ActionResult<ResponseDto>> GetSelectedExamByRoomId(Guid id)
+        {
+            var result = await _examRoomService.GetSelectedExamByRoomId(id, User);
+            return StatusCode(result.StatusCode, result);
+        }
+
+        [HttpGet("{id:guid}/results")]
+        [Authorize(Roles = "TEACHER, ADMIN")]
+        [SwaggerOperation(Summary = "🏠 Get room results leaderboard",
+            Description = "Retrieves all participant results of a room, sorted by highest score.")]
+        public async Task<ActionResult<ResponseDto>> GetRoomResults(Guid id)
+        {
+            var result = await _examRoomService.GetRoomResults(id, User);
             return StatusCode(result.StatusCode, result);
         }
 

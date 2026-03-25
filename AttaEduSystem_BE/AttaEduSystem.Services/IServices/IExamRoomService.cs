@@ -8,8 +8,11 @@ namespace AttaEduSystem.Services.IServices
     {
         // Room Management (Teacher/Admin)
         Task<ResponseDto> CreateRoom(CreateExamRoomDto dto, ClaimsPrincipal user);
+        Task<ResponseDto> CreateRoomsBatch(List<CreateExamRoomDto> dtos, ClaimsPrincipal user);
         Task<ResponseDto> GetMyRooms(ClaimsPrincipal user);
         Task<ResponseDto> CancelRoom(Guid examRoomId, ClaimsPrincipal user);
+        Task<ResponseDto> GetSelectedExamByRoomId(Guid examRoomId, ClaimsPrincipal user);
+        Task<ResponseDto> GetRoomResults(Guid examRoomId, ClaimsPrincipal user);
 
         // Public APIs
         Task<ResponseDto> GetRoomByCode(string code);

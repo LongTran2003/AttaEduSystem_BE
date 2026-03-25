@@ -34,45 +34,16 @@ namespace AttaEduSystem.Services.Services
 
                 if (string.IsNullOrEmpty(userId))
                     return ErrorResponse.Build(StaticOperationStatus.User.UserNotFound, 401);
+                var isAdmin = IsAdmin(user);
+                var createResult = await CreateRoomInternalAsync(dto, userId, fullName, isAdmin);
+                if (!createResult.IsSuccess)
+                    return ErrorResponse.Build(createResult.ErrorMessage!, createResult.StatusCode);
 
-                var examPaper = await _unitOfWork.ExamPaper.GetAsync(e => e.ExamPaperId == dto.ExamPaperId);
-                if (examPaper == null)
-                    return ErrorResponse.Build("Exam paper not found", 404);
-
-                if (examPaper.CreatedBy != userId)
-                    return ErrorResponse.Build(
-                        "You do not have permission to create room for this exam paper", 403);
-
-                var vietnamNow = StaticOperationStatus.Timezone.Vietnam;
-
-                // 🔴 SỬA Ở ĐÂY: Đồng bộ giờ FE gửi lên thành giờ VN nếu FE gửi UTC
-                var startTime = dto.StartTime.Kind == DateTimeKind.Utc
-                                ? dto.StartTime.AddHours(7)
-                                : dto.StartTime;
-
-                if (startTime < vietnamNow)
-                    return ErrorResponse.Build("Start time must be in the future", 400);
-
-                // Generate unique code
-                string code;
-                do { code = GenerateRoomCode(); }
-                while (await _unitOfWork.ExamRoom.IsCodeExistsAsync(code));
-
-                // Map DTO -> Entity
-                var examRoom = _mapper.Map<ExamRoom>(dto);
-                examRoom.RoomCode = code;
-                examRoom.StartTime = startTime;
-                examRoom.EndTime = startTime.AddMinutes(dto.TimeLimit);
-                examRoom.CreatedBy = fullName;
-                examRoom.CreatedTime = StaticOperationStatus.Timezone.Vietnam;
-                examRoom.Status = StaticOperationStatus.ExamRoom.Waiting;
-
-                await _unitOfWork.ExamRoom.AddAsync(examRoom);
+                await _unitOfWork.ExamRoom.AddAsync(createResult.Room!);
                 await _unitOfWork.SaveAsync();
 
-                // Map Entity -> Response DTO
-                var responseDto = _mapper.Map<ExamRoomResponseDto>(examRoom);
-                responseDto.ExamTitle = examPaper.Title;
+                var responseDto = _mapper.Map<ExamRoomResponseDto>(createResult.Room);
+                responseDto.ExamTitle = createResult.ExamTitle;
                 responseDto.Status = StaticOperationStatus.ExamRoom.Waiting;
                 responseDto.CurrentParticipants = 0;
 
@@ -84,6 +55,66 @@ namespace AttaEduSystem.Services.Services
             }
         }
 
+        public async Task<ResponseDto> CreateRoomsBatch(List<CreateExamRoomDto> dtos, ClaimsPrincipal user)
+        {
+            try
+            {
+                var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+                var fullName = user.FindFirstValue("FullName");
+                if (string.IsNullOrEmpty(userId))
+                    return ErrorResponse.Build(StaticOperationStatus.User.UserNotFound, 401);
+
+                if (dtos == null || !dtos.Any())
+                    return ErrorResponse.Build("Room list cannot be empty", 400);
+
+                var isAdmin = IsAdmin(user);
+                var createdRooms = new List<ExamRoomResponseDto>();
+                var failedRooms = new List<object>();
+
+                foreach (var dto in dtos)
+                {
+                    var createResult = await CreateRoomInternalAsync(dto, userId, fullName, isAdmin);
+                    if (!createResult.IsSuccess || createResult.Room == null)
+                    {
+                        failedRooms.Add(new
+                        {
+                            dto.ExamPaperId,
+                            dto.StartTime,
+                            dto.TimeLimit,
+                            dto.MaxParticipants,
+                            Message = createResult.ErrorMessage ?? "Failed to create room"
+                        });
+                        continue;
+                    }
+
+                    await _unitOfWork.ExamRoom.AddAsync(createResult.Room);
+
+                    var roomDto = _mapper.Map<ExamRoomResponseDto>(createResult.Room);
+                    roomDto.ExamTitle = createResult.ExamTitle;
+                    roomDto.Status = StaticOperationStatus.ExamRoom.Waiting;
+                    roomDto.CurrentParticipants = 0;
+                    createdRooms.Add(roomDto);
+                }
+
+                if (!createdRooms.Any())
+                    return ErrorResponse.Build("No rooms were created", 400);
+
+                await _unitOfWork.SaveAsync();
+
+                return SuccessResponse.Build("Batch create room completed", 201, new
+                {
+                    CreatedCount = createdRooms.Count,
+                    FailedCount = failedRooms.Count,
+                    CreatedRooms = createdRooms,
+                    FailedRooms = failedRooms
+                });
+            }
+            catch (Exception ex)
+            {
+                return ErrorResponse.Build($"Failed to create rooms: {ex.Message}", 500);
+            }
+        }
+
         // =========================================================
         // GET MY ROOMS
         // =========================================================
@@ -92,17 +123,22 @@ namespace AttaEduSystem.Services.Services
             try
             {
                 var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+                var fullName = user.FindFirstValue("FullName");
                 if (string.IsNullOrEmpty(userId))
                     return ErrorResponse.Build(StaticOperationStatus.User.UserNotFound, 401);
 
-                var rooms = await _unitOfWork.ExamRoom.GetByCreatorIdAsync(userId);
+                var rooms = await _unitOfWork.ExamRoom.GetAllAsync(
+                    r => r.CreatedBy == userId || (!string.IsNullOrEmpty(fullName) && r.CreatedBy == fullName),
+                    includeProperties: "ExamPaper,Participants");
 
                 var responseDtos = rooms.Select(r =>
                 {
                     var dto = _mapper.Map<ExamRoomResponseDto>(r);
                     dto.Status = GetCurrentRoomStatus(r);
                     return dto;
-                }).ToList();
+                })
+                .OrderByDescending(r => r.CreatedTime)
+                .ToList();
 
                 return SuccessResponse.Build("Rooms retrieved successfully", 200, responseDtos);
             }
@@ -120,6 +156,7 @@ namespace AttaEduSystem.Services.Services
             try
             {
                 var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+                var fullName = user.FindFirstValue("FullName");
                 if (string.IsNullOrEmpty(userId))
                     return ErrorResponse.Build(StaticOperationStatus.User.UserNotFound, 401);
 
@@ -127,7 +164,7 @@ namespace AttaEduSystem.Services.Services
                 if (room == null)
                     return ErrorResponse.Build("Exam room not found", 404);
 
-                if (room.CreatedBy != userId)
+                if (!CanManageRoom(room, userId, fullName, user))
                     return ErrorResponse.Build("You do not have permission to cancel this room", 403);
 
                 if (GetCurrentRoomStatus(room) == StaticOperationStatus.ExamRoom.Finished)
@@ -145,6 +182,129 @@ namespace AttaEduSystem.Services.Services
             catch (Exception ex)
             {
                 return ErrorResponse.Build($"Failed to cancel room: {ex.Message}", 500);
+            }
+        }
+
+        public async Task<ResponseDto> GetSelectedExamByRoomId(Guid examRoomId, ClaimsPrincipal user)
+        {
+            try
+            {
+                var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+                var fullName = user.FindFirstValue("FullName");
+                if (string.IsNullOrEmpty(userId))
+                    return ErrorResponse.Build(StaticOperationStatus.User.UserNotFound, 401);
+
+                var room = await _unitOfWork.ExamRoom.GetByIdWithParticipantsAsync(examRoomId);
+                if (room == null)
+                    return ErrorResponse.Build("Exam room not found", 404);
+
+                if (!CanManageRoom(room, userId, fullName, user))
+                    return ErrorResponse.Build("You do not have permission to view this room", 403);
+
+                var examPaper = await _unitOfWork.ExamPaper.GetAsync(
+                    e => e.ExamPaperId == room.ExamPaperId,
+                    includeProperties: "Questions,Questions.Options");
+
+                if (examPaper == null)
+                    return ErrorResponse.Build("Exam paper not found", 404);
+
+                var result = new
+                {
+                    room.ExamRoomId,
+                    room.RoomCode,
+                    room.StartTime,
+                    room.EndTime,
+                    room.TimeLimit,
+                    room.MaxParticipants,
+                    room.Status,
+                    Exam = new
+                    {
+                        examPaper.ExamPaperId,
+                        examPaper.Title,
+                        examPaper.Subject,
+                        examPaper.Description,
+                        Questions = examPaper.Questions
+                            .OrderBy(q => q.OrderIndex)
+                            .Select(q => new
+                            {
+                                q.QuestionId,
+                                q.QuestionIdLabel,
+                                q.Content,
+                                q.OrderIndex,
+                                q.QuestionType,
+                                q.CorrectAnswer,
+                                q.Points,
+                                Options = q.Options
+                                    .OrderBy(o => o.Label)
+                                    .Select(o => new
+                                    {
+                                        o.OptionId,
+                                        o.Label,
+                                        o.Content
+                                    })
+                            })
+                    }
+                };
+
+                return SuccessResponse.Build("Selected exam retrieved successfully", 200, result);
+            }
+            catch (Exception ex)
+            {
+                return ErrorResponse.Build($"Failed to retrieve selected exam: {ex.Message}", 500);
+            }
+        }
+
+        public async Task<ResponseDto> GetRoomResults(Guid examRoomId, ClaimsPrincipal user)
+        {
+            try
+            {
+                var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+                var fullName = user.FindFirstValue("FullName");
+                if (string.IsNullOrEmpty(userId))
+                    return ErrorResponse.Build(StaticOperationStatus.User.UserNotFound, 401);
+
+                var room = await _unitOfWork.ExamRoom.GetByIdWithParticipantsAsync(examRoomId);
+                if (room == null)
+                    return ErrorResponse.Build("Exam room not found", 404);
+
+                if (!CanManageRoom(room, userId, fullName, user))
+                    return ErrorResponse.Build("You do not have permission to view this room results", 403);
+
+                var participants = await _unitOfWork.ExamRoomParticipant.GetByRoomIdAsync(examRoomId);
+                var leaderboard = participants
+                    .Select(p => new
+                    {
+                        p.ParticipantId,
+                        p.UserId,
+                        FullName = p.User?.FullName ?? p.User?.UserName ?? "Unknown",
+                        p.JoinedAt,
+                        ExamAttemptId = p.ExamAttemptId,
+                        Score = p.ExamAttempt?.Score,
+                        CorrectCount = p.ExamAttempt?.CorrectCount,
+                        TotalQuestions = p.ExamAttempt?.TotalQuestions,
+                        StartedAt = p.ExamAttempt?.StartedAt,
+                        CompletedAt = p.ExamAttempt?.CompletedAt,
+                        IsSubmitted = p.ExamAttempt?.CompletedAt != null,
+                        DurationSeconds = p.ExamAttempt != null && p.ExamAttempt.CompletedAt.HasValue
+                            ? (int?)(p.ExamAttempt.CompletedAt.Value - p.ExamAttempt.StartedAt).TotalSeconds
+                            : null
+                    })
+                    .OrderByDescending(x => x.Score ?? -1)
+                    .ThenBy(x => x.CompletedAt ?? DateTime.MaxValue)
+                    .ToList();
+
+                return SuccessResponse.Build("Room results retrieved successfully", 200, new
+                {
+                    room.ExamRoomId,
+                    room.RoomCode,
+                    room.ExamPaperId,
+                    ExamTitle = room.ExamPaper?.Title,
+                    Leaderboard = leaderboard
+                });
+            }
+            catch (Exception ex)
+            {
+                return ErrorResponse.Build($"Failed to retrieve room results: {ex.Message}", 500);
             }
         }
 
@@ -390,6 +550,55 @@ namespace AttaEduSystem.Services.Services
                 var s when s == StaticOperationStatus.ExamRoom.InProgress && room.EndTime.HasValue => (int)(room.EndTime.Value - now).TotalSeconds,
                 _ => null
             };
+        }
+
+        private static bool IsAdmin(ClaimsPrincipal user)
+        {
+            return user.IsInRole("ADMIN") || user.IsInRole("Admin") || user.IsInRole("Administrator");
+        }
+
+        private static bool CanManageRoom(ExamRoom room, string userId, string? fullName, ClaimsPrincipal user)
+        {
+            return IsAdmin(user) ||
+                   room.CreatedBy == userId ||
+                   (!string.IsNullOrEmpty(fullName) && room.CreatedBy == fullName);
+        }
+
+        private async Task<(bool IsSuccess, string? ErrorMessage, int StatusCode, ExamRoom? Room, string? ExamTitle)>
+            CreateRoomInternalAsync(CreateExamRoomDto dto, string userId, string? fullName, bool isAdmin)
+        {
+            var examPaper = await _unitOfWork.ExamPaper.GetByIdWithUserAsync(dto.ExamPaperId);
+            if (examPaper == null)
+                return (false, "Exam paper not found", 404, null, null);
+
+            var isOwner = examPaper.Creator?.Id == userId ||
+                          examPaper.CreatedBy == userId ||
+                          (!string.IsNullOrEmpty(fullName) && examPaper.CreatedBy == fullName);
+
+            if (!isOwner && !isAdmin)
+                return (false, "You do not have permission to create room for this exam paper", 403, null, null);
+
+            var vietnamNow = StaticOperationStatus.Timezone.Vietnam;
+            var startTime = dto.StartTime.Kind == DateTimeKind.Utc
+                ? dto.StartTime.AddHours(7)
+                : dto.StartTime;
+
+            if (startTime < vietnamNow)
+                return (false, "Start time must be in the future", 400, null, null);
+
+            string code;
+            do { code = GenerateRoomCode(); }
+            while (await _unitOfWork.ExamRoom.IsCodeExistsAsync(code));
+
+            var examRoom = _mapper.Map<ExamRoom>(dto);
+            examRoom.RoomCode = code;
+            examRoom.StartTime = startTime;
+            examRoom.EndTime = startTime.AddMinutes(dto.TimeLimit);
+            examRoom.CreatedBy = userId;
+            examRoom.CreatedTime = StaticOperationStatus.Timezone.Vietnam;
+            examRoom.Status = StaticOperationStatus.ExamRoom.Waiting;
+
+            return (true, null, 201, examRoom, examPaper.Title);
         }
 
         private async Task<ResponseDto> JoinRoomInternal(ExamRoom room, ClaimsPrincipal user, string userId)
