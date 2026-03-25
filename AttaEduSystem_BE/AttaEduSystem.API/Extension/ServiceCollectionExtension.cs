@@ -1,4 +1,4 @@
-﻿using AttaEduSystem.API.Hubs.Exam;
+using AttaEduSystem.API.Hubs.Exam;
 using AttaEduSystem.API.Hubs.Notification;
 using AttaEduSystem.DataAccess.IRepositories;
 using AttaEduSystem.DataAccess.Repositories;
@@ -53,6 +53,7 @@ namespace AttaEduSystem.API.Extension
             services.AddScoped<IExamQuestionService, ExamQuestionService>();
             services.AddScoped<IExamShuffleService, ExamShuffleService>();
             services.AddScoped<IExamRoomService, ExamRoomService>();
+            services.AddScoped<ILearningClassService, LearningClassService>();
             services.AddScoped<IExportService, ExportService>();
             services.AddScoped<IShareService, ShareService>();
             services.AddScoped<IStudyPlanService, StudyPlanService>();

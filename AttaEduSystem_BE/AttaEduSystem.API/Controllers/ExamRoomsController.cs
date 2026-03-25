@@ -74,6 +74,16 @@ namespace AttaEduSystem.API.Controllers
             return StatusCode(result.StatusCode, result);
         }
 
+        [HttpGet("teacher-dashboard")]
+        [Authorize(Roles = "TEACHER, ADMIN")]
+        [SwaggerOperation(Summary = "🏠 Teacher dashboard for exam rooms",
+            Description = "Retrieves ongoing rooms and room schedule by date for teacher dashboard.")]
+        public async Task<ActionResult<ResponseDto>> GetTeacherDashboard([FromQuery] DateTime? date)
+        {
+            var result = await _examRoomService.GetTeacherDashboard(date, User);
+            return StatusCode(result.StatusCode, result);
+        }
+
         // =========================================================
         // DELETE /api/exam-rooms/{id}/cancel - Hủy phòng thi
         // =========================================================
@@ -84,6 +94,19 @@ namespace AttaEduSystem.API.Controllers
         public async Task<ActionResult<ResponseDto>> CancelRoom(Guid id)
         {
             var result = await _examRoomService.CancelRoom(id, User);
+            return StatusCode(result.StatusCode, result);
+        }
+
+        [HttpPut("{id:guid}/schedule")]
+        [Authorize(Roles = "TEACHER, ADMIN")]
+        [SwaggerOperation(Summary = "🏠 Update exam room schedule",
+            Description = "Updates exam room date/time for teacher dashboard scheduling.")]
+        public async Task<ActionResult<ResponseDto>> UpdateRoomSchedule(
+            Guid id,
+            [FromQuery] DateTime newStartTime,
+            [FromQuery] int? timeLimit)
+        {
+            var result = await _examRoomService.UpdateRoomSchedule(id, newStartTime, timeLimit, User);
             return StatusCode(result.StatusCode, result);
         }
 

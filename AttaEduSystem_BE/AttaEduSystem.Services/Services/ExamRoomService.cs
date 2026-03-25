@@ -127,9 +127,7 @@ namespace AttaEduSystem.Services.Services
                 if (string.IsNullOrEmpty(userId))
                     return ErrorResponse.Build(StaticOperationStatus.User.UserNotFound, 401);
 
-                var rooms = await _unitOfWork.ExamRoom.GetAllAsync(
-                    r => r.CreatedBy == userId || (!string.IsNullOrEmpty(fullName) && r.CreatedBy == fullName),
-                    includeProperties: "ExamPaper,Participants");
+                var rooms = await GetManagedRoomsAsync(userId, fullName);
 
                 var responseDtos = rooms.Select(r =>
                 {
@@ -145,6 +143,71 @@ namespace AttaEduSystem.Services.Services
             catch (Exception ex)
             {
                 return ErrorResponse.Build($"Failed to retrieve rooms: {ex.Message}", 500);
+            }
+        }
+
+        public async Task<ResponseDto> GetTeacherDashboard(DateTime? date, ClaimsPrincipal user)
+        {
+            try
+            {
+                var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+                var fullName = user.FindFirstValue("FullName");
+                if (string.IsNullOrEmpty(userId))
+                    return ErrorResponse.Build(StaticOperationStatus.User.UserNotFound, 401);
+
+                var rooms = await GetManagedRoomsAsync(userId, fullName);
+                var now = StaticOperationStatus.Timezone.Vietnam;
+
+                var roomSummaries = rooms
+                    .Select(r => new
+                    {
+                        r.ExamRoomId,
+                        r.RoomCode,
+                        r.ExamPaperId,
+                        ExamTitle = r.ExamPaper?.Title ?? "Unknown",
+                        r.StartTime,
+                        r.EndTime,
+                        r.TimeLimit,
+                        r.MaxParticipants,
+                        CurrentParticipants = r.Participants?.Count ?? 0,
+                        Status = GetCurrentRoomStatus(r)
+                    })
+                    .OrderBy(r => r.StartTime)
+                    .ToList();
+
+                var ongoingRooms = roomSummaries
+                    .Where(r => r.Status == StaticOperationStatus.ExamRoom.InProgress)
+                    .OrderBy(r => r.EndTime ?? DateTime.MaxValue)
+                    .ToList();
+
+                var scheduleByDate = roomSummaries
+                    .GroupBy(r => r.StartTime.Date)
+                    .OrderBy(g => g.Key)
+                    .Select(g => new
+                    {
+                        Date = g.Key,
+                        TotalRooms = g.Count(),
+                        Rooms = g.ToList()
+                    })
+                    .ToList();
+
+                var selectedDate = date?.Date;
+                var roomsOnSelectedDate = selectedDate.HasValue
+                    ? roomSummaries.Where(r => r.StartTime.Date == selectedDate.Value).ToList()
+                    : roomSummaries.Where(r => r.StartTime.Date == now.Date).ToList();
+
+                return SuccessResponse.Build("Teacher dashboard retrieved successfully", 200, new
+                {
+                    Today = now.Date,
+                    SelectedDate = selectedDate ?? now.Date,
+                    OngoingRooms = ongoingRooms,
+                    RoomsOnSelectedDate = roomsOnSelectedDate,
+                    ScheduleByDate = scheduleByDate
+                });
+            }
+            catch (Exception ex)
+            {
+                return ErrorResponse.Build($"Failed to retrieve teacher dashboard: {ex.Message}", 500);
             }
         }
 
@@ -182,6 +245,59 @@ namespace AttaEduSystem.Services.Services
             catch (Exception ex)
             {
                 return ErrorResponse.Build($"Failed to cancel room: {ex.Message}", 500);
+            }
+        }
+
+        public async Task<ResponseDto> UpdateRoomSchedule(Guid examRoomId, DateTime newStartTime, int? timeLimit, ClaimsPrincipal user)
+        {
+            try
+            {
+                var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+                var fullName = user.FindFirstValue("FullName");
+                if (string.IsNullOrEmpty(userId))
+                    return ErrorResponse.Build(StaticOperationStatus.User.UserNotFound, 401);
+
+                var room = await _unitOfWork.ExamRoom.GetByIdWithParticipantsAsync(examRoomId);
+                if (room == null)
+                    return ErrorResponse.Build("Exam room not found", 404);
+
+                if (!CanManageRoom(room, userId, fullName, user))
+                    return ErrorResponse.Build("You do not have permission to update this room", 403);
+
+                var currentStatus = GetCurrentRoomStatus(room);
+                if (currentStatus == StaticOperationStatus.ExamRoom.Finished || currentStatus == StaticOperationStatus.ExamRoom.Cancelled)
+                    return ErrorResponse.Build("Cannot update schedule for finished or cancelled room", 400);
+
+                var normalizedStartTime = newStartTime.Kind == DateTimeKind.Utc
+                    ? newStartTime.AddHours(7)
+                    : newStartTime;
+
+                if (normalizedStartTime < StaticOperationStatus.Timezone.Vietnam)
+                    return ErrorResponse.Build("New start time must be in the future", 400);
+
+                if (timeLimit.HasValue && (timeLimit.Value < 1 || timeLimit.Value > 480))
+                    return ErrorResponse.Build("Time limit must be between 1 and 480 minutes", 400);
+
+                if (timeLimit.HasValue)
+                    room.TimeLimit = timeLimit.Value;
+
+                room.StartTime = normalizedStartTime;
+                room.EndTime = normalizedStartTime.AddMinutes(room.TimeLimit);
+                room.Status = StaticOperationStatus.ExamRoom.Waiting;
+                room.UpdatedBy = userId;
+                room.UpdatedTime = StaticOperationStatus.Timezone.Vietnam;
+
+                _unitOfWork.ExamRoom.Update(room);
+                await _unitOfWork.SaveAsync();
+
+                var updatedRoom = _mapper.Map<ExamRoomResponseDto>(room);
+                updatedRoom.Status = GetCurrentRoomStatus(room);
+
+                return SuccessResponse.Build("Room schedule updated successfully", 200, updatedRoom);
+            }
+            catch (Exception ex)
+            {
+                return ErrorResponse.Build($"Failed to update room schedule: {ex.Message}", 500);
             }
         }
 
@@ -562,6 +678,13 @@ namespace AttaEduSystem.Services.Services
             return IsAdmin(user) ||
                    room.CreatedBy == userId ||
                    (!string.IsNullOrEmpty(fullName) && room.CreatedBy == fullName);
+        }
+
+        private async Task<IEnumerable<ExamRoom>> GetManagedRoomsAsync(string userId, string? fullName)
+        {
+            return await _unitOfWork.ExamRoom.GetAllAsync(
+                r => r.CreatedBy == userId || (!string.IsNullOrEmpty(fullName) && r.CreatedBy == fullName),
+                includeProperties: "ExamPaper,Participants");
         }
 
         private async Task<(bool IsSuccess, string? ErrorMessage, int StatusCode, ExamRoom? Room, string? ExamTitle)>

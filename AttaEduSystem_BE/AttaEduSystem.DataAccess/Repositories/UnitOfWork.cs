@@ -1,4 +1,4 @@
-﻿using AttaEduSystem.DataAccess.DBContext;
+using AttaEduSystem.DataAccess.DBContext;
 using AttaEduSystem.DataAccess.IRepositories;
 using AttaEduSystem.Models.Entities;
 using Microsoft.AspNetCore.Identity;
@@ -32,6 +32,8 @@ namespace AttaEduSystem.DataAccess.Repositories
         public IChatMessageRepository ChatMessage { get; private set; }
         public IStudyPlanRepository StudyPlan { get; private set; }
         public INotificationRepository Notification { get; private set; }
+        public ILearningClassRepository LearningClass { get; private set; }
+        public ILearningClassMemberRepository LearningClassMember { get; private set; }
 
 
         public UnitOfWork(ApplicationDBContext context, UserManager<ApplicationUser> userManager)
@@ -60,6 +62,8 @@ namespace AttaEduSystem.DataAccess.Repositories
             ChatMessage = new ChatMessageRepository(_context);
             StudyPlan = new StudyPlanRepository(_context);
             Notification = new NotificationRepository(_context);
+            LearningClass = new LearningClassRepository(_context);
+            LearningClassMember = new LearningClassMemberRepository(_context);
         }
 
 

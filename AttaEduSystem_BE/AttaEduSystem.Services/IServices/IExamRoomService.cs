@@ -13,6 +13,8 @@ namespace AttaEduSystem.Services.IServices
         Task<ResponseDto> CancelRoom(Guid examRoomId, ClaimsPrincipal user);
         Task<ResponseDto> GetSelectedExamByRoomId(Guid examRoomId, ClaimsPrincipal user);
         Task<ResponseDto> GetRoomResults(Guid examRoomId, ClaimsPrincipal user);
+        Task<ResponseDto> GetTeacherDashboard(DateTime? date, ClaimsPrincipal user);
+        Task<ResponseDto> UpdateRoomSchedule(Guid examRoomId, DateTime newStartTime, int? timeLimit, ClaimsPrincipal user);
 
         // Public APIs
         Task<ResponseDto> GetRoomByCode(string code);
