@@ -1,4 +1,4 @@
-﻿using AttaEduSystem.Models.DTOs.ExamFormat;
+using AttaEduSystem.Models.DTOs.ExamFormat;
 
 namespace AttaEduSystem.Models.DTOs.ExamPaper
 {
@@ -12,5 +12,11 @@ namespace AttaEduSystem.Models.DTOs.ExamPaper
         public string? Subject { get; set; }
         public string? ScannedBy { get; set; }
         public DateTime ScannedAt { get; set; }
+
+        /// <summary>True nếu đề thi đã có lời giải AI (do SolveImmediately=true hoặc giải sau)</summary>
+        public bool HasSolution { get; set; }
+
+        /// <summary>ID lời giải (null nếu chưa giải)</summary>
+        public Guid? SolutionId { get; set; }
     }
 }

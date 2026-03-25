@@ -116,6 +116,7 @@ namespace AttaEduSystem.API.Controllers
         }
 
         [HttpPut("{id:guid}/status")]
+        [Authorize]
         [SwaggerOperation(Summary = "📸 Update exam paper metadata and status",
             Description = "Updates title, description, subject, and/or status" +
             " (e.g., Draft, Ready, Removed) for a scanned exam paper. Only owner or admin can update.")]
@@ -124,6 +125,20 @@ namespace AttaEduSystem.API.Controllers
             if (!ModelState.IsValid) return ReturnInvalidInputResponse();
 
             var result = await _examScanningService.UpdateExamPaperStatus(id, dto, User);
+            return StatusCode(result.StatusCode, result);
+        }
+
+        [HttpPut("{id:guid}/questions")]
+        [Authorize]
+        [SwaggerOperation(Summary = "✏️ Edit questions (batch)",
+            Description = "Edit one or more questions of a scanned exam paper. " +
+                          "Only owner can edit. Send only the fields you want to change (patch semantics): " +
+                          "`content`, `questionIdLabel`, `points`, `correctAnswer`, `questionType`.")]
+        public async Task<ActionResult<ResponseDto>> UpdateQuestions(Guid id, [FromBody] BatchUpdateQuestionsDto dto)
+        {
+            if (!ModelState.IsValid) return ReturnInvalidInputResponse();
+
+            var result = await _examScanningService.UpdateQuestionsAsync(id, dto, User);
             return StatusCode(result.StatusCode, result);
         }
 
