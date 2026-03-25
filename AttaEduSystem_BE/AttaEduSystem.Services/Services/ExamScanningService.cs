@@ -225,11 +225,9 @@ namespace AttaEduSystem.Services.Services
                 // 13. Auto-solve nếu user tích "Giải đề ngay"
                 if (uploadDto.SolveImmediately)
                 {
-                    // Kiểm tra plan có phải Pro không (claim "plan" == "PRO")
                     var planClaim = user.FindFirstValue("plan")?.ToUpperInvariant();
                     if (planClaim != "PRO")
                     {
-                        // Trả về đề đã scan thành công, nhưng cãnh báo không có Pro
                         return SuccessResponse.Build(
                             message: "Exam scanned successfully. Auto-solve requires a Pro subscription.",
                             statusCode: StaticOperationStatus.StatusCode.Created,
@@ -237,6 +235,16 @@ namespace AttaEduSystem.Services.Services
                     }
 
                     var solveResult = await _examSolvingService.SolveExamPaper(examPaper.ExamPaperId, user);
+
+                    if (solveResult.IsSuccess)
+                    {
+                        // Cập nhật HasSolution vào responseDto để nhất quán
+                        responseDto.HasSolution = true;
+                        // Lấy SolutionId từ solution vừa tạo
+                        var newSolution = await _unitOfWork.ExamSolution.GetAsync(
+                            s => s.ExamPaperId == examPaper.ExamPaperId && s.Status != "Deleted");
+                        responseDto.SolutionId = newSolution?.ExamSolutionId;
+                    }
 
                     return SuccessResponse.Build(
                         message: solveResult.IsSuccess
@@ -294,6 +302,12 @@ namespace AttaEduSystem.Services.Services
             
             var dto = _mapper.Map<GetExamPaperDto>(examPaper);
 
+            // Populate HasSolution / SolutionId
+            var solution = await _unitOfWork.ExamSolution.GetAsync(
+                s => s.ExamPaperId == examPaperId && s.Status != "Deleted");
+            dto.HasSolution = solution != null;
+            dto.SolutionId = solution?.ExamSolutionId;
+
             return SuccessResponse.Build(
                 message: "Exam paper retrieved successfully",
                 statusCode: StaticOperationStatus.StatusCode.Ok,
@@ -337,7 +351,22 @@ namespace AttaEduSystem.Services.Services
                         result: emptyResult); 
                 }
 
-                var dtos = _mapper.Map<IEnumerable<GetExamPaperDto>>(papers);
+                var dtos = _mapper.Map<IEnumerable<GetExamPaperDto>>(papers).ToList();
+
+                // Batch-enrich HasSolution / SolutionId
+                var paperIds = dtos.Select(d => d.ExamPaperId).ToList();
+                var solutions = await _unitOfWork.ExamSolution.GetAllAsync(
+                    s => paperIds.Contains(s.ExamPaperId) && s.Status != "Deleted");
+                var solutionMap = solutions.ToDictionary(s => s.ExamPaperId);
+                foreach (var dto in dtos)
+                {
+                    if (solutionMap.TryGetValue(dto.ExamPaperId, out var sol))
+                    {
+                        dto.HasSolution = true;
+                        dto.SolutionId = sol.ExamSolutionId;
+                    }
+                }
+
                 var payload = new
                 {
                     Data = dtos,
@@ -374,7 +403,25 @@ namespace AttaEduSystem.Services.Services
             }
 
             var examPapers = await _unitOfWork.ExamPaper.GetByUserIdAsync(userId);
-            var dtos = _mapper.Map<IEnumerable<GetExamPaperDto>>(examPapers);
+            var dtos = _mapper.Map<IEnumerable<GetExamPaperDto>>(examPapers).ToList();
+
+            // Batch-enrich HasSolution / SolutionId
+            if (dtos.Any())
+            {
+                var paperIds = dtos.Select(d => d.ExamPaperId).ToList();
+                var solutions = await _unitOfWork.ExamSolution.GetAllAsync(
+                    s => paperIds.Contains(s.ExamPaperId) && s.Status != "Deleted");
+                var solutionMap = solutions.ToDictionary(s => s.ExamPaperId);
+
+                foreach (var dto in dtos)
+                {
+                    if (solutionMap.TryGetValue(dto.ExamPaperId, out var sol))
+                    {
+                        dto.HasSolution = true;
+                        dto.SolutionId = sol.ExamSolutionId;
+                    }
+                }
+            }
 
             return SuccessResponse.Build(
                 message: "Exam papers retrieved successfully",
@@ -473,6 +520,73 @@ namespace AttaEduSystem.Services.Services
             {
                 _logger.LogError(ex, "Error updating exam paper");
                 return ErrorResponse.Build($"An error occurred while updating exam paper, {ex.Message}", 500);
+            }
+        }
+
+        // =========================================================
+        // UPDATE QUESTIONS (batch edit after scan)
+        // =========================================================
+        public async Task<ResponseDto> UpdateQuestionsAsync(
+            Guid examPaperId, BatchUpdateQuestionsDto dto, ClaimsPrincipal user)
+        {
+            try
+            {
+                var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrEmpty(userId))
+                    return ErrorResponse.Build(StaticOperationStatus.User.UserNotFound, 401);
+
+                // 1. Kiểm tra exam paper tồn tại và thuộc về user
+                var examPaper = await _unitOfWork.ExamPaper.GetByIdWithUserAsync(examPaperId);
+                if (examPaper == null)
+                    return ErrorResponse.Build("Exam paper not found", 404);
+
+                var isAdmin = user.IsInRole("Admin") || user.IsInRole("ADMIN") || user.IsInRole("Administrator");
+                var isOwner = examPaper.Creator?.Id == userId || examPaper.CreatedBy == userId;
+                if (!isOwner && !isAdmin)
+                    return ErrorResponse.Build("You do not have permission to edit this exam paper", 403);
+
+                // 2. Lấy tất cả questions của exam paper này
+                var questionIds = dto.Questions.Select(q => q.QuestionId).ToList();
+                var questions = await _unitOfWork.ExamQuestion.GetAllAsync(
+                    q => q.ExamPaperId == examPaperId && questionIds.Contains(q.QuestionId));
+                var questionMap = questions.ToDictionary(q => q.QuestionId);
+
+                int updated = 0;
+                var notFound = new List<Guid>();
+
+                foreach (var item in dto.Questions)
+                {
+                    if (!questionMap.TryGetValue(item.QuestionId, out var question))
+                    {
+                        notFound.Add(item.QuestionId);
+                        continue;
+                    }
+
+                    // Patch chỉ các field được cung cấp (null = giữ nguyên)
+                    if (item.Content != null)         question.Content = item.Content;
+                    if (item.QuestionIdLabel != null)  question.QuestionIdLabel = item.QuestionIdLabel;
+                    if (item.Points.HasValue)          question.Points = item.Points;
+                    if (item.CorrectAnswer != null)    question.CorrectAnswer = item.CorrectAnswer;
+                    if (item.QuestionType != null)     question.QuestionType = item.QuestionType;
+
+                    question.UpdatedBy = user.FindFirstValue("FullName");
+                    question.UpdatedTime = StaticOperationStatus.Timezone.Vietnam;
+                    _unitOfWork.ExamQuestion.Update(question);
+                    updated++;
+                }
+
+                await _unitOfWork.SaveAsync();
+
+                return SuccessResponse.Build("Questions updated successfully", 200, new
+                {
+                    UpdatedCount = updated,
+                    NotFoundIds = notFound
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating exam questions for paper {ExamPaperId}", examPaperId);
+                return ErrorResponse.Build($"Failed to update questions: {ex.Message}", 500);
             }
         }
     }

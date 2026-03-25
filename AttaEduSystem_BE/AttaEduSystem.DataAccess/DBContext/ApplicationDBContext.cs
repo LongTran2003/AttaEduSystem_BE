@@ -1,4 +1,4 @@
-﻿using AttaEduSystem.DataAccess.Seed;
+using AttaEduSystem.DataAccess.Seed;
 using AttaEduSystem.Models.Entities;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -23,6 +23,8 @@ namespace AttaEduSystem.DataAccess.DBContext
         public DbSet<ExamRoomParticipant> ExamRoomParticipants { get; set; }
         public DbSet<ExamSolution> ExamSolutions { get; set; }
         public DbSet<GeneratedExamPaper> GeneratedExamPapers { get; set; }
+        public DbSet<LearningClass> LearningClasses { get; set; }
+        public DbSet<LearningClassMember> LearningClassMembers { get; set; }
         public DbSet<Notification> Notifications { get; set; }
         public DbSet<Order> Orders { get; set; }
         public DbSet<Payment> Payments { get; set; }
@@ -57,6 +59,35 @@ namespace AttaEduSystem.DataAccess.DBContext
             // Teacher
             modelBuilder.Entity<Teacher>()
                 .HasKey(t => t.TeacherId);
+
+            // LearningClass
+            modelBuilder.Entity<LearningClass>()
+                .HasKey(c => c.LearningClassId);
+
+            modelBuilder.Entity<LearningClass>()
+                .HasOne(c => c.OwnerUser)
+                .WithMany()
+                .HasForeignKey(c => c.OwnerUserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<LearningClass>()
+                .HasMany(c => c.Members)
+                .WithOne(m => m.LearningClass)
+                .HasForeignKey(m => m.LearningClassId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<LearningClassMember>()
+                .HasKey(m => m.LearningClassMemberId);
+
+            modelBuilder.Entity<LearningClassMember>()
+                .HasIndex(m => new { m.LearningClassId, m.UserId })
+                .IsUnique();
+
+            modelBuilder.Entity<LearningClassMember>()
+                .HasOne(m => m.User)
+                .WithMany()
+                .HasForeignKey(m => m.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
 
             // ExamPaper
             modelBuilder.Entity<ExamPaper>()

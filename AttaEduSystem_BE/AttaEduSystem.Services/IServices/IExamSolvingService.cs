@@ -1,4 +1,4 @@
-﻿using AttaEduSystem.Models.DTOs;
+using AttaEduSystem.Models.DTOs;
 using System.Security.Claims;
 
 namespace AttaEduSystem.Services.IServices
@@ -17,5 +17,8 @@ namespace AttaEduSystem.Services.IServices
 
         Task<ResponseDto> GetSolutionById(Guid solutionId);
         Task<ResponseDto> GetSolutionsByUser(ClaimsPrincipal user);
+
+        /// <summary>Sửa đáp án thủ công (không dùng AI). Chỉ owner mới được sửa.</summary>
+        Task<ResponseDto> UpdateSolutionContentAsync(Guid solutionId, string solutionContentJson, ClaimsPrincipal user);
     }
 }

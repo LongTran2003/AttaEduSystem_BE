@@ -1,4 +1,4 @@
-﻿using AttaEduSystem.Models.DTOs;
+using AttaEduSystem.Models.DTOs;
 using AttaEduSystem.Models.DTOs.ExamRoom.Room;
 using AttaEduSystem.Services.IServices;
 using Microsoft.AspNetCore.Authorization;
@@ -49,6 +49,18 @@ namespace AttaEduSystem.API.Controllers
             return StatusCode(result.StatusCode, result);
         }
 
+        [HttpPost("batch")]
+        [Authorize(Roles = "TEACHER, ADMIN")]
+        [SwaggerOperation(Summary = "🏠 Create multiple exam rooms",
+            Description = "Creates multiple exam rooms at once. Requires TEACHER or ADMIN role.")]
+        public async Task<ActionResult<ResponseDto>> CreateRoomsBatch([FromBody] List<CreateExamRoomDto> dtos)
+        {
+            if (!ModelState.IsValid) return ReturnInvalidInputResponse();
+
+            var result = await _examRoomService.CreateRoomsBatch(dtos, User);
+            return StatusCode(result.StatusCode, result);
+        }
+
         // =========================================================
         // GET /api/exam-rooms/my-rooms - Lấy danh sách phòng của mình
         // =========================================================
@@ -62,6 +74,16 @@ namespace AttaEduSystem.API.Controllers
             return StatusCode(result.StatusCode, result);
         }
 
+        [HttpGet("teacher-dashboard")]
+        [Authorize(Roles = "TEACHER, ADMIN")]
+        [SwaggerOperation(Summary = "🏠 Teacher dashboard for exam rooms",
+            Description = "Retrieves ongoing rooms and room schedule by date for teacher dashboard.")]
+        public async Task<ActionResult<ResponseDto>> GetTeacherDashboard([FromQuery] DateTime? date)
+        {
+            var result = await _examRoomService.GetTeacherDashboard(date, User);
+            return StatusCode(result.StatusCode, result);
+        }
+
         // =========================================================
         // DELETE /api/exam-rooms/{id}/cancel - Hủy phòng thi
         // =========================================================
@@ -72,6 +94,39 @@ namespace AttaEduSystem.API.Controllers
         public async Task<ActionResult<ResponseDto>> CancelRoom(Guid id)
         {
             var result = await _examRoomService.CancelRoom(id, User);
+            return StatusCode(result.StatusCode, result);
+        }
+
+        [HttpPut("{id:guid}/schedule")]
+        [Authorize(Roles = "TEACHER, ADMIN")]
+        [SwaggerOperation(Summary = "🏠 Update exam room schedule",
+            Description = "Updates exam room date/time for teacher dashboard scheduling.")]
+        public async Task<ActionResult<ResponseDto>> UpdateRoomSchedule(
+            Guid id,
+            [FromQuery] DateTime newStartTime,
+            [FromQuery] int? timeLimit)
+        {
+            var result = await _examRoomService.UpdateRoomSchedule(id, newStartTime, timeLimit, User);
+            return StatusCode(result.StatusCode, result);
+        }
+
+        [HttpGet("{id:guid}/selected-exam")]
+        [Authorize(Roles = "TEACHER, ADMIN")]
+        [SwaggerOperation(Summary = "🏠 Get selected exam by room",
+            Description = "Retrieves the selected exam (with questions) of a room. Only room owner/admin can access.")]
+        public async Task<ActionResult<ResponseDto>> GetSelectedExamByRoomId(Guid id)
+        {
+            var result = await _examRoomService.GetSelectedExamByRoomId(id, User);
+            return StatusCode(result.StatusCode, result);
+        }
+
+        [HttpGet("{id:guid}/results")]
+        [Authorize(Roles = "TEACHER, ADMIN")]
+        [SwaggerOperation(Summary = "🏠 Get room results leaderboard",
+            Description = "Retrieves all participant results of a room, sorted by highest score.")]
+        public async Task<ActionResult<ResponseDto>> GetRoomResults(Guid id)
+        {
+            var result = await _examRoomService.GetRoomResults(id, User);
             return StatusCode(result.StatusCode, result);
         }
 
@@ -114,6 +169,16 @@ namespace AttaEduSystem.API.Controllers
             return StatusCode(result.StatusCode, result);
         }
 
+        [HttpPost("join/{id:guid}")]
+        [Authorize]
+        [SwaggerOperation(Summary = "🏠 Join exam room by id",
+            Description = "Joins an exam room by room id. Requires authentication.")]
+        public async Task<ActionResult<ResponseDto>> JoinRoomById(Guid id)
+        {
+            var result = await _examRoomService.JoinRoomById(id, User);
+            return StatusCode(result.StatusCode, result);
+        }
+
         // =========================================================
         // GET /api/exam-rooms/{code}/qrcode - QR Code để join phòng
         // =========================================================
@@ -145,6 +210,16 @@ namespace AttaEduSystem.API.Controllers
         public async Task<ActionResult<ResponseDto>> GetPaperForTaking(string code)
         {
             var result = await _examRoomService.GetPaperForTaking(code, User);
+            return StatusCode(result.StatusCode, result);
+        }
+
+        [HttpGet("{id:guid}/paper")]
+        [Authorize]
+        [SwaggerOperation(Summary = "🏠 Get exam paper by room id",
+            Description = "Retrieves exam questions by room id. User must have joined the room.")]
+        public async Task<ActionResult<ResponseDto>> GetPaperForTakingById(Guid id)
+        {
+            var result = await _examRoomService.GetPaperForTakingByRoomId(id, User);
             return StatusCode(result.StatusCode, result);
         }
     }

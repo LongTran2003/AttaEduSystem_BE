@@ -95,5 +95,19 @@ namespace AttaEduSystem.API.Controllers
             var result = await _examSolvingService.UpdateStatus(id, dto.Status, User);
             return StatusCode(result.StatusCode, result);
         }
+
+        [HttpPut("{id:guid}/answer")]
+        [Authorize]
+        [SwaggerOperation(Summary = "✏️ Edit solution answer manually",
+            Description = "Manually update the solution content (answers) without calling AI. " +
+                          "Use this to correct AI mistakes or write custom explanations. Only owner can edit. " +
+                          "Send the full solutionContentJson in the request body.")]
+        public async Task<ActionResult<ResponseDto>> UpdateAnswer(Guid id, [FromBody] UpdateSolutionContentDto dto)
+        {
+            if (!ModelState.IsValid) return ReturnInvalidInputResponse();
+
+            var result = await _examSolvingService.UpdateSolutionContentAsync(id, dto.SolutionContentJson, User);
+            return StatusCode(result.StatusCode, result);
+        }
     }
 }

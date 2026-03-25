@@ -1,4 +1,4 @@
-﻿using AttaEduSystem.DataAccess.IRepositories;
+using AttaEduSystem.DataAccess.IRepositories;
 using AttaEduSystem.Models.DTOs;
 using AttaEduSystem.Models.DTOs.GeminiAi;
 using AttaEduSystem.Models.Entities;
@@ -71,22 +71,40 @@ namespace AttaEduSystem.Services.Services
                     return ErrorResponse.Build("AI Solving Failed: " + ex.Message, 500);
                 }
 
-                // 3. Lưu lời giải vào DB
-                var solution = new ExamSolution
-                {
-                    ExamPaperId = examPaperId,
-                    SolutionContentJson = solutionJson,
-                    CreatedBy = userId,
-                    CreatedTime = StaticOperationStatus.Timezone.Vietnam,
-                    Status = "Saved"
-                };
+                // 3. Upsert lời giải (update nếu đã có, tạo mới nếu chưa có)
+                var existing = await _unitOfWork.ExamSolution.GetAsync(
+                    s => s.ExamPaperId == examPaperId && s.Status != "Deleted");
 
-                await _unitOfWork.ExamSolution.AddAsync(solution); 
+                ExamSolution solution;
+                if (existing != null)
+                {
+                    // Re-solve: ghi đè nội dung cũ
+                    existing.SolutionContentJson = solutionJson;
+                    existing.UpdatedBy = userId;
+                    existing.UpdatedTime = StaticOperationStatus.Timezone.Vietnam;
+                    existing.Status = "Saved";
+                    _unitOfWork.ExamSolution.Update(existing);
+                    solution = existing;
+                }
+                else
+                {
+                    solution = new ExamSolution
+                    {
+                        ExamPaperId = examPaperId,
+                        SolutionContentJson = solutionJson,
+                        CreatedBy = userId,
+                        CreatedTime = StaticOperationStatus.Timezone.Vietnam,
+                        Status = "Saved"
+                    };
+                    await _unitOfWork.ExamSolution.AddAsync(solution);
+                }
+
                 await _unitOfWork.SaveAsync();
 
                 var responseDto = _mapper.Map<ExamSolutionResponseDto>(solution);
-
-                return SuccessResponse.Build("Exam solved successfully", 201, responseDto);
+                return SuccessResponse.Build(
+                    existing != null ? "Exam re-solved successfully" : "Exam solved successfully",
+                    201, responseDto);
             }
             catch (Exception ex)
             {
@@ -211,6 +229,40 @@ namespace AttaEduSystem.Services.Services
             {
                 _logger.LogError(ex, "Error retrieving user solutions");
                 return ErrorResponse.Build("Failed to retrieve user solutions", 500);
+            }
+        }
+        public async Task<ResponseDto> UpdateSolutionContentAsync(
+            Guid solutionId, string solutionContentJson, ClaimsPrincipal user)
+        {
+            try
+            {
+                var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrEmpty(userId))
+                    return ErrorResponse.Build(StaticOperationStatus.User.UserNotFound, 401);
+
+                var solution = await _unitOfWork.ExamSolution.GetAsync(s => s.ExamSolutionId == solutionId);
+                if (solution == null)
+                    return ErrorResponse.Build("Solution not found", 404);
+
+                // Chỉ owner hoặc admin mới được sửa
+                var isAdmin = user.IsInRole("Admin");
+                if (solution.CreatedBy != userId && !isAdmin)
+                    return ErrorResponse.Build("You do not have permission to edit this solution", 403);
+
+                solution.SolutionContentJson = solutionContentJson;
+                solution.UpdatedBy = userId;
+                solution.UpdatedTime = StaticOperationStatus.Timezone.Vietnam;
+
+                _unitOfWork.ExamSolution.Update(solution);
+                await _unitOfWork.SaveAsync();
+
+                var responseDto = _mapper.Map<ExamSolutionResponseDto>(solution);
+                return SuccessResponse.Build("Solution updated successfully", 200, responseDto);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating solution content {SolutionId}", solutionId);
+                return ErrorResponse.Build($"Failed to update solution: {ex.Message}", 500);
             }
         }
     }

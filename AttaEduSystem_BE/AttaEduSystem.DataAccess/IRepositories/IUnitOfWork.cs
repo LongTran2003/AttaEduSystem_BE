@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore.Storage;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace AttaEduSystem.DataAccess.IRepositories
 {
@@ -27,6 +27,8 @@ namespace AttaEduSystem.DataAccess.IRepositories
         IChatMessageRepository ChatMessage { get; }
         IStudyPlanRepository StudyPlan { get; }
         INotificationRepository Notification { get; }
+        ILearningClassRepository LearningClass { get; }
+        ILearningClassMemberRepository LearningClassMember { get; }
 
 
 

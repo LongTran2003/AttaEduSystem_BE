@@ -1,4 +1,4 @@
-﻿using AttaEduSystem.Models.DTOs;
+using AttaEduSystem.Models.DTOs;
 using AttaEduSystem.Models.DTOs.ExamPaper;
 using System.Security.Claims;
 
@@ -19,5 +19,7 @@ namespace AttaEduSystem.Services.IServices
         Task<ResponseDto> GetExamPaperImage(Guid examPaperId);
         Task<ResponseDto> UpdateExamPaperStatus(Guid examPaperId, UpdateExamPaperStatusDto dto, ClaimsPrincipal user);
 
+        /// <summary>Edit questions của đề scan (batch). Chỉ owner mới được sửa.</summary>
+        Task<ResponseDto> UpdateQuestionsAsync(Guid examPaperId, BatchUpdateQuestionsDto dto, ClaimsPrincipal user);
     }
 }
