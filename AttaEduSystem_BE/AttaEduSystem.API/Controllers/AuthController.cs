@@ -98,7 +98,14 @@ namespace AttaEduSystem.API.Controllers
             Description = "Sends a 6-digit OTP to the registered email for password reset.")]
         public async Task<IActionResult> ForgotPassword([FromBody] EmailDto forgotPasswordDto)
         {
-            if (!ModelState.IsValid) return ReturnInvalidInputResponse();
+            if (!ModelState.IsValid)
+                return StatusCode(400, new ResponseDto
+                {
+                    IsSuccess = false,
+                    StatusCode = 400,
+                    Message = "Invalid input data.",
+                    Result = ModelState.Values.SelectMany(v => v.Errors.Select(e => e.ErrorMessage))
+                });
 
             var responseDto = await _authService.ForgotPassword(forgotPasswordDto);
             return StatusCode(responseDto.StatusCode, responseDto);
