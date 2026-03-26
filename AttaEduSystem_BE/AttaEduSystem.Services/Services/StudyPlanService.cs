@@ -9,6 +9,7 @@ using AutoMapper;
 using Microsoft.Extensions.Logging;
 using System.Security.Claims;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace AttaEduSystem.Services.Services
 {
@@ -18,6 +19,10 @@ namespace AttaEduSystem.Services.Services
         private const string InactiveStatus = "Inactive";
         private const string LegacyActiveStatus = "1";
         private const string LegacyInactiveStatus = "0";
+        private static readonly string[] AllowedStudyPlanDomains = ["attaedu.vn", "attaedu.com", "attaedu.system"];
+        private static readonly Regex UrlRegex = new(
+            @"((https?:\/\/|www\.)\S+)|\b[a-z0-9][a-z0-9-]*\.(com|net|org|vn|edu|io|co|info|me|ai)(\/\S*)?\b",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled);
         private readonly IUnitOfWork _unitOfWork;
         private readonly IGeminiAiService _geminiAiService;
         private readonly IMapper _mapper;
@@ -89,6 +94,7 @@ namespace AttaEduSystem.Services.Services
                     _logger.LogError("Failed to parse AI response: {Response}", aiResponseJson);
                     return ErrorResponse.Build("AI returned invalid plan format", 500);
                 }
+                SanitizeStudyPlanExternalLinks(planDto);
                 if (planDto.DailyPlans == null || !planDto.DailyPlans.Any())
                 {
                     // Log raw response for debugging (you already do this for regenerate, add here too)
@@ -301,7 +307,7 @@ namespace AttaEduSystem.Services.Services
                 return ErrorResponse.Build("No plan found for this week", 404);
 
             // [SỬA LỖI]: Tương tự như trên
-            var planDto = JsonSerializer.Deserialize<WeeklyStudyPlanDto>(plan.PlanJson, _jsonOptions);
+            var planDto = DeserializeAndSanitizePlan(plan.PlanJson);
             if (planDto == null)
                 return ErrorResponse.Build("Invalid plan data format in database", 500);
             EnrichDayLabels(planDto);
@@ -329,7 +335,7 @@ namespace AttaEduSystem.Services.Services
                 return ErrorResponse.Build("No active plan found", 404);
 
             // [SỬA LỖI]: Giải nén dữ liệu từ cột PlanJson thay vì dùng AutoMapper
-            var planDto = JsonSerializer.Deserialize<WeeklyStudyPlanDto>(plan.PlanJson, _jsonOptions);
+            var planDto = DeserializeAndSanitizePlan(plan.PlanJson);
             if (planDto == null)
                 return ErrorResponse.Build("Invalid plan data format in database", 500);
             EnrichDayLabels(planDto);
@@ -410,7 +416,7 @@ namespace AttaEduSystem.Services.Services
                 return ErrorResponse.Build("Plan not found", 404);
 
             // Parse, update, serialize back
-            var planDto = JsonSerializer.Deserialize<WeeklyStudyPlanDto>(plan.PlanJson, _jsonOptions);
+            var planDto = DeserializeAndSanitizePlan(plan.PlanJson);
             if (planDto == null)
                 return ErrorResponse.Build("Invalid plan format", 500);
 
@@ -454,7 +460,7 @@ namespace AttaEduSystem.Services.Services
             if (planEntity == null) return ErrorResponse.Build("Plan not found", 404);
 
             // 1. Parse Plan cũ
-            var currentPlan = JsonSerializer.Deserialize<WeeklyStudyPlanDto>(planEntity.PlanJson, _jsonOptions);
+            var currentPlan = DeserializeAndSanitizePlan(planEntity.PlanJson);
             if (currentPlan == null) return ErrorResponse.Build("Invalid stored plan format", 500);
 
             // 2. Tính toán ngày bắt đầu và số ngày còn lại
@@ -495,6 +501,7 @@ namespace AttaEduSystem.Services.Services
 
                 if (generated?.DailyPlans == null || !generated.DailyPlans.Any())
                     return ErrorResponse.Build("AI failed to regenerate plan segment", 500);
+                SanitizeStudyPlanExternalLinks(generated);
 
                 // 6. Merge Logic: Bảo toàn dữ liệu cũ
                 var newDaysMap = generated.DailyPlans.ToDictionary(d => d.Date.Date, d => d);
@@ -569,7 +576,7 @@ namespace AttaEduSystem.Services.Services
             if (plan == null) return ErrorResponse.Build("Plan not found", 404);
 
             // Parse JSON nội dung chi tiết
-            var planDto = JsonSerializer.Deserialize<WeeklyStudyPlanDto>(plan.PlanJson, _jsonOptions);
+            var planDto = DeserializeAndSanitizePlan(plan.PlanJson);
             if (planDto == null) return ErrorResponse.Build("Invalid data format", 500);
             EnrichDayLabels(planDto);
 
@@ -728,7 +735,7 @@ namespace AttaEduSystem.Services.Services
             if (plan == null)
                 return ErrorResponse.Build("No active plan found", 404);
 
-            var planDto = JsonSerializer.Deserialize<WeeklyStudyPlanDto>(plan.PlanJson, _jsonOptions);
+            var planDto = DeserializeAndSanitizePlan(plan.PlanJson);
             if (planDto == null)
                 return ErrorResponse.Build("Invalid plan data format in database", 500);
 
@@ -787,7 +794,7 @@ namespace AttaEduSystem.Services.Services
                 .OrderBy(p => p.WeekStart)
                 .Select(p =>
                 {
-                    var dto = JsonSerializer.Deserialize<WeeklyStudyPlanDto>(p.PlanJson, _jsonOptions);
+                    var dto = DeserializeAndSanitizePlan(p.PlanJson);
                     if (dto == null) return null;
                     EnrichDayLabels(dto);
                     dto.StudyPlanId = p.StudyPlanId;
@@ -811,6 +818,64 @@ namespace AttaEduSystem.Services.Services
                 TotalPlans = result.Count,
                 Plans = result
             });
+        }
+
+        private static WeeklyStudyPlanDto? DeserializeAndSanitizePlan(string planJson)
+        {
+            var planDto = JsonSerializer.Deserialize<WeeklyStudyPlanDto>(planJson, _jsonOptions);
+            if (planDto == null)
+                return null;
+
+            SanitizeStudyPlanExternalLinks(planDto);
+            return planDto;
+        }
+
+        private static void SanitizeStudyPlanExternalLinks(WeeklyStudyPlanDto plan)
+        {
+            plan.Summary = RemoveExternalLinks(plan.Summary);
+            if (plan.DailyPlans == null)
+                return;
+
+            foreach (var day in plan.DailyPlans)
+            {
+                if (day.Sessions == null)
+                    continue;
+
+                foreach (var session in day.Sessions)
+                {
+                    session.Goal = RemoveExternalLinks(session.Goal);
+                    session.Reasoning = RemoveExternalLinks(session.Reasoning);
+                    session.CompletionNotes = RemoveExternalLinks(session.CompletionNotes);
+
+                    if (session.SuggestedResources == null)
+                        continue;
+
+                    var sanitizedResources = session.SuggestedResources
+                        .Select(RemoveExternalLinks)
+                        .Where(r => !string.IsNullOrWhiteSpace(r))
+                        .Distinct()
+                        .ToList();
+
+                    session.SuggestedResources = sanitizedResources;
+                }
+            }
+        }
+
+        private static string RemoveExternalLinks(string? input)
+        {
+            if (string.IsNullOrWhiteSpace(input))
+                return input ?? string.Empty;
+
+            var sanitized = UrlRegex.Replace(input, match =>
+            {
+                var value = match.Value.ToLowerInvariant();
+                return AllowedStudyPlanDomains.Any(domain => value.Contains(domain))
+                    ? match.Value
+                    : string.Empty;
+            });
+
+            sanitized = Regex.Replace(sanitized, @"\s{2,}", " ").Trim();
+            return sanitized;
         }
 
         private static string NormalizePlanStatus(string? status)
