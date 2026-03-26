@@ -1,6 +1,7 @@
 using AttaEduSystem.Services.IServices;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using System.Linq;
 using System.Text;
 using System.Text.Json;
 
@@ -17,8 +18,7 @@ namespace AttaEduSystem.Services.Services
             _httpClient = httpClient;
             _logger = logger;
 
-            var apiKey = configuration["Gemini:ApiKey"]
-                ?? throw new InvalidOperationException("Gemini API Key not configured");
+            var apiKey = ResolveGeminiApiKey(configuration);
             _apiUrl = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={apiKey}";
         }
 
@@ -88,7 +88,7 @@ Nhiệm vụ của bạn:
                 {
                     var errorBody = await response.Content.ReadAsStringAsync();
                     _logger.LogError("Gemini API Error: {StatusCode} - {Body}", response.StatusCode, errorBody);
-                    throw new Exception($"AI Service error: {response.StatusCode}");
+                    throw new Exception($"Gemini API Error ({(int)response.StatusCode}): {errorBody}");
                 }
 
                 var responseString = await response.Content.ReadAsStringAsync();
@@ -108,6 +108,24 @@ Nhiệm vụ của bạn:
                 _logger.LogError(ex, "Error calling Gemini Chat API");
                 throw;
             }
+        }
+
+        private static string ResolveGeminiApiKey(IConfiguration configuration)
+        {
+            var apiKey = new[]
+            {
+                configuration["Gemini:ApiKey"],
+                configuration["Gemini__ApiKey"],
+                configuration["Gemini_ApiKey"],
+                configuration["Gemini_Apikey"]
+            }.FirstOrDefault(v => !string.IsNullOrWhiteSpace(v));
+
+            if (string.IsNullOrWhiteSpace(apiKey))
+            {
+                throw new InvalidOperationException("Gemini API Key not configured");
+            }
+
+            return apiKey;
         }
     }
 }

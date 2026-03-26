@@ -1,4 +1,4 @@
-﻿﻿using AttaEduSystem.DataAccess.IRepositories;
+﻿using AttaEduSystem.DataAccess.IRepositories;
 using AttaEduSystem.Models.DTOs;
 using AttaEduSystem.Models.DTOs.ChatBot;
 using AttaEduSystem.Models.DTOs.ChatBox;
@@ -465,6 +465,18 @@ namespace AttaEduSystem.Services.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting AI response");
+                if (ex.Message.Contains("API_KEY_INVALID", StringComparison.OrdinalIgnoreCase) ||
+                    ex.Message.Contains("API key not found", StringComparison.OrdinalIgnoreCase))
+                {
+                    return "Dịch vụ AI đang lỗi cấu hình API key trên server. Bạn thử lại sau hoặc liên hệ quản trị viên để cập nhật key.";
+                }
+
+                if (ex.Message.Contains("quota", StringComparison.OrdinalIgnoreCase) ||
+                    ex.Message.Contains("RESOURCE_EXHAUSTED", StringComparison.OrdinalIgnoreCase))
+                {
+                    return "Dịch vụ AI đang tạm hết hạn mức xử lý. Bạn thử lại sau ít phút.";
+                }
+
                 return isExamContext
                     ? "Mình chưa phân tích đề thi được lúc này. Bạn thử gửi lại sau vài phút."
                     : "Mình đang bận xử lý hệ thống. Bạn thử lại sau ít phút nhé.";
