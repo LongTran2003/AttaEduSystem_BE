@@ -38,7 +38,7 @@ namespace AttaEduSystem.API.Controllers
         [SwaggerOperation(
             Summary = "🤖 Generate AI study plan",
             Description = "Generate a weekly study plan from exam history and preferences.\n\n" +
-                          "- `saveImmediately = false` (default): returns a preview, save later via `/{id}/save`.\n" +
+                          "- `saveImmediately = false` (default): returns a preview with `studyPlanId`, save later via `/{studyPlanId}/save`.\n" +
                           "- `saveImmediately = true`: generate + save + set active in ONE call (recommended for mobile).")]
         public async Task<ActionResult<ResponseDto>> Generate([FromBody] GeneratePlanDto dto)
         {
@@ -51,15 +51,15 @@ namespace AttaEduSystem.API.Controllers
         /// [2] Save a previously generated preview plan.
         /// Only needed when saveImmediately=false was used in /generate.
         /// </summary>
-        [HttpPost("{planId:guid}/save")]
+        [HttpPost("{studyPlanId:guid}/save")]
         [SwaggerOperation(
             Summary = "💾 Save a generated plan",
             Description = "Saves a generated plan (preview → active). Use `setAsActive=true` to make it the current plan. " +
                           "Skippable if you used `saveImmediately=true` in `/generate`.")]
-        public async Task<ActionResult<ResponseDto>> Save([FromRoute] Guid planId, [FromBody] SavePlanDto dto)
+        public async Task<ActionResult<ResponseDto>> Save([FromRoute] Guid studyPlanId, [FromBody] SavePlanDto? dto)
         {
             if (!ModelState.IsValid) return ReturnInvalidInputResponse();
-            var response = await _studyPlanService.SavePlanAsync(planId, dto, User);
+            var response = await _studyPlanService.SavePlanAsync(studyPlanId, dto ?? new SavePlanDto(), User);
             return StatusCode(response.StatusCode, response);
         }
 
@@ -120,50 +120,50 @@ namespace AttaEduSystem.API.Controllers
         /// <summary>
         /// [5] Get plan detail by ID.
         /// </summary>
-        [HttpGet("{planId:guid}")]
+        [HttpGet("{studyPlanId:guid}")]
         [SwaggerOperation(Summary = "🔍 Get plan detail", Description = "Get full detail of a specific study plan by its ID.")]
-        public async Task<ActionResult<ResponseDto>> GetDetail([FromRoute] Guid planId)
+        public async Task<ActionResult<ResponseDto>> GetDetail([FromRoute] Guid studyPlanId)
         {
-            var response = await _studyPlanService.GetPlanDetailAsync(planId, User);
+            var response = await _studyPlanService.GetPlanDetailAsync(studyPlanId, User);
             return StatusCode(response.StatusCode, response);
         }
 
         /// <summary>
         /// [6] Soft-delete a plan.
         /// </summary>
-        [HttpPut("{planId:guid}/delete")]
+        [HttpPut("{studyPlanId:guid}/delete")]
         [SwaggerOperation(Summary = "🗑️ Delete a plan", Description = "Soft-delete a saved study plan (sets status to Deleted).")]
-        public async Task<ActionResult<ResponseDto>> Delete([FromRoute] Guid planId)
+        public async Task<ActionResult<ResponseDto>> Delete([FromRoute] Guid studyPlanId)
         {
-            var response = await _studyPlanService.DeletePlanAsync(planId, User);
+            var response = await _studyPlanService.DeletePlanAsync(studyPlanId, User);
             return StatusCode(response.StatusCode, response);
         }
 
         /// <summary>
         /// [7] Mark a session as completed / not completed.
         /// </summary>
-        [HttpPatch("{planId:guid}/session")]
+        [HttpPatch("{studyPlanId:guid}/session")]
         [SwaggerOperation(
             Summary = "✅ Update session completion",
             Description = "Mark a session as completed or not completed and optionally add notes.")]
-        public async Task<ActionResult<ResponseDto>> UpdateSession([FromRoute] Guid planId, [FromBody] UpdateSessionDto dto)
+        public async Task<ActionResult<ResponseDto>> UpdateSession([FromRoute] Guid studyPlanId, [FromBody] UpdateSessionDto dto)
         {
             if (!ModelState.IsValid) return ReturnInvalidInputResponse();
-            var response = await _studyPlanService.UpdateSessionStatusAsync(planId, dto, User);
+            var response = await _studyPlanService.UpdateSessionStatusAsync(studyPlanId, dto, User);
             return StatusCode(response.StatusCode, response);
         }
 
         /// <summary>
         /// [8] Regenerate remaining days of an existing plan.
         /// </summary>
-        [HttpPost("{planId:guid}/regenerate")]
+        [HttpPost("{studyPlanId:guid}/regenerate")]
         [SwaggerOperation(
             Summary = "🔄 Regenerate remaining days",
             Description = "Regenerate part of an existing plan for remaining days (e.g., student wants to replan after mid-week).")]
-        public async Task<ActionResult<ResponseDto>> Regenerate([FromRoute] Guid planId, [FromBody] RegeneratePlanDto dto)
+        public async Task<ActionResult<ResponseDto>> Regenerate([FromRoute] Guid studyPlanId, [FromBody] RegeneratePlanDto dto)
         {
             if (!ModelState.IsValid) return ReturnInvalidInputResponse();
-            var response = await _studyPlanService.RegeneratePlanAsync(planId, dto, User);
+            var response = await _studyPlanService.RegeneratePlanAsync(studyPlanId, dto, User);
             return StatusCode(response.StatusCode, response);
         }
 
