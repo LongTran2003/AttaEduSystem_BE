@@ -455,7 +455,8 @@ namespace AttaEduSystem.Services.Services
             var canUseAi = await _usageTrackerService.TryConsumeAsync(user, UsageType.Token, 1);
             if (!canUseAi)
             {
-                return "Bạn đã dùng hết lượt AI trong gói hiện tại. Mình vẫn hỗ trợ câu hỏi cơ bản về tính năng hệ thống, hoặc bạn có thể nâng cấp gói để tiếp tục hỏi AI.";
+                return "Bạn đã dùng hết lượt AI trong gói hiện tại. " +
+                    "Mình vẫn hỗ trợ câu hỏi cơ bản về tính năng hệ thống, hoặc bạn có thể nâng cấp gói để tiếp tục hỏi AI.";
             }
 
             try
