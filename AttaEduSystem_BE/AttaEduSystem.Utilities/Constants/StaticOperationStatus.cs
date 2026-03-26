@@ -1,4 +1,4 @@
-﻿﻿﻿﻿namespace AttaEduSystem.Utilities.Constants
+﻿﻿﻿﻿﻿namespace AttaEduSystem.Utilities.Constants
 {
     public class StaticOperationStatus
     {

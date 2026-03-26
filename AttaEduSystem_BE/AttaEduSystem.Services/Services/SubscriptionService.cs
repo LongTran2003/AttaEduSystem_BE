@@ -13,6 +13,9 @@ namespace AttaEduSystem.Services.Services
 {
     public class SubscriptionService : ISubscriptionService
     {
+        private const string ActiveStatus = "Active";
+        private const string InactiveStatus = "Inactive";
+        private const string LegacyInactiveStatus = "0";
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
         private readonly ILogger<SubscriptionService> _logger;
@@ -156,7 +159,7 @@ namespace AttaEduSystem.Services.Services
                     401);
             }
 
-            var subscription = await _unitOfWork.UserSubscription.GetActiveByUserIdAsync(userId);
+            var subscription = await GetCurrentValidSubscriptionAsync(userId);
             if (subscription == null)
             {
                 return ErrorResponse.Build(
@@ -185,20 +188,18 @@ namespace AttaEduSystem.Services.Services
             int durationDays = order.Plan.DurationInDays > 0 ? order.Plan.DurationInDays : 30;
             var now = StaticOperationStatus.Timezone.Vietnam;
 
-            // Kiểm tra xem user đã có subscription chưa
-            //var existingSub = await _unitOfWork.UserSubscription.GetActiveByUserIdAsync(order.UserId);
-            var existingSub = await _unitOfWork.UserSubscription.GetAsync(s => s.UserId == order.UserId);
+            var allSubscriptions = (await _unitOfWork.UserSubscription.GetAllAsync(s => s.UserId == order.UserId))
+                .OrderByDescending(s => s.EndDate)
+                .ThenByDescending(s => s.UpdatedTime ?? s.CreatedTime)
+                .ToList();
+            var existingSub = allSubscriptions.FirstOrDefault();
             if (existingSub != null)
             {
-                // 1. Cập nhật sang Plan mới (QUAN TRỌNG NHẤT)
                 existingSub.SubscriptionPlanId = order.SubscriptionPlanId;
-
-                // 2. Reset ngày bắt đầu và kết thúc theo gói mới
                 existingSub.StartDate = now;
                 existingSub.EndDate = now.AddDays(durationDays);
-        
-                // 3. Cập nhật trạng thái
-                existingSub.Status = "Active";
+                existingSub.Status = ActiveStatus;
+                existingSub.IsAutoRenew = false;
                 existingSub.UpdatedTime = now;
         
                 _unitOfWork.UserSubscription.Update(existingSub);
@@ -213,7 +214,7 @@ namespace AttaEduSystem.Services.Services
                     SubscriptionPlanId = order.SubscriptionPlanId,
                     StartDate = now,
                     EndDate = now.AddDays(durationDays),
-                    Status = "Active",
+                    Status = ActiveStatus,
                     IsAutoRenew = false,
                     CreatedBy = order.UserId,
                     CreatedTime = now
@@ -221,9 +222,17 @@ namespace AttaEduSystem.Services.Services
                 await _unitOfWork.UserSubscription.AddAsync(newSub);
             }
 
-            // Reset usage cho chu kỳ mới
-            //var currentUsage = await _unitOfWork.UserUsage.GetCurrentPeriodAsync(order.UserId, DateTime.UtcNow);
-            var currentUsage = await _unitOfWork.UserUsage.GetAsync(u => u.UserId == order.UserId);
+            foreach (var staleSub in allSubscriptions.Where(s => existingSub == null || s.UserSubscriptionId != existingSub.UserSubscriptionId))
+            {
+                staleSub.Status = InactiveStatus;
+                staleSub.UpdatedTime = now;
+                _unitOfWork.UserSubscription.Update(staleSub);
+            }
+
+            var currentUsage = (await _unitOfWork.UserUsage.GetAllAsync(u => u.UserId == order.UserId))
+                .OrderByDescending(u => u.PeriodEnd)
+                .ThenByDescending(u => u.UpdatedTime ?? u.CreatedTime)
+                .FirstOrDefault();
             if (currentUsage == null)
             {
                 var newUsage = new UserUsage
@@ -319,11 +328,34 @@ namespace AttaEduSystem.Services.Services
 
         public async Task<bool> CanUseAdvancedFeature(string userId, string featureName)
         {
-            var subscription = await _unitOfWork.UserSubscription.GetActiveByUserIdAsync(userId);
+            var subscription = await GetCurrentValidSubscriptionAsync(userId);
             if (subscription == null) return false;
 
             // Ví dụ: chỉ Pro plan mới có thể giải đề chi tiết
             return subscription.Plan.Code == "PRO";
+        }
+
+        private async Task<UserSubscription?> GetCurrentValidSubscriptionAsync(string userId)
+        {
+            var now = StaticOperationStatus.Timezone.Vietnam;
+            var subscriptions = (await _unitOfWork.UserSubscription.GetAllAsync(
+                    s => s.UserId == userId,
+                    includeProperties: "Plan"))
+                .ToList();
+
+            return subscriptions
+                .Where(s => s.EndDate >= now && !IsInactiveSubscriptionStatus(s.Status))
+                .OrderByDescending(s => s.EndDate)
+                .ThenByDescending(s => s.UpdatedTime ?? s.CreatedTime)
+                .FirstOrDefault();
+        }
+
+        private static bool IsInactiveSubscriptionStatus(string? status)
+        {
+            return string.Equals(status, InactiveStatus, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(status, LegacyInactiveStatus, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(status, "Deleted", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(status, "Expired", StringComparison.OrdinalIgnoreCase);
         }
     }
 }

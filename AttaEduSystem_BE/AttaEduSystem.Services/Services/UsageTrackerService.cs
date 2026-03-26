@@ -14,6 +14,9 @@ namespace AttaEduSystem.Services.Services
 {
     public class UsageTrackerService : IUsageTrackerService
     {
+        private const string ActiveStatus = "Active";
+        private const string InactiveStatus = "Inactive";
+        private const string LegacyInactiveStatus = "0";
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
         private readonly ILogger<UsageTrackerService> _logger;
@@ -262,10 +265,15 @@ namespace AttaEduSystem.Services.Services
         {
             var now = StaticOperationStatus.Timezone.Vietnam;
 
-            // 1. Lấy gói hiện tại của User (Bất kể hết hạn hay chưa)
-            var subscription = await _unitOfWork.UserSubscription.GetAsync(
-                filter: s => s.UserId == userId,
-                includeProperties: "Plan");
+            var subscriptions = (await _unitOfWork.UserSubscription.GetAllAsync(
+                    filter: s => s.UserId == userId,
+                    includeProperties: "Plan"))
+                .ToList();
+            var subscription = subscriptions
+                .Where(s => !IsInactiveSubscriptionStatus(s.Status))
+                .OrderByDescending(s => s.EndDate)
+                .ThenByDescending(s => s.UpdatedTime ?? s.CreatedTime)
+                .FirstOrDefault();
 
             // Lấy thông tin gói FREE làm mặc định
             var freePlan = await _unitOfWork.SubscriptionPlan.GetAsync(p => p.Code == "FREE");
@@ -284,7 +292,7 @@ namespace AttaEduSystem.Services.Services
                     Plan = freePlan,
                     StartDate = now,
                     EndDate = now.AddDays(freeDuration),
-                    Status = "Active",
+                    Status = ActiveStatus,
                     CreatedBy = userId,
                     CreatedTime = now
                 };
@@ -298,15 +306,31 @@ namespace AttaEduSystem.Services.Services
                 subscription.Plan = freePlan;
                 subscription.StartDate = now;
                 subscription.EndDate = now.AddDays(freeDuration);
-                subscription.Status = "Active";
+                subscription.Status = ActiveStatus;
                 subscription.UpdatedTime = now;
 
                 _unitOfWork.UserSubscription.Update(subscription);
                 isPlanChangedOrRenewed = true;
             }
 
+            foreach (var staleSub in subscriptions.Where(s => s.UserSubscriptionId != subscription.UserSubscriptionId))
+            {
+                if (string.Equals(staleSub.Status, InactiveStatus, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(staleSub.Status, LegacyInactiveStatus, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                staleSub.Status = InactiveStatus;
+                staleSub.UpdatedTime = now;
+                _unitOfWork.UserSubscription.Update(staleSub);
+            }
+
             // 2. Lấy & Reset Usage
-            var usage = await _unitOfWork.UserUsage.GetAsync(u => u.UserId == userId);
+            var usage = (await _unitOfWork.UserUsage.GetAllAsync(u => u.UserId == userId))
+                .OrderByDescending(u => u.PeriodEnd)
+                .ThenByDescending(u => u.UpdatedTime ?? u.CreatedTime)
+                .FirstOrDefault();
 
             if (usage == null)
             {
@@ -346,6 +370,14 @@ namespace AttaEduSystem.Services.Services
             return (subscription, usage);
         }
 
+        private static bool IsInactiveSubscriptionStatus(string? status)
+        {
+            return string.Equals(status, InactiveStatus, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(status, LegacyInactiveStatus, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(status, "Deleted", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(status, "Expired", StringComparison.OrdinalIgnoreCase);
+        }
+
         private static int GetAllowedQuota(SubscriptionPlan plan, UsageType type)
         {
             var configuredQuota = type switch
@@ -367,4 +399,3 @@ namespace AttaEduSystem.Services.Services
         }
     }
 }
-
