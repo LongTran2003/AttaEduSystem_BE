@@ -1,4 +1,4 @@
-﻿using AttaEduSystem.DataAccess.IRepositories;
+using AttaEduSystem.DataAccess.IRepositories;
 using AttaEduSystem.Models.DTOs;
 using AttaEduSystem.Models.DTOs.Billing;
 using AttaEduSystem.Models.Entities;
@@ -46,22 +46,22 @@ namespace AttaEduSystem.Services.Services
             switch (type)
             {
                 case UsageType.Scan:
-                    if (usage.ScansUsed + amount > plan.MaxScansPerMonth) return false;
+                    if (usage.ScansUsed + amount > GetAllowedQuota(plan, UsageType.Scan)) return false;
                     usage.ScansUsed += amount;
                     break;
 
                 case UsageType.GenerateExam:
-                    if (usage.GeneratedExamsUsed + amount > plan.MaxGeneratedExamsPerMonth) return false;
+                    if (usage.GeneratedExamsUsed + amount > GetAllowedQuota(plan, UsageType.GenerateExam)) return false;
                     usage.GeneratedExamsUsed += amount;
                     break;
 
                 case UsageType.Solve:
-                    if (usage.SolvesUsed + amount > plan.MaxSolvesPerMonth) return false;
+                    if (usage.SolvesUsed + amount > GetAllowedQuota(plan, UsageType.Solve)) return false;
                     usage.SolvesUsed += amount;
                     break;
 
                 case UsageType.Token:
-                    if (usage.TokensUsed + amount > plan.MaxTokensPerMonth) return false;
+                    if (usage.TokensUsed + amount > GetAllowedQuota(plan, UsageType.Token)) return false;
                     usage.TokensUsed += amount;
                     break;
 
@@ -192,10 +192,10 @@ namespace AttaEduSystem.Services.Services
                 ScansUsed = usage.ScansUsed,
                 GeneratedExamsUsed = usage.GeneratedExamsUsed,
                 SolvesUsed = usage.SolvesUsed,
-                MaxTokens = plan.MaxTokensPerMonth,
-                MaxScans = plan.MaxScansPerMonth,
-                MaxGeneratedExams = plan.MaxGeneratedExamsPerMonth,
-                MaxSolves = plan.MaxSolvesPerMonth,
+                MaxTokens = GetAllowedQuota(plan, UsageType.Token),
+                MaxScans = GetAllowedQuota(plan, UsageType.Scan),
+                MaxGeneratedExams = GetAllowedQuota(plan, UsageType.GenerateExam),
+                MaxSolves = GetAllowedQuota(plan, UsageType.Solve),
                 PeriodStart = usage.PeriodStart,
                 PeriodEnd = usage.PeriodEnd
             };
@@ -298,6 +298,7 @@ namespace AttaEduSystem.Services.Services
                 subscription.Plan = freePlan;
                 subscription.StartDate = now;
                 subscription.EndDate = now.AddDays(freeDuration);
+                subscription.Status = "Active";
                 subscription.UpdatedTime = now;
 
                 _unitOfWork.UserSubscription.Update(subscription);
@@ -343,6 +344,26 @@ namespace AttaEduSystem.Services.Services
             await _unitOfWork.SaveAsync();
 
             return (subscription, usage);
+        }
+
+        private static int GetAllowedQuota(SubscriptionPlan plan, UsageType type)
+        {
+            var configuredQuota = type switch
+            {
+                UsageType.Scan => plan.MaxScansPerMonth,
+                UsageType.GenerateExam => plan.MaxGeneratedExamsPerMonth,
+                UsageType.Solve => plan.MaxSolvesPerMonth,
+                UsageType.Token => plan.MaxTokensPerMonth,
+                _ => 0
+            };
+
+            if (configuredQuota > 0)
+                return configuredQuota;
+
+            if (type == UsageType.Token && !string.Equals(plan.Code, "FREE", StringComparison.OrdinalIgnoreCase))
+                return int.MaxValue;
+
+            return 0;
         }
     }
 }

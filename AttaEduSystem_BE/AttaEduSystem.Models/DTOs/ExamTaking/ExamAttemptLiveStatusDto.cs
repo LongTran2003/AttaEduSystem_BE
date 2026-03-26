@@ -1,4 +1,4 @@
-namespace AttaEduSystem.Models.DTOs.SubmitExam;
+namespace AttaEduSystem.Models.DTOs.ExamTaking;
 
 public class ExamAttemptLiveStatusDto
 {

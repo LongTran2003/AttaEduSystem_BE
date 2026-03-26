@@ -13,18 +13,15 @@ namespace AttaEduSystem.API.Hubs.Chat
     public class ChatHub : Hub
     {
         private readonly IChatAiService _chatAiService;
-        private readonly IUsageTrackerService _usageTrackerService;
         private readonly IUnitOfWork _unitOfWork;
         private readonly ILogger<ChatHub> _logger;
 
         public ChatHub(
             IChatAiService chatAiService,
-            IUsageTrackerService usageTrackerService,
             IUnitOfWork unitOfWork,
             ILogger<ChatHub> logger)
         {
             _chatAiService = chatAiService;
-            _usageTrackerService = usageTrackerService;
             _unitOfWork = unitOfWork;
             _logger = logger;
         }
@@ -80,19 +77,8 @@ namespace AttaEduSystem.API.Hubs.Chat
                     .Select(m => (m.Role == MessageRole.User ? "user" : "assistant", m.Content))
                     .ToList();
 
-                var aiResponse = TryGetPredefinedAnswer(message);
-                if (string.IsNullOrWhiteSpace(aiResponse))
-                {
-                    var canUseAi = await _usageTrackerService.TryConsumeAsync(Context.User!, UsageType.Token, 1);
-                    if (!canUseAi)
-                    {
-                        aiResponse = "Bạn đã dùng hết lượt AI trong gói hiện tại. Bạn vẫn có thể hỏi các câu hỏi cơ bản về tính năng hệ thống.";
-                    }
-                    else
-                    {
-                        aiResponse = await _chatAiService.GetChatResponseAsync(message, history);
-                    }
-                }
+                // 5. Call AI (for now, return full response; true streaming requires Gemini streaming API)
+                var aiResponse = await _chatAiService.GetChatResponseAsync(message, history);
 
                 // 6. Save AI response
                 var assistantMessage = new ChatMessage
@@ -151,24 +137,6 @@ namespace AttaEduSystem.API.Hubs.Chat
             var userId = Context.User?.FindFirstValue(ClaimTypes.NameIdentifier);
             _logger.LogInformation("User {UserId} disconnected from ChatHub", userId);
             await base.OnDisconnectedAsync(exception);
-        }
-
-        private static string? TryGetPredefinedAnswer(string message)
-        {
-            var normalized = (message ?? string.Empty).Trim().ToLowerInvariant();
-            if (string.IsNullOrWhiteSpace(normalized))
-                return "Bạn hãy nhập câu hỏi cụ thể để mình hỗ trợ.";
-
-            if (normalized.Contains("join phòng") || normalized.Contains("mã phòng") || normalized.Contains("tham gia phòng"))
-                return "Bạn vào mục Phòng thi, nhập mã phòng hoặc mở link tham gia. Sau khi join thành công, hệ thống sẽ cấp đề và lượt làm bài.";
-
-            if (normalized.Contains("nộp bài") || normalized.Contains("kết quả"))
-                return "Sau khi nộp bài, hệ thống chấm điểm tự động và hiển thị kết quả chi tiết theo từng câu đúng/sai.";
-
-            if (normalized.Contains("lớp học") || normalized.Contains("quản lý lớp"))
-                return "Mục Lớp học cho phép tạo lớp, thêm học sinh/giáo viên và xem thống kê lớp.";
-
-            return null;
         }
     }
 }

@@ -12,6 +12,10 @@ namespace AttaEduSystem.Services.Services;
 
 public class LearningClassService : ILearningClassService
 {
+    private const string ActiveStatus = "Active";
+    private const string InactiveStatus = "Inactive";
+    private const string LegacyActiveStatus = "1";
+    private const string LegacyInactiveStatus = "0";
     private readonly IUnitOfWork _unitOfWork;
     private readonly UserManager<ApplicationUser> _userManager;
 
@@ -41,7 +45,7 @@ public class LearningClassService : ILearningClassService
             OwnerUserId = userId,
             CreatedBy = userId,
             CreatedTime = StaticOperationStatus.Timezone.Vietnam,
-            Status = StaticOperationStatus.BaseEntity.Active
+            Status = ActiveStatus
         };
 
         await _unitOfWork.LearningClass.AddAsync(learningClass);
@@ -191,7 +195,7 @@ public class LearningClassService : ILearningClassService
         if (dto.Schedule != null)
             learningClass.Schedule = dto.Schedule;
         if (!string.IsNullOrWhiteSpace(dto.Status))
-            learningClass.Status = dto.Status;
+            learningClass.Status = NormalizeClassStatus(dto.Status);
 
         learningClass.UpdatedBy = userId;
         learningClass.UpdatedTime = StaticOperationStatus.Timezone.Vietnam;
@@ -214,7 +218,7 @@ public class LearningClassService : ILearningClassService
         if (!await CanManageClass(user, learningClass, userId))
             return ErrorResponse.Build("You do not have permission to delete this class", 403);
 
-        learningClass.Status = StaticOperationStatus.BaseEntity.Inactive;
+        learningClass.Status = InactiveStatus;
         learningClass.UpdatedBy = userId;
         learningClass.UpdatedTime = StaticOperationStatus.Timezone.Vietnam;
         _unitOfWork.LearningClass.Update(learningClass);
@@ -328,7 +332,7 @@ public class LearningClassService : ILearningClassService
             return ErrorResponse.Build("Month must be between 1 and 12", 400);
 
         var classes = (await _unitOfWork.LearningClass.GetAllWithMembersAsync())
-            .Where(c => c.Status != StaticOperationStatus.BaseEntity.Inactive)
+            .Where(c => !IsInactiveStatus(c.Status))
             .ToList();
 
         if (classId.HasValue)
@@ -524,7 +528,7 @@ public class LearningClassService : ILearningClassService
             JoinedAt = StaticOperationStatus.Timezone.Vietnam,
             CreatedBy = createdBy,
             CreatedTime = StaticOperationStatus.Timezone.Vietnam,
-            Status = StaticOperationStatus.BaseEntity.Active
+            Status = ActiveStatus
         };
     }
 
@@ -538,10 +542,27 @@ public class LearningClassService : ILearningClassService
             SchoolYear = learningClass.SchoolYear,
             Description = learningClass.Description,
             Schedule = learningClass.Schedule,
-            Status = learningClass.Status ?? StaticOperationStatus.BaseEntity.Active,
+            Status = NormalizeClassStatus(learningClass.Status),
             StudentCount = learningClass.Members.Count(m => m.Role == StaticUserRoles.Student),
             TeacherCount = learningClass.Members.Count(m => m.Role == StaticUserRoles.Teacher),
             ExamRoomCount = examRooms.Count()
         };
+    }
+
+    private static string NormalizeClassStatus(string? status)
+    {
+        if (string.Equals(status, LegacyActiveStatus, StringComparison.OrdinalIgnoreCase))
+            return ActiveStatus;
+
+        if (string.Equals(status, LegacyInactiveStatus, StringComparison.OrdinalIgnoreCase))
+            return InactiveStatus;
+
+        return string.IsNullOrWhiteSpace(status) ? ActiveStatus : status;
+    }
+
+    private static bool IsInactiveStatus(string? status)
+    {
+        return string.Equals(status, InactiveStatus, StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(status, LegacyInactiveStatus, StringComparison.OrdinalIgnoreCase);
     }
 }

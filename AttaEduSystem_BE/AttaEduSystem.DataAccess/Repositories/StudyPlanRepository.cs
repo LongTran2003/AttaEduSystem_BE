@@ -1,13 +1,15 @@
-﻿using AttaEduSystem.DataAccess.DBContext;
+using AttaEduSystem.DataAccess.DBContext;
 using AttaEduSystem.DataAccess.IRepositories;
 using AttaEduSystem.Models.Entities;
-using AttaEduSystem.Utilities.Constants;
 using Microsoft.EntityFrameworkCore;
 
 namespace AttaEduSystem.DataAccess.Repositories
 {
     public class StudyPlanRepository : Repository<StudyPlan>, IStudyPlanRepository
     {
+        private const string ActiveStatus = "Active";
+        private const string InactiveStatus = "Inactive";
+        private const string LegacyActiveStatus = "1";
         private readonly ApplicationDBContext _context;
 
         public StudyPlanRepository(ApplicationDBContext context) : base(context)
@@ -19,7 +21,7 @@ namespace AttaEduSystem.DataAccess.Repositories
         {
             return await _context.StudyPlans
                 .Where(sp => sp.UserId == userId && 
-                        sp.Status == StaticOperationStatus.BaseEntity.Active)
+                        (sp.Status == ActiveStatus || sp.Status == LegacyActiveStatus))
                 .OrderByDescending(sp => sp.CreatedTime)
                 .FirstOrDefaultAsync();
         }
@@ -59,12 +61,12 @@ namespace AttaEduSystem.DataAccess.Repositories
         {
             var activePlans = await _context.StudyPlans
                 .Where(sp => sp.UserId == userId && 
-                        sp.Status == StaticOperationStatus.BaseEntity.Active)
+                        (sp.Status == ActiveStatus || sp.Status == LegacyActiveStatus))
                 .ToListAsync();
 
             foreach (var plan in activePlans)
             {
-                plan.Status = StaticOperationStatus.BaseEntity.Inactive;
+                plan.Status = InactiveStatus;
                 plan.UpdatedTime = DateTime.UtcNow;
             }
 

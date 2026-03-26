@@ -14,6 +14,10 @@ namespace AttaEduSystem.Services.Services
 {
     public class StudyPlanService : IStudyPlanService
     {
+        private const string ActiveStatus = "Active";
+        private const string InactiveStatus = "Inactive";
+        private const string LegacyActiveStatus = "1";
+        private const string LegacyInactiveStatus = "0";
         private readonly IUnitOfWork _unitOfWork;
         private readonly IGeminiAiService _geminiAiService;
         private readonly IMapper _mapper;
@@ -116,7 +120,7 @@ namespace AttaEduSystem.Services.Services
                     if (dto.SaveImmediately)
                     {
                         await _unitOfWork.StudyPlan.DeactivateAllPlansAsync(userId);
-                        existingPlan.Status = StaticOperationStatus.BaseEntity.Active;
+                        existingPlan.Status = ActiveStatus;
                     }
                     else
                     {
@@ -127,7 +131,7 @@ namespace AttaEduSystem.Services.Services
                     await _unitOfWork.SaveAsync();
 
                     planDto.StudyPlanId = existingPlan.StudyPlanId;
-                    planDto.Status = existingPlan.Status;
+                    planDto.Status = NormalizePlanStatus(existingPlan.Status);
 
                     return SuccessResponse.Build(
                         dto.SaveImmediately
@@ -136,7 +140,7 @@ namespace AttaEduSystem.Services.Services
                         200, planDto);
                 }
 
-                var finalStatus = dto.SaveImmediately ? StaticOperationStatus.BaseEntity.Active : "Generated";
+                var finalStatus = dto.SaveImmediately ? ActiveStatus : "Generated";
 
                 // 7. Persist plan
                 var previewEntity = new StudyPlan
@@ -199,7 +203,7 @@ namespace AttaEduSystem.Services.Services
                 if (dto.SetAsActive)
                 {
                     await _unitOfWork.StudyPlan.DeactivateAllPlansAsync(userId);
-                    entity.Status = StaticOperationStatus.BaseEntity.Active;
+                    entity.Status = ActiveStatus;
                 }
                 else
                 {
@@ -215,7 +219,7 @@ namespace AttaEduSystem.Services.Services
 
                 var planDto = JsonSerializer.Deserialize<WeeklyStudyPlanDto>(entity.PlanJson, _jsonOptions) ?? new WeeklyStudyPlanDto();
                 planDto.StudyPlanId = entity.StudyPlanId;
-                planDto.Status = entity.Status;
+                planDto.Status = NormalizePlanStatus(entity.Status);
                 planDto.SavedAt = entity.UpdatedTime ?? entity.CreatedTime;
                 planDto.Notes = entity.Notes;
 
@@ -252,7 +256,7 @@ namespace AttaEduSystem.Services.Services
                     WeekEnd = planDto.WeekEnd,
                     PlanJson = JsonSerializer.Serialize(planDto),
                     Notes = saveDto.Notes,
-                    Status = StaticOperationStatus.BaseEntity.Active,
+                    Status = saveDto.SetAsActive ? ActiveStatus : "Saved",
                     CompletionPercentage = 0,
                     CreatedBy = user.FindFirstValue("FullName"),
                     CreatedTime = StaticOperationStatus.Timezone.Vietnam
@@ -263,7 +267,7 @@ namespace AttaEduSystem.Services.Services
 
                 // 3. Update DTO metadata
                 planDto.StudyPlanId = entity.StudyPlanId;
-                planDto.Status = entity.Status;
+                planDto.Status = NormalizePlanStatus(entity.Status);
                 planDto.SavedAt = entity.UpdatedTime ?? entity.CreatedTime;
                 planDto.Notes = saveDto.Notes;
 
@@ -303,7 +307,7 @@ namespace AttaEduSystem.Services.Services
             EnrichDayLabels(planDto);
 
             planDto.StudyPlanId = plan.StudyPlanId;
-            planDto.Status = plan.Status;
+            planDto.Status = NormalizePlanStatus(plan.Status);
             planDto.Notes = plan.Notes;
             planDto.CompletionPercentage = plan.CompletionPercentage;
             planDto.SavedAt = plan.UpdatedTime ?? plan.CreatedTime;
@@ -332,7 +336,7 @@ namespace AttaEduSystem.Services.Services
 
             // Đồng bộ lại các thông tin Metadata mới nhất từ Entity (DB) sang DTO
             planDto.StudyPlanId = plan.StudyPlanId;
-            planDto.Status = plan.Status;
+            planDto.Status = NormalizePlanStatus(plan.Status);
             planDto.Notes = plan.Notes;
             planDto.CompletionPercentage = plan.CompletionPercentage;
             planDto.SavedAt = plan.UpdatedTime ?? plan.CreatedTime;
@@ -383,7 +387,7 @@ namespace AttaEduSystem.Services.Services
                 return ErrorResponse.Build("Plan not found", 404);
 
             // Soft delete
-            plan.Status = StaticOperationStatus.BaseEntity.Inactive;
+            plan.Status = InactiveStatus;
             plan.UpdatedTime = StaticOperationStatus.Timezone.Vietnam;
             plan.UpdatedBy = user.FindFirstValue("FullName");
 
@@ -571,7 +575,7 @@ namespace AttaEduSystem.Services.Services
 
             // Sync metadata mới nhất từ DB vào DTO
             planDto.StudyPlanId = plan.StudyPlanId;
-            planDto.Status = plan.Status;
+            planDto.Status = NormalizePlanStatus(plan.Status);
             planDto.Notes = plan.Notes;
             planDto.CompletionPercentage = plan.CompletionPercentage;
             planDto.GeneratedAt = plan.CreatedTime ?? DateTime.MinValue;
@@ -787,7 +791,7 @@ namespace AttaEduSystem.Services.Services
                     if (dto == null) return null;
                     EnrichDayLabels(dto);
                     dto.StudyPlanId = p.StudyPlanId;
-                    dto.Status = p.Status;
+                    dto.Status = NormalizePlanStatus(p.Status);
                     dto.Notes = p.Notes;
                     dto.CompletionPercentage = p.CompletionPercentage;
                     dto.SavedAt = p.UpdatedTime ?? p.CreatedTime;
@@ -807,6 +811,17 @@ namespace AttaEduSystem.Services.Services
                 TotalPlans = result.Count,
                 Plans = result
             });
+        }
+
+        private static string NormalizePlanStatus(string? status)
+        {
+            if (string.Equals(status, LegacyActiveStatus, StringComparison.OrdinalIgnoreCase))
+                return ActiveStatus;
+
+            if (string.Equals(status, LegacyInactiveStatus, StringComparison.OrdinalIgnoreCase))
+                return InactiveStatus;
+
+            return string.IsNullOrWhiteSpace(status) ? ActiveStatus : status;
         }
     }
 }
