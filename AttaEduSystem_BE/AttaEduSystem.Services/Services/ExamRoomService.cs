@@ -35,11 +35,18 @@ namespace AttaEduSystem.Services.Services
                 if (string.IsNullOrEmpty(userId))
                     return ErrorResponse.Build(StaticOperationStatus.User.UserNotFound, 401);
 
-                var examPaper = await _unitOfWork.ExamPaper.GetAsync(e => e.ExamPaperId == dto.ExamPaperId);
+                var examPaper = await _unitOfWork.ExamPaper.GetAsync(
+                    e => e.ExamPaperId == dto.ExamPaperId,
+                    includeProperties: "Creator");
                 if (examPaper == null)
                     return ErrorResponse.Build("Exam paper not found", 404);
 
-                if (examPaper.CreatedBy != userId)
+                var canCreateRoom = examPaper.Creator?.Id == userId ||
+                                    string.Equals(examPaper.CreatedBy, userId, StringComparison.OrdinalIgnoreCase) ||
+                                    (!string.IsNullOrWhiteSpace(fullName) &&
+                                     string.Equals(examPaper.CreatedBy, fullName, StringComparison.OrdinalIgnoreCase));
+
+                if (!canCreateRoom)
                     return ErrorResponse.Build(
                         "You do not have permission to create room for this exam paper", 403);
 

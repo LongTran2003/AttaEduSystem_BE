@@ -56,5 +56,18 @@ namespace AttaEduSystem.Models.DTOs.ExamPaper
 
         [RegularExpression("Essay|MultipleChoice", ErrorMessage = "QuestionType must be Essay or MultipleChoice")]
         public string? QuestionType { get; set; }
+
+        public List<QuestionOptionUpdateItem>? Options { get; set; }
+    }
+
+    public class QuestionOptionUpdateItem
+    {
+        [Required]
+        [StringLength(10)]
+        public string OptionLabel { get; set; } = string.Empty;
+
+        [Required]
+        [StringLength(1000)]
+        public string OptionContent { get; set; } = string.Empty;
     }
 }

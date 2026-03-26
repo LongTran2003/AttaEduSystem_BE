@@ -550,6 +550,10 @@ namespace AttaEduSystem.Services.Services
                 var questions = await _unitOfWork.ExamQuestion.GetAllAsync(
                     q => q.ExamPaperId == examPaperId && questionIds.Contains(q.QuestionId));
                 var questionMap = questions.ToDictionary(q => q.QuestionId);
+                var existingOptions = await _unitOfWork.QuestionOption.GetAllAsync(o => questionIds.Contains(o.QuestionId));
+                var optionMap = existingOptions
+                    .GroupBy(o => o.QuestionId)
+                    .ToDictionary(g => g.Key, g => g.ToList());
 
                 int updated = 0;
                 var notFound = new List<Guid>();
@@ -568,6 +572,25 @@ namespace AttaEduSystem.Services.Services
                     if (item.Points.HasValue)          question.Points = item.Points;
                     if (item.CorrectAnswer != null)    question.CorrectAnswer = item.CorrectAnswer;
                     if (item.QuestionType != null)     question.QuestionType = item.QuestionType;
+                    if (item.Options != null)
+                    {
+                        if (optionMap.TryGetValue(question.QuestionId, out var optionsToRemove) && optionsToRemove.Any())
+                        {
+                            _unitOfWork.QuestionOption.RemoveRange(optionsToRemove);
+                        }
+
+                        if (item.Options.Any())
+                        {
+                            var newOptions = item.Options.Select(o => new QuestionOption
+                            {
+                                OptionId = Guid.NewGuid(),
+                                QuestionId = question.QuestionId,
+                                Label = o.OptionLabel,
+                                Content = o.OptionContent
+                            }).ToList();
+                            await _unitOfWork.QuestionOption.AddRangeAsync(newOptions);
+                        }
+                    }
 
                     question.UpdatedBy = user.FindFirstValue("FullName");
                     question.UpdatedTime = StaticOperationStatus.Timezone.Vietnam;
