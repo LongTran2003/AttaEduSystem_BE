@@ -1,4 +1,4 @@
-﻿using AttaEduSystem.DataAccess.IRepositories;
+using AttaEduSystem.DataAccess.IRepositories;
 using AttaEduSystem.Models.DTOs;
 using AttaEduSystem.Models.DTOs.ChatBot;
 using AttaEduSystem.Models.DTOs.ChatBox;
@@ -18,20 +18,17 @@ namespace AttaEduSystem.Services.Services
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IChatAiService _chatAiService;
-        private readonly IUsageTrackerService _usageTrackerService;
         private readonly IMapper _mapper;
         private readonly ILogger<ChatService> _logger;
 
         public ChatService(
             IUnitOfWork unitOfWork,
             IChatAiService chatAiService,
-            IUsageTrackerService usageTrackerService,
             IMapper mapper,
             ILogger<ChatService> logger)
         {
             _unitOfWork = unitOfWork;
             _chatAiService = chatAiService;
-            _usageTrackerService = usageTrackerService;
             _mapper = mapper;
             _logger = logger;
         }
@@ -450,13 +447,6 @@ namespace AttaEduSystem.Services.Services
                 var predefinedAnswer = TryGetPredefinedAnswer(cleanMessage);
                 if (!string.IsNullOrWhiteSpace(predefinedAnswer))
                     return predefinedAnswer;
-            }
-
-            var canUseAi = await _usageTrackerService.TryConsumeAsync(user, UsageType.Token, 1);
-            if (!canUseAi)
-            {
-                return "Bạn đã dùng hết lượt AI trong gói hiện tại. " +
-                    "Mình vẫn hỗ trợ câu hỏi cơ bản về tính năng hệ thống, hoặc bạn có thể nâng cấp gói để tiếp tục hỏi AI.";
             }
 
             try
