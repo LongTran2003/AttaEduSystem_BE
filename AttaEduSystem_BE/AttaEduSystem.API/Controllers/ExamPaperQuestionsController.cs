@@ -1,4 +1,4 @@
-﻿using AttaEduSystem.Models.DTOs;
+using AttaEduSystem.Models.DTOs;
 using AttaEduSystem.Models.DTOs.ExamQuestion;
 using AttaEduSystem.Services.IServices;
 using Microsoft.AspNetCore.Authorization;
@@ -71,6 +71,17 @@ namespace AttaEduSystem.API.Controllers
             if (!ModelState.IsValid) return ReturnInvalidInputResponse();
 
             var result = await _examQuestionService.ReorderQuestions(id, dto, User);
+            return StatusCode(result.StatusCode, result);
+        }
+
+        [HttpPut("{id:guid}/answer-key")]
+        [SwaggerOperation(Summary = "📝 Save answer key and options",
+            Description = "Save/update correct answers and option choices for questions in an exam paper. Required for quiz room taking flow.")]
+        public async Task<ActionResult<ResponseDto>> SaveAnswerKey(Guid id, [FromBody] SaveExamAnswerKeyDto dto)
+        {
+            if (!ModelState.IsValid) return ReturnInvalidInputResponse();
+
+            var result = await _examQuestionService.SaveExamAnswerKey(id, dto, User);
             return StatusCode(result.StatusCode, result);
         }
     }

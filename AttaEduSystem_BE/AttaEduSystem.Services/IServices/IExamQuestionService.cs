@@ -15,5 +15,6 @@ namespace AttaEduSystem.Services.IServices
         Task<ResponseDto> AddQuestionToExamPaper(Guid examPaperId, AddExamQuestionDto dto, ClaimsPrincipal user);
         Task<ResponseDto> ReorderQuestions(Guid examPaperId, ReorderQuestionsDto dto, ClaimsPrincipal user);
         Task<ResponseDto> GetQuestionsByExamPaper(Guid examPaperId);
+        Task<ResponseDto> SaveExamAnswerKey(Guid examPaperId, SaveExamAnswerKeyDto dto, ClaimsPrincipal user);
     }
 }

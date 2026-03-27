@@ -6,6 +6,7 @@ using AttaEduSystem.Services.Helpers.Responses;
 using AttaEduSystem.Services.IServices;
 using AttaEduSystem.Utilities.Constants;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 
 namespace AttaEduSystem.Services.Services;
@@ -66,6 +67,10 @@ public class LearningClassService : ILearningClassService
                 membersToAdd.Add(BuildMember(learningClass.LearningClassId, teacherId, StaticUserRoles.Teacher, userId));
                 memberUserIds.Add(teacherId);
             }
+            else
+            {
+                return ErrorResponse.Build($"Teacher user id is invalid or not in Teacher role: {teacherId}", 400);
+            }
         }
 
         foreach (var studentId in studentIds)
@@ -77,10 +82,21 @@ public class LearningClassService : ILearningClassService
                 membersToAdd.Add(BuildMember(learningClass.LearningClassId, studentId, StaticUserRoles.Student, userId));
                 memberUserIds.Add(studentId);
             }
+            else
+            {
+                return ErrorResponse.Build($"Student user id is invalid or not in Student role: {studentId}", 400);
+            }
         }
 
         await _unitOfWork.LearningClassMember.AddRangeAsync(membersToAdd);
-        await _unitOfWork.SaveAsync();
+        try
+        {
+            await _unitOfWork.SaveAsync();
+        }
+        catch (DbUpdateException ex)
+        {
+            return ErrorResponse.Build($"Failed to create class due to invalid data: {ex.InnerException?.Message ?? ex.Message}", 400);
+        }
 
         return await GetClassDetail(learningClass.LearningClassId, user);
     }
@@ -263,7 +279,7 @@ public class LearningClassService : ILearningClassService
             if (existingUserIds.Contains(teacherId))
                 continue;
             if (!await IsUserInRoleAsync(teacherId, StaticUserRoles.Teacher))
-                continue;
+                return ErrorResponse.Build($"Teacher user id is invalid or not in Teacher role: {teacherId}", 400);
 
             membersToAdd.Add(BuildMember(classId, teacherId, StaticUserRoles.Teacher, createdBy));
             existingUserIds.Add(teacherId);
@@ -274,7 +290,7 @@ public class LearningClassService : ILearningClassService
             if (existingUserIds.Contains(studentId))
                 continue;
             if (!await IsUserInRoleAsync(studentId, StaticUserRoles.Student))
-                continue;
+                return ErrorResponse.Build($"Student user id is invalid or not in Student role: {studentId}", 400);
 
             membersToAdd.Add(BuildMember(classId, studentId, StaticUserRoles.Student, createdBy));
             existingUserIds.Add(studentId);
@@ -284,7 +300,14 @@ public class LearningClassService : ILearningClassService
             return ErrorResponse.Build("No valid members to add", 400);
 
         await _unitOfWork.LearningClassMember.AddRangeAsync(membersToAdd);
-        await _unitOfWork.SaveAsync();
+        try
+        {
+            await _unitOfWork.SaveAsync();
+        }
+        catch (DbUpdateException ex)
+        {
+            return ErrorResponse.Build($"Failed to add members due to invalid data: {ex.InnerException?.Message ?? ex.Message}", 400);
+        }
 
         return await GetClassDetail(classId, user);
     }

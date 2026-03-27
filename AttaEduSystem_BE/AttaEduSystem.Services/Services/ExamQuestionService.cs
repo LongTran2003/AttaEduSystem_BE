@@ -1,4 +1,4 @@
-﻿using AttaEduSystem.DataAccess.IRepositories;
+using AttaEduSystem.DataAccess.IRepositories;
 using AttaEduSystem.Models.DTOs;
 using AttaEduSystem.Models.DTOs.ExamQuestion;
 using AttaEduSystem.Models.Entities;
@@ -308,6 +308,86 @@ namespace AttaEduSystem.Services.Services
             catch (Exception ex)
             {
                 return ErrorResponse.Build($"Failed to retrieve questions: {ex.Message}", 500);
+            }
+        }
+
+        public async Task<ResponseDto> SaveExamAnswerKey(Guid examPaperId, SaveExamAnswerKeyDto dto, ClaimsPrincipal user)
+        {
+            try
+            {
+                var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrEmpty(userId))
+                    return ErrorResponse.Build(StaticOperationStatus.User.UserNotFound, 401);
+
+                if (dto.Questions == null || !dto.Questions.Any())
+                    return ErrorResponse.Build("Questions payload is required", 400);
+
+                var (isValid, errorMessage, statusCode, _) = await ValidateExamOwnershipAsync(examPaperId, userId);
+                if (!isValid)
+                    return ErrorResponse.Build(errorMessage!, statusCode);
+
+                var questionIds = dto.Questions.Select(q => q.QuestionId).ToHashSet();
+                var questions = (await _unitOfWork.ExamQuestion.GetAllAsync(
+                    q => q.ExamPaperId == examPaperId && questionIds.Contains(q.QuestionId),
+                    includeProperties: "Options")).ToList();
+
+                if (!questions.Any())
+                    return ErrorResponse.Build("No questions found to update", 404);
+
+                var questionMap = questions.ToDictionary(q => q.QuestionId);
+                var notFoundIds = new List<Guid>();
+                var updatedCount = 0;
+
+                foreach (var item in dto.Questions)
+                {
+                    if (!questionMap.TryGetValue(item.QuestionId, out var question))
+                    {
+                        notFoundIds.Add(item.QuestionId);
+                        continue;
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(item.QuestionType))
+                        question.QuestionType = item.QuestionType;
+
+                    if (item.CorrectAnswer != null)
+                        question.CorrectAnswer = item.CorrectAnswer.Trim().ToUpperInvariant();
+
+                    if (item.Options != null)
+                    {
+                        if (question.Options.Any())
+                            _unitOfWork.QuestionOption.RemoveRange(question.Options);
+
+                        if (item.Options.Any())
+                        {
+                            var newOptions = item.Options.Select(o => new QuestionOption
+                            {
+                                OptionId = Guid.NewGuid(),
+                                QuestionId = question.QuestionId,
+                                Label = o.OptionLabel.Trim(),
+                                Content = o.OptionContent.Trim()
+                            }).ToList();
+                            await _unitOfWork.QuestionOption.AddRangeAsync(newOptions);
+                        }
+                    }
+
+                    question.UpdatedBy = user.FindFirstValue("FullName") ?? userId;
+                    question.UpdatedTime = StaticOperationStatus.Timezone.Vietnam;
+                    _unitOfWork.ExamQuestion.Update(question);
+                    updatedCount++;
+                }
+
+                await _unitOfWork.SaveAsync();
+
+                return SuccessResponse.Build("Exam answer key saved successfully", 200, new
+                {
+                    ExamPaperId = examPaperId,
+                    UpdatedCount = updatedCount,
+                    NotFoundIds = notFoundIds
+                });
+            }
+            catch (Exception ex)
+            {
+                return ErrorResponse.Build($"Failed to save exam answer key: {ex.Message}", 500);
             }
         }
 
