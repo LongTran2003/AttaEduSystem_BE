@@ -33,7 +33,7 @@ namespace AttaEduSystem.API.Controllers
         }
         
         [HttpPost("{examPaperId:guid}/solve")]
-        [Authorize(Policy = "RequireProPlan")]
+        [Authorize]
         [SwaggerOperation(Summary = "💡 Solve an exam paper", 
             Description = "Uses AI to generate step-by-step solutions.")]
         public async Task<ActionResult<ResponseDto>> SolveExam(Guid examPaperId)

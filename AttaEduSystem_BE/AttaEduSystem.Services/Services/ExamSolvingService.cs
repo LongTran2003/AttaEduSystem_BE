@@ -41,18 +41,41 @@ namespace AttaEduSystem.Services.Services
                 var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
                 if (string.IsNullOrEmpty(userId)) return ErrorResponse.Build(StaticOperationStatus.User.UserNotFound, 401);
 
-                var roleValues = user.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList();
+                var roleValues = user.Claims
+                    .Where(c =>
+                        string.Equals(c.Type, ClaimTypes.Role, StringComparison.OrdinalIgnoreCase) ||
+                        c.Type.EndsWith("/role", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(c.Type, "role", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(c.Type, "roles", StringComparison.OrdinalIgnoreCase))
+                    .Select(c => c.Value)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
                 var isTeacherOrAdmin = roleValues.Any(r =>
                     string.Equals(r, StaticUserRoles.Teacher, StringComparison.OrdinalIgnoreCase) ||
                     string.Equals(r, StaticUserRoles.Admin, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(r, "Giáo viên", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(r, "QuanTri", StringComparison.OrdinalIgnoreCase) ||
                     string.Equals(r, "Teacher", StringComparison.OrdinalIgnoreCase) ||
                     string.Equals(r, "Admin", StringComparison.OrdinalIgnoreCase));
 
-                if (!isTeacherOrAdmin && !await _usageTracker.TryConsumeAsync(user, UsageType.Solve, 1))
+                if (!isTeacherOrAdmin)
                 {
-                    return ErrorResponse.Build(
-                        message: "Your solve quota has been reached. Please upgrade your subscription to continue.",
-                        statusCode: 402);
+                    var subscription = await _unitOfWork.UserSubscription.GetActiveByUserIdAsync(userId);
+                    var hasProPlan = subscription?.Plan != null &&
+                                     string.Equals(subscription.Plan.Code, "PRO", StringComparison.OrdinalIgnoreCase);
+                    if (!hasProPlan)
+                    {
+                        return ErrorResponse.Build(
+                            message: "Only teachers can use free solve. Students need an active PRO subscription to use solve.",
+                            statusCode: 402);
+                    }
+
+                    if (!await _usageTracker.TryConsumeAsync(user, UsageType.Solve, 1))
+                    {
+                        return ErrorResponse.Build(
+                            message: "Your solve quota has been reached. Please upgrade your subscription to continue.",
+                            statusCode: 402);
+                    }
                 }
 
                 // 1. Lấy đề thi từ DB

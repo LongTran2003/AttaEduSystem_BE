@@ -1,4 +1,4 @@
-﻿using AttaEduSystem.Models.DTOs;
+using AttaEduSystem.Models.DTOs;
 using AttaEduSystem.Models.DTOs.ChatBot;
 using AttaEduSystem.Models.DTOs.ChatBox;
 using AttaEduSystem.Services.IServices;
@@ -16,10 +16,12 @@ namespace AttaEduSystem.API.Controllers
     public class ChatController : ControllerBase
     {
         private readonly IChatService _chatService;
+        private readonly IChatAiService _chatAiService;
 
-        public ChatController(IChatService chatService)
+        public ChatController(IChatService chatService, IChatAiService chatAiService)
         {
             _chatService = chatService;
+            _chatAiService = chatAiService;
         }
 
         // Helper validate
@@ -119,6 +121,23 @@ namespace AttaEduSystem.API.Controllers
 
             var result = await _chatService.AskAboutExamAsync(examId, dto, User);
             return StatusCode(result.StatusCode, result);
+        }
+
+        [HttpGet("health/ai")]
+        [SwaggerOperation(
+            Summary = "🩺 Check chat AI health",
+            Description = "Checks chat AI configuration and optionally probes Gemini provider using runProbe=true.")]
+        public async Task<ActionResult<ResponseDto>> CheckAiHealth([FromQuery] bool runProbe = false)
+        {
+            var (isOk, status, detail) = await _chatAiService.CheckHealthAsync(runProbe);
+            var code = isOk ? 200 : 503;
+            return StatusCode(code, new ResponseDto
+            {
+                IsSuccess = isOk,
+                StatusCode = code,
+                Message = isOk ? "Chat AI health check passed" : "Chat AI health check failed",
+                Result = new { status, detail, runProbe }
+            });
         }
     }
 }

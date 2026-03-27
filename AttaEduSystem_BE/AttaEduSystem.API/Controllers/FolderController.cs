@@ -157,7 +157,7 @@ public class FolderController : ControllerBase
         }
 
         [HttpPost("{folderId:guid}/exams/{examPaperId:guid}/solve")]
-        [Authorize(Policy = "RequireProPlan")]
+        [Authorize]
         [SwaggerOperation(Summary = "💡 Solve exam in folder", Description = "Solve a folder exam with AI and save solution.")]
         public async Task<ActionResult<ResponseDto>> SolveExamInFolder(Guid folderId, Guid examPaperId)
         {

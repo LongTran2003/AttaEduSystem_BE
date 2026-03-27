@@ -1,6 +1,7 @@
 using AttaEduSystem.Services.IServices;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using System.Net;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
@@ -64,6 +65,44 @@ namespace AttaEduSystem.Services.Services
             return await CallGeminiApi(payload);
         }
 
+        public async Task<(bool IsOk, string Status, string Detail)> CheckHealthAsync(bool runProbe = false)
+        {
+            if (!runProbe)
+                return (true, "Configured", "Chat AI key is configured. Enable probe to verify provider connectivity.");
+
+            try
+            {
+                var probePayload = new
+                {
+                    contents = new[]
+                    {
+                        new
+                        {
+                            role = "user",
+                            parts = new[] { new { text = "ping" } }
+                        }
+                    }
+                };
+
+                await CallGeminiApi(probePayload);
+                return (true, "Healthy", "Gemini chat provider is reachable.");
+            }
+            catch (Exception ex)
+            {
+                var message = ex.Message;
+                if (message.Contains("API_KEY_INVALID", StringComparison.OrdinalIgnoreCase) ||
+                    message.Contains("API key not found", StringComparison.OrdinalIgnoreCase))
+                    return (false, "ApiKeyInvalid", message);
+
+                if (message.Contains("RESOURCE_EXHAUSTED", StringComparison.OrdinalIgnoreCase) ||
+                    message.Contains("quota", StringComparison.OrdinalIgnoreCase) ||
+                    message.Contains("429"))
+                    return (false, "QuotaExceeded", message);
+
+                return (false, "ProviderError", message);
+            }
+        }
+
         private string GetSystemPrompt()
         {
             return @"Bạn là trợ lý AI giáo dục thông minh của hệ thống AttaEdu. 
@@ -78,42 +117,65 @@ Nhiệm vụ của bạn:
         private async Task<string> CallGeminiApi(object payload)
         {
             var jsonPayload = JsonSerializer.Serialize(payload);
-            var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
-
-            try
+            for (var attempt = 1; attempt <= 3; attempt++)
             {
-                var response = await _httpClient.PostAsync(_apiUrl, content);
-
-                if (!response.IsSuccessStatusCode)
+                var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
+                try
                 {
-                    var errorBody = await response.Content.ReadAsStringAsync();
-                    _logger.LogError("Gemini API Error: {StatusCode} - {Body}", response.StatusCode, errorBody);
-                    throw new Exception($"Gemini API Error ({(int)response.StatusCode}): {errorBody}");
+                    var response = await _httpClient.PostAsync(_apiUrl, content);
+
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        var errorBody = await response.Content.ReadAsStringAsync();
+                        var canRetry = response.StatusCode == HttpStatusCode.TooManyRequests ||
+                                       response.StatusCode == HttpStatusCode.ServiceUnavailable ||
+                                       response.StatusCode == HttpStatusCode.BadGateway ||
+                                       response.StatusCode == HttpStatusCode.GatewayTimeout;
+                        if (canRetry && attempt < 3)
+                        {
+                            await Task.Delay(500 * attempt);
+                            continue;
+                        }
+
+                        _logger.LogError("Gemini API Error: {StatusCode} - {Body}", response.StatusCode, errorBody);
+                        throw new Exception($"Gemini API Error ({(int)response.StatusCode}): {errorBody}");
+                    }
+
+                    var responseString = await response.Content.ReadAsStringAsync();
+
+                    using var doc = JsonDocument.Parse(responseString);
+                    var text = doc.RootElement
+                        .GetProperty("candidates")[0]
+                        .GetProperty("content")
+                        .GetProperty("parts")[0]
+                        .GetProperty("text")
+                        .GetString();
+
+                    return text ?? "Không có phản hồi từ AI";
                 }
+                catch (Exception ex)
+                {
+                    if (attempt < 3)
+                    {
+                        await Task.Delay(500 * attempt);
+                        continue;
+                    }
 
-                var responseString = await response.Content.ReadAsStringAsync();
-
-                using var doc = JsonDocument.Parse(responseString);
-                var text = doc.RootElement
-                    .GetProperty("candidates")[0]
-                    .GetProperty("content")
-                    .GetProperty("parts")[0]
-                    .GetProperty("text")
-                    .GetString();
-
-                return text ?? "Không có phản hồi từ AI";
+                    _logger.LogError(ex, "Error calling Gemini Chat API");
+                    throw;
+                }
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error calling Gemini Chat API");
-                throw;
-            }
+
+            throw new Exception("Gemini API Error: retry failed");
         }
 
         private static string ResolveGeminiApiKey(IConfiguration configuration)
         {
             var apiKey = new[]
             {
+                configuration["Gemini:ChatApiKey"],
+                configuration["Gemini__ChatApiKey"],
+                configuration["Gemini_ChatApiKey"],
                 configuration["Gemini:ApiKey"],
                 configuration["Gemini__ApiKey"],
                 configuration["Gemini_ApiKey"],
