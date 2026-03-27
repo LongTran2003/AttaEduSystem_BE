@@ -51,6 +51,7 @@ public class LearningClassService : ILearningClassService
         await _unitOfWork.LearningClass.AddAsync(learningClass);
 
         var membersToAdd = new List<LearningClassMember>();
+        var memberUserIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { userId };
         membersToAdd.Add(BuildMember(learningClass.LearningClassId, userId, StaticUserRoles.Teacher, userId));
 
         var teacherIds = dto.TeacherUserIds?.Distinct().Where(x => !string.IsNullOrWhiteSpace(x)).ToList() ?? new List<string>();
@@ -58,14 +59,24 @@ public class LearningClassService : ILearningClassService
 
         foreach (var teacherId in teacherIds.Where(t => t != userId))
         {
+            if (memberUserIds.Contains(teacherId))
+                continue;
             if (await IsUserInRoleAsync(teacherId, StaticUserRoles.Teacher))
+            {
                 membersToAdd.Add(BuildMember(learningClass.LearningClassId, teacherId, StaticUserRoles.Teacher, userId));
+                memberUserIds.Add(teacherId);
+            }
         }
 
         foreach (var studentId in studentIds)
         {
+            if (memberUserIds.Contains(studentId))
+                continue;
             if (await IsUserInRoleAsync(studentId, StaticUserRoles.Student))
+            {
                 membersToAdd.Add(BuildMember(learningClass.LearningClassId, studentId, StaticUserRoles.Student, userId));
+                memberUserIds.Add(studentId);
+            }
         }
 
         await _unitOfWork.LearningClassMember.AddRangeAsync(membersToAdd);
