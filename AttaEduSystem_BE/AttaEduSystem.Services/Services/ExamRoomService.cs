@@ -61,7 +61,7 @@ namespace AttaEduSystem.Services.Services
                     .ToList();
 
                 if (invalid.Any())
-                    return ErrorResponse.Build($"Exam paper is not ready: missing correct answers for {invalid.Count} question(s).", 400, new { MissingQuestions = invalid });
+                    return ErrorResponse.Build($"Exam paper is not ready: missing correct answers for {invalid.Count} question(s). Missing: {string.Join(", ", invalid)}", 400);
 
                 var vietnamNow = StaticOperationStatus.Timezone.Vietnam;
 
