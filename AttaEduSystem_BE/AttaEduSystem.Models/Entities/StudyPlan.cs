@@ -49,8 +49,7 @@ namespace AttaEduSystem.Models.Entities
 
         public StudyPlan()
         {
-            // Set a sensible default for the inherited Status (BaseEntity.Status)
-            Status = BaseEntity.Active;
+            Status = "Active";
         }
     }
 }
