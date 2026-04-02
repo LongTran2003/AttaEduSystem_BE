@@ -50,6 +50,19 @@ namespace AttaEduSystem.Services.Services
                     return ErrorResponse.Build(
                         "You do not have permission to create room for this exam paper", 403);
 
+                var questions = await _unitOfWork.ExamQuestion.GetByExamPaperIdWithOptionsAsync(dto.ExamPaperId);
+                if (questions == null || !questions.Any())
+                    return ErrorResponse.Build("Exam paper has no questions. Please add questions before creating a room.", 400);
+
+                var invalid = questions
+                    .Where(q => string.IsNullOrWhiteSpace(q.CorrectAnswer) && (q.Options == null || !q.Options.Any(o => o.IsCorrect)))
+                    .Select(q => string.IsNullOrWhiteSpace(q.QuestionIdLabel) ? (q.OrderIndex > 0 ? $"#{q.OrderIndex}" : q.QuestionId.ToString()) : q.QuestionIdLabel)
+                    .Take(10)
+                    .ToList();
+
+                if (invalid.Any())
+                    return ErrorResponse.Build($"Exam paper is not ready: missing correct answers for {invalid.Count} question(s).", 400, new { MissingQuestions = invalid });
+
                 var vietnamNow = StaticOperationStatus.Timezone.Vietnam;
 
                 // 🔴 SỬA Ở ĐÂY: Đồng bộ giờ FE gửi lên thành giờ VN nếu FE gửi UTC

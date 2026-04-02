@@ -85,12 +85,11 @@ public class ExamTakingService : IExamTakingService
             bool isCorrect;
             if (question.Options != null && question.Options.Any(o => o.IsCorrect))
             {
-                var correctOption = question.Options.FirstOrDefault(o => o.IsCorrect);
+                var correctOption = question.Options.First(o => o.IsCorrect);
                 var normalizedUser = userAnswer?.Trim();
-                // Cho phép FE gửi label (A/B/C/D) hoặc content, backend so sánh linh hoạt
                 isCorrect = !string.IsNullOrWhiteSpace(normalizedUser) &&
-                            (string.Equals(normalizedUser, correctOption!.Label, StringComparison.OrdinalIgnoreCase) ||
-                             string.Equals(normalizedUser, correctOption!.Content, StringComparison.OrdinalIgnoreCase));
+                            (string.Equals(normalizedUser, correctOption.Label, StringComparison.OrdinalIgnoreCase) ||
+                             string.Equals(normalizedUser, correctOption.Content, StringComparison.OrdinalIgnoreCase));
             }
             else
             {
@@ -393,11 +392,10 @@ public class ExamTakingService : IExamTakingService
 
     private static string ResolveCorrectAnswer(ExamQuestion question)
     {
-        if (!string.IsNullOrWhiteSpace(question.CorrectAnswer))
-            return question.CorrectAnswer;
+        if (question.Options != null && question.Options.Any(o => o.IsCorrect))
+            return question.Options.First(o => o.IsCorrect).Label;
 
-        var correctOption = question.Options?.FirstOrDefault(o => o.IsCorrect);
-        return correctOption?.Label ?? string.Empty;
+        return question.CorrectAnswer ?? string.Empty;
     }
 
     private async Task<int?> CalculateAttemptRemainingSeconds(Guid examAttemptId)

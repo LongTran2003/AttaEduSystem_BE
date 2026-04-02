@@ -1,5 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using static AttaEduSystem.Utilities.Constants.StaticOperationStatus;
+
 namespace AttaEduSystem.Models.Entities
 {
     /// <summary>
@@ -47,7 +49,8 @@ namespace AttaEduSystem.Models.Entities
 
         public StudyPlan()
         {
-            Status = "Active";
+            // Set a sensible default for the inherited Status (BaseEntity.Status)
+            Status = BaseEntity.Active;
         }
     }
 }

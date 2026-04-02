@@ -222,17 +222,12 @@ namespace AttaEduSystem.Services.Mapping
                 .ForMember(dest => dest.CorrectAnswer, opt =>
                     opt.MapFrom(src =>
                         src.ExamQuestion != null
-                            ? (!string.IsNullOrWhiteSpace(src.ExamQuestion.CorrectAnswer)
-                                ? src.ExamQuestion.CorrectAnswer
-                                : (src.ExamQuestion.Options != null
-                                    ? src.ExamQuestion.Options.FirstOrDefault(o => o.IsCorrect) != null
-                                        ? src.ExamQuestion.Options.First(o => o.IsCorrect).Label
-                                        : ""
-                                    : ""))
+                            ? (src.ExamQuestion.Options != null && src.ExamQuestion.Options.Any(o => o.IsCorrect)
+                                ? src.ExamQuestion.Options.First(o => o.IsCorrect).Label
+                                : (src.ExamQuestion.CorrectAnswer ?? ""))
                             : ""))
                 .ForMember(dest => dest.UserAnswer, 
                     opt => opt.MapFrom(src => src.UserAnswer ?? ""))
-                // Nếu sau này có Explanation thì map thêm vào đây
                 .ForMember(dest => dest.Explanation, opt => opt.Ignore());
             
                     // 3. Map Entity Attempt -> Result DTO (Bao gồm cả list Details)
