@@ -1,4 +1,4 @@
-﻿using AttaEduSystem.DataAccess.DBContext;
+using AttaEduSystem.DataAccess.DBContext;
 using AttaEduSystem.DataAccess.IRepositories;
 using AttaEduSystem.Models.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -29,7 +29,8 @@ public class ExamAttemptRepository : Repository<ExamAttempt>, IExamAttemptReposi
         return await _context.ExamAttempts
             .Include(x => x.ExamPaper) // Lấy tên đề
             .Include(x => x.Details)   // Lấy danh sách câu trả lời
-            .ThenInclude(d => d.ExamQuestion) // Từ câu trả lời JOIN sang câu hỏi gốc để lấy CorrectAnswer
+            .ThenInclude(d => d.ExamQuestion)
+            .ThenInclude(q => q.Options) // Lấy options để resolve đáp án đúng theo IsCorrect khi cần
             .FirstOrDefaultAsync(x => x.ExamAttemptId == attemptId);
     }
 

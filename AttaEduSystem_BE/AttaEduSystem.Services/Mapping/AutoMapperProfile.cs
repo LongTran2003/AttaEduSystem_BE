@@ -1,4 +1,4 @@
-﻿using AttaEduSystem.Models.DTOs.Admin;
+using AttaEduSystem.Models.DTOs.Admin;
 using AttaEduSystem.Models.DTOs.Authentication;
 using AttaEduSystem.Models.DTOs.Billing;
 using AttaEduSystem.Models.DTOs.ChatBox;
@@ -219,8 +219,17 @@ namespace AttaEduSystem.Services.Mapping
                     opt => opt.MapFrom(src => src.ExamQuestion != null ? src.ExamQuestion.Content : "Question removed"))
                 .ForMember(dest => dest.QuestionIndex, 
                     opt => opt.MapFrom(src => src.ExamQuestion != null ? src.ExamQuestion.OrderIndex : 0))
-                .ForMember(dest => dest.CorrectAnswer, 
-                    opt => opt.MapFrom(src => src.ExamQuestion != null ? src.ExamQuestion.CorrectAnswer : ""))
+                .ForMember(dest => dest.CorrectAnswer, opt =>
+                    opt.MapFrom(src =>
+                        src.ExamQuestion != null
+                            ? (!string.IsNullOrWhiteSpace(src.ExamQuestion.CorrectAnswer)
+                                ? src.ExamQuestion.CorrectAnswer
+                                : (src.ExamQuestion.Options != null
+                                    ? src.ExamQuestion.Options.FirstOrDefault(o => o.IsCorrect) != null
+                                        ? src.ExamQuestion.Options.First(o => o.IsCorrect).Label
+                                        : ""
+                                    : ""))
+                            : ""))
                 .ForMember(dest => dest.UserAnswer, 
                     opt => opt.MapFrom(src => src.UserAnswer ?? ""))
                 // Nếu sau này có Explanation thì map thêm vào đây

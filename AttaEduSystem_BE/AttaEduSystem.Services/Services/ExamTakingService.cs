@@ -33,7 +33,7 @@ public class ExamTakingService : IExamTakingService
         if (examPaper == null)
             return ErrorResponse.Build("Exam paper not found", 404);
 
-        var questions = (await _unitOfWork.ExamQuestion.GetByExamPaperIdAsync(submitDto.ExamPaperId)).ToList();
+        var questions = (await _unitOfWork.ExamQuestion.GetByExamPaperIdWithOptionsAsync(submitDto.ExamPaperId)).ToList();
         if (!questions.Any())
             return ErrorResponse.Build("This exam has no questions to grade", 400);
 
@@ -82,9 +82,22 @@ public class ExamTakingService : IExamTakingService
         {
             answerMap.TryGetValue(question.QuestionId, out var submittedAnswer);
             var userAnswer = submittedAnswer?.UserAnswer?.Trim();
-            var isCorrect = !string.IsNullOrWhiteSpace(question.CorrectAnswer) &&
+            bool isCorrect;
+            if (question.Options != null && question.Options.Any(o => o.IsCorrect))
+            {
+                var correctOption = question.Options.FirstOrDefault(o => o.IsCorrect);
+                var normalizedUser = userAnswer?.Trim();
+                // Cho phép FE gửi label (A/B/C/D) hoặc content, backend so sánh linh hoạt
+                isCorrect = !string.IsNullOrWhiteSpace(normalizedUser) &&
+                            (string.Equals(normalizedUser, correctOption!.Label, StringComparison.OrdinalIgnoreCase) ||
+                             string.Equals(normalizedUser, correctOption!.Content, StringComparison.OrdinalIgnoreCase));
+            }
+            else
+            {
+                isCorrect = !string.IsNullOrWhiteSpace(question.CorrectAnswer) &&
                             !string.IsNullOrWhiteSpace(userAnswer) &&
                             string.Equals(question.CorrectAnswer.Trim(), userAnswer, StringComparison.OrdinalIgnoreCase);
+            }
 
             if (isCorrect)
                 correctCount++;
@@ -138,9 +151,13 @@ public class ExamTakingService : IExamTakingService
             Details = attemptDetails.Select(d => new ExamResultDetailDto
             {
                 ExamQuestionId = d.ExamQuestionId,
+                QuestionContent = questionMap.TryGetValue(d.ExamQuestionId, out var qq) ? qq.Content : "",
+                QuestionIndex = questionMap.TryGetValue(d.ExamQuestionId, out var qi) ? qi.OrderIndex : 0,
                 UserAnswer = d.UserAnswer ?? string.Empty,
                 IsCorrect = d.IsCorrect,
-                CorrectAnswer = questionMap.TryGetValue(d.ExamQuestionId, out var q) ? q.CorrectAnswer ?? string.Empty : string.Empty
+                CorrectAnswer = questionMap.TryGetValue(d.ExamQuestionId, out var qc)
+                    ? ResolveCorrectAnswer(qc)
+                    : string.Empty
             }).ToList(),
             LearningRecommendations = BuildLearningRecommendations(questions, attemptDetails, examPaper.Subject),
             LearningAnalytics = BuildLearningAnalytics(questions, attemptDetails)
@@ -319,7 +336,7 @@ public class ExamTakingService : IExamTakingService
             return ErrorResponse.Build("Exam has already been submitted", 400);
 
         // 2. Lấy tất cả câu hỏi của đề
-        var questions = await _unitOfWork.ExamQuestion.GetByExamPaperIdAsync(attempt.ExamPaperId);
+        var questions = await _unitOfWork.ExamQuestion.GetByExamPaperIdWithOptionsAsync(attempt.ExamPaperId);
         if (questions == null || !questions.Any())
             return ErrorResponse.Build("No questions found", 400);
 
@@ -328,7 +345,22 @@ public class ExamTakingService : IExamTakingService
         foreach (var detail in attempt.Details)
         {
             var question = questions.FirstOrDefault(q => q.QuestionId == detail.ExamQuestionId);
-            if (question != null && !string.IsNullOrEmpty(question.CorrectAnswer))
+            if (question == null)
+                continue;
+
+            if (question.Options != null && question.Options.Any(o => o.IsCorrect))
+            {
+                var correctOption = question.Options.FirstOrDefault(o => o.IsCorrect);
+                var normalizedUser = detail.UserAnswer?.Trim();
+                if (!string.IsNullOrWhiteSpace(normalizedUser) &&
+                    (string.Equals(normalizedUser, correctOption?.Label, StringComparison.OrdinalIgnoreCase) ||
+                     string.Equals(normalizedUser, correctOption?.Content, StringComparison.OrdinalIgnoreCase)))
+                {
+                    detail.IsCorrect = true;
+                    correctCount++;
+                }
+            }
+            else if (!string.IsNullOrEmpty(question.CorrectAnswer))
             {
                 if (string.Equals(question.CorrectAnswer.Trim(), detail.UserAnswer?.Trim(),
                     StringComparison.OrdinalIgnoreCase))
@@ -357,6 +389,15 @@ public class ExamTakingService : IExamTakingService
         resultDto.LearningAnalytics = BuildLearningAnalytics(questions.ToList(), attempt.Details.ToList());
 
         return SuccessResponse.Build("Exam auto-submitted successfully", 200, resultDto);
+    }
+
+    private static string ResolveCorrectAnswer(ExamQuestion question)
+    {
+        if (!string.IsNullOrWhiteSpace(question.CorrectAnswer))
+            return question.CorrectAnswer;
+
+        var correctOption = question.Options?.FirstOrDefault(o => o.IsCorrect);
+        return correctOption?.Label ?? string.Empty;
     }
 
     private async Task<int?> CalculateAttemptRemainingSeconds(Guid examAttemptId)
