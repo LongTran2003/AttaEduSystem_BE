@@ -1,6 +1,7 @@
 ﻿using AttaEduSystem.DataAccess.IRepositories;
 using AttaEduSystem.Services.IServices;
 using AttaEduSystem.Utilities.Constants;
+using System.Security.Claims;
 
 namespace AttaEduSystem.API.BackgroundServices
 {
@@ -42,6 +43,7 @@ namespace AttaEduSystem.API.BackgroundServices
             using var scope = _serviceProvider.CreateScope();
             var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             var examHubService = scope.ServiceProvider.GetRequiredService<IExamHubService>();
+            var examTakingService = scope.ServiceProvider.GetRequiredService<IExamTakingService>();
 
             var now = StaticOperationStatus.Timezone.Vietnam;
 
@@ -82,6 +84,29 @@ namespace AttaEduSystem.API.BackgroundServices
                         // Hết giờ -> Force submit & Chuyển sang Finished
                         await examHubService.ForceSubmitAll(room.RoomCode);
 
+                        // NEW: Auto-submit cho toàn bộ participant chưa nộp
+                        var participants = await unitOfWork.ExamRoomParticipant.GetByRoomIdAsync(room.ExamRoomId);
+                        foreach (var p in participants)
+                        {
+                            var attemptId = p.ExamAttemptId;
+                            var attempt = attemptId.HasValue
+                                ? await unitOfWork.ExamAttempt.GetAttemptWithDetailsAsync(attemptId.Value)
+                                : null;
+
+                            if (attempt != null && !attempt.CompletedAt.HasValue)
+                            {
+                                try
+                                {
+                                    // Gọi trực tiếp service auto-submit ở quyền hệ thống (không cần user)
+                                    await examTakingService.AutoSubmitExam(attempt.ExamAttemptId, CreateSystemPrincipal(attempt.UserId));
+                                }
+                                catch (Exception ex)
+                                {
+                                    _logger.LogError(ex, "Auto-submit failed for attempt {AttemptId}", attempt.ExamAttemptId);
+                                }
+                            }
+                        }
+
                         room.Status = StaticOperationStatus.ExamRoom.Finished;
                         unitOfWork.ExamRoom.Update(room);
                         await unitOfWork.SaveAsync();
@@ -95,6 +120,17 @@ namespace AttaEduSystem.API.BackgroundServices
                     }
                 }
             }
+        }
+
+        private static ClaimsPrincipal CreateSystemPrincipal(string userId)
+        {
+            var identity = new ClaimsIdentity(new[]
+            {
+                new Claim(ClaimTypes.NameIdentifier, userId),
+                new Claim(ClaimTypes.Name, "system"),
+                new Claim(ClaimTypes.Role, "System")
+            }, "System");
+            return new ClaimsPrincipal(identity);
         }
     }
 }
