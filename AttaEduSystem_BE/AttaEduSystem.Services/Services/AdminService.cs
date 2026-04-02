@@ -1,4 +1,4 @@
-﻿using AttaEduSystem.DataAccess.IRepositories;
+using AttaEduSystem.DataAccess.IRepositories;
 using AttaEduSystem.Models.DTOs;
 using AttaEduSystem.Models.DTOs.Admin;
 using AttaEduSystem.Models.DTOs.Admin.Dashboards;
@@ -38,23 +38,21 @@ namespace AttaEduSystem.Services.Services
         {
             try
             {
+                var pageNumber = filterDto.PageNumber <= 0 ? 1 : filterDto.PageNumber;
+                var pageSize = filterDto.PageSize <= 0 ? 10 : Math.Min(filterDto.PageSize, 100);
+                var normalizedSort = NormalizeUserSort(filterDto.SortBy, filterDto.SortOrder);
+
                 // 1. Call Repository
                 var (users, totalCount) = await _unitOfWork.User.GetAllUsersAsync(
-                    pageNumber: filterDto.PageNumber,
-                    pageSize: filterDto.PageSize,
-                    filterOn: "email",
+                    pageNumber: pageNumber,
+                    pageSize: pageSize,
+                    filterOn: "keyword",
                     filterQuery: filterDto.SearchTerm,
-                    sortBy: filterDto.SortBy,
+                    sortBy: normalizedSort,
                     status: filterDto.Status
                 );
 
-                if (!users.Any())
-                {
-                    return SuccessResponse.Build(
-                        message: "No users found",
-                        statusCode: StaticOperationStatus.StatusCode.Ok,
-                        result: new { TotalCount = 0 }); // Return gọn
-                }
+                // Always return pagination shape even when empty
 
                 // 2. Mapping & Enrich Data
                 var userDtos = _mapper.Map<List<GetUserDto>>(users);
@@ -69,10 +67,21 @@ namespace AttaEduSystem.Services.Services
                 var payload = new
                 {
                     Data = userDtos,
-                    CurrentPage = filterDto.PageNumber,
-                    PageSize = filterDto.PageSize,
+                    CurrentPage = pageNumber,
+                    PageSize = pageSize,
                     TotalCount = totalCount,
-                    TotalPages = (int)Math.Ceiling(totalCount / (double)filterDto.PageSize),
+                    TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize),
+                    HasPreviousPage = pageNumber > 1,
+                    HasNextPage = pageNumber * pageSize < totalCount,
+                    Pagination = new
+                    {
+                        CurrentPage = pageNumber,
+                        PageSize = pageSize,
+                        TotalCount = totalCount,
+                        TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize),
+                        HasPreviousPage = pageNumber > 1,
+                        HasNextPage = pageNumber * pageSize < totalCount
+                    }
                 };
 
                 return SuccessResponse.Build("Users retrieved successfully", 200, payload);
@@ -83,6 +92,19 @@ namespace AttaEduSystem.Services.Services
                     message: $"Failed to retrieve users: {ex.Message}",
                     statusCode: StaticOperationStatus.StatusCode.InternalServerError);
             }
+        }
+
+        private static string? NormalizeUserSort(string? sortBy, string? sortOrder)
+        {
+            if (string.IsNullOrWhiteSpace(sortBy))
+                return "email";
+
+            var baseSort = sortBy.Trim().ToLowerInvariant();
+            var isDesc = string.Equals(sortOrder, "desc", StringComparison.OrdinalIgnoreCase) || baseSort.EndsWith("_desc");
+            if (baseSort.EndsWith("_desc"))
+                baseSort = baseSort[..^5];
+
+            return isDesc ? $"{baseSort}_desc" : baseSort;
         }
 
         public async Task<ResponseDto> GetUserById(string userId)

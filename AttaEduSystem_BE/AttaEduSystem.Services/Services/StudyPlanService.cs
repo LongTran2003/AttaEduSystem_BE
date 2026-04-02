@@ -368,12 +368,20 @@ namespace AttaEduSystem.Services.Services
                 result: new
                 {
                     Data = historyDtos,
+                    CurrentPage = page,
+                    PageSize = pageSize,
+                    TotalCount = totalCount,
+                    TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize),
+                    HasPreviousPage = page > 1,
+                    HasNextPage = page * pageSize < totalCount,
                     Pagination = new
                     {
                         CurrentPage = page,
                         PageSize = pageSize,
                         TotalCount = totalCount,
-                        TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize)
+                        TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize),
+                        HasPreviousPage = page > 1,
+                        HasNextPage = page * pageSize < totalCount
                     }
                 }
             );

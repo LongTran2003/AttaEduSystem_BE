@@ -1,4 +1,4 @@
-﻿using AttaEduSystem.DataAccess.IRepositories;
+using AttaEduSystem.DataAccess.IRepositories;
 using AttaEduSystem.Models.DTOs;
 using AttaEduSystem.Models.DTOs.Billing;
 using AttaEduSystem.Models.DTOs.Payment;
@@ -320,6 +320,9 @@ namespace AttaEduSystem.Services.Services
             string? filterQuery = null,
             string? sortBy = null)
         {
+            pageNumber = pageNumber <= 0 ? 1 : pageNumber;
+            pageSize = pageSize <= 0 ? 10 : Math.Min(pageSize, 100);
+
             var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(userId))
             {
@@ -345,20 +348,27 @@ namespace AttaEduSystem.Services.Services
 
             if (!payments.Any())
             {
-                return new ResponseDto
+                return SuccessResponse.Build("No payments found", 200, new
                 {
-                    Message = "No payments found",
-                    IsSuccess = true,
-                    StatusCode = 200,
-                    Result = new
+                    Data = Array.Empty<GetAllPaymentDto>(),
+                    CurrentPage = pageNumber,
+                    PageSize = pageSize,
+                    TotalCount = 0,
+                    TotalPages = 0,
+                    HasPreviousPage = false,
+                    HasNextPage = false,
+                    Pagination = new
                     {
-                        TotalPayments = 0,
-                        TotalPages = 0,
-                        PageSize = pageSize,
                         CurrentPage = pageNumber,
-                        Payments = Array.Empty<GetAllPaymentDto>()
-                    }
-                };
+                        PageSize = pageSize,
+                        TotalCount = 0,
+                        TotalPages = 0,
+                        HasPreviousPage = false,
+                        HasNextPage = false
+                    },
+                    TotalPayments = 0,
+                    Payments = Array.Empty<GetAllPaymentDto>()
+                });
             }
 
             var totalPages = (int)Math.Ceiling((double)totalPayments / pageSize);
@@ -387,10 +397,23 @@ namespace AttaEduSystem.Services.Services
                 statusCode: 200,
                 result: new
                 {
-                    TotalPayments = totalPayments,
-                    TotalPages = totalPages,
-                    PageSize = pageSize,
+                    Data = paymentDtos,
                     CurrentPage = pageNumber,
+                    PageSize = pageSize,
+                    TotalCount = totalPayments,
+                    TotalPages = totalPages,
+                    HasPreviousPage = pageNumber > 1,
+                    HasNextPage = pageNumber * pageSize < totalPayments,
+                    Pagination = new
+                    {
+                        CurrentPage = pageNumber,
+                        PageSize = pageSize,
+                        TotalCount = totalPayments,
+                        TotalPages = totalPages,
+                        HasPreviousPage = pageNumber > 1,
+                        HasNextPage = pageNumber * pageSize < totalPayments
+                    },
+                    TotalPayments = totalPayments,
                     Payments = paymentDtos
                 });
         }

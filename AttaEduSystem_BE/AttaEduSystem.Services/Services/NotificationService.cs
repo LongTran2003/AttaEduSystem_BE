@@ -1,4 +1,4 @@
-﻿using AttaEduSystem.DataAccess.IRepositories;
+using AttaEduSystem.DataAccess.IRepositories;
 using AttaEduSystem.Models.DTOs;
 using AttaEduSystem.Models.Entities;
 using AttaEduSystem.Services.Helpers.Responses;
@@ -139,12 +139,20 @@ namespace AttaEduSystem.Services.Services
                         n.IsRead,
                         n.CreatedAt
                     }),
+                    CurrentPage = page,
+                    PageSize = pageSize,
+                    TotalCount = totalCount,
+                    TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize),
+                    HasPreviousPage = page > 1,
+                    HasNextPage = page * pageSize < totalCount,
                     Pagination = new
                     {
                         CurrentPage = page,
                         PageSize = pageSize,
                         TotalCount = totalCount,
-                        TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize)
+                        TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize),
+                        HasPreviousPage = page > 1,
+                        HasNextPage = page * pageSize < totalCount
                     }
                 });
         }

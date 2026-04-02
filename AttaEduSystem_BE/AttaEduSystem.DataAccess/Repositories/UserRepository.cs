@@ -45,6 +45,10 @@ namespace AttaEduSystem.DataAccess.Repositories
                     "email" => query.Where(u => u.Email !=null && u.Email.ToLower().Contains(keyword)),
                     "fullname" => query.Where(u => u.FullName.ToLower().Contains(keyword)),
                     "phonenumber" => query.Where(u => u.PhoneNumber != null && u.PhoneNumber.Contains(keyword)),
+                    "keyword" => query.Where(u =>
+                        (u.Email != null && u.Email.ToLower().Contains(keyword)) ||
+                        u.FullName.ToLower().Contains(keyword) ||
+                        (u.PhoneNumber != null && u.PhoneNumber.Contains(keyword))),
                     _ => query
                 };
             }
