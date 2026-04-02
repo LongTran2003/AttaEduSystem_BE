@@ -88,6 +88,25 @@ public class LearningClassesController : ControllerBase
         return StatusCode(result.StatusCode, result);
     }
 
+    [HttpPost("join-by-key")]
+    [Authorize(Roles = "STUDENT")]
+    [SwaggerOperation(Summary = "🏫 Student join class by enroll key")]
+    public async Task<ActionResult<ResponseDto>> JoinByEnrollKey([FromBody] JoinClassByEnrollKeyDto dto)
+    {
+        if (!ModelState.IsValid) return ReturnInvalidInputResponse();
+        var result = await _learningClassService.JoinClassByEnrollKey(dto, User);
+        return StatusCode(result.StatusCode, result);
+    }
+
+    [HttpPost("{classId:guid}/enroll-key/regenerate")]
+    [Authorize(Roles = "TEACHER, ADMIN")]
+    [SwaggerOperation(Summary = "🏫 Regenerate class enroll key")]
+    public async Task<ActionResult<ResponseDto>> RegenerateEnrollKey(Guid classId)
+    {
+        var result = await _learningClassService.RegenerateEnrollKey(classId, User);
+        return StatusCode(result.StatusCode, result);
+    }
+
     [HttpDelete("{classId:guid}/members/{memberUserId}")]
     [Authorize(Roles = "TEACHER, ADMIN")]
     [SwaggerOperation(Summary = "🏫 Remove class member")]

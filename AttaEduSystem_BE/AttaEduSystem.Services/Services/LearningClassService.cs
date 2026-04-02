@@ -7,6 +7,7 @@ using AttaEduSystem.Services.IServices;
 using AttaEduSystem.Utilities.Constants;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Cryptography;
 using System.Security.Claims;
 
 namespace AttaEduSystem.Services.Services;
@@ -36,6 +37,10 @@ public class LearningClassService : ILearningClassService
         if (creator == null)
             return ErrorResponse.Build("User not found", 404);
 
+        var studentIdsFromCreate = dto.StudentUserIds?.Where(x => !string.IsNullOrWhiteSpace(x)).ToList() ?? new List<string>();
+        if (studentIdsFromCreate.Any())
+            return ErrorResponse.Build("Students must join class by enroll key. Please remove studentUserIds when creating class.", 400);
+
         var learningClass = new LearningClass
         {
             LearningClassId = Guid.NewGuid(),
@@ -44,6 +49,7 @@ public class LearningClassService : ILearningClassService
             Description = dto.Description,
             Schedule = dto.Schedule,
             OwnerUserId = userId,
+            EnrollKey = await GenerateUniqueEnrollKeyAsync(),
             CreatedBy = userId,
             CreatedTime = StaticOperationStatus.Timezone.Vietnam,
             Status = ActiveStatus
@@ -168,6 +174,7 @@ public class LearningClassService : ILearningClassService
 
         if (!await CanManageOrViewClass(user, learningClass, userId))
             return ErrorResponse.Build("You do not have permission to view this class", 403);
+        var canManage = await CanManageClass(user, learningClass, userId);
 
         var summary = await BuildSummaryDto(learningClass);
         var detail = new LearningClassDetailDto
@@ -183,6 +190,7 @@ public class LearningClassService : ILearningClassService
             ExamRoomCount = summary.ExamRoomCount,
             OwnerUserId = learningClass.OwnerUserId,
             OwnerName = learningClass.OwnerUser?.FullName ?? learningClass.OwnerUser?.UserName ?? "Unknown",
+            EnrollKey = canManage ? learningClass.EnrollKey : null,
             Members = learningClass.Members
                 .OrderBy(m => m.Role)
                 .ThenBy(m => m.User?.FullName)
@@ -273,6 +281,8 @@ public class LearningClassService : ILearningClassService
 
         var teacherIds = dto.TeacherUserIds?.Distinct().Where(x => !string.IsNullOrWhiteSpace(x)).ToList() ?? new List<string>();
         var studentIds = dto.StudentUserIds?.Distinct().Where(x => !string.IsNullOrWhiteSpace(x)).ToList() ?? new List<string>();
+        if (studentIds.Any())
+            return ErrorResponse.Build("Students must join by enroll key. Adding students directly is disabled.", 400);
 
         foreach (var teacherId in teacherIds)
         {
@@ -310,6 +320,58 @@ public class LearningClassService : ILearningClassService
         }
 
         return await GetClassDetail(classId, user);
+    }
+
+    public async Task<ResponseDto> JoinClassByEnrollKey(JoinClassByEnrollKeyDto dto, ClaimsPrincipal user)
+    {
+        var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userId))
+            return ErrorResponse.Build("Unauthorized", 401);
+
+        if (!await IsUserInRoleAsync(userId, StaticUserRoles.Student))
+            return ErrorResponse.Build("Only students can join class by enroll key", 403);
+
+        var enrollKey = dto.EnrollKey.Trim().ToUpperInvariant();
+        var learningClass = await _unitOfWork.LearningClass.GetAsync(c =>
+            c.EnrollKey.ToUpper() == enrollKey && !IsInactiveStatus(c.Status));
+        if (learningClass == null)
+            return ErrorResponse.Build("Invalid enroll key", 404);
+
+        var existingMember = await _unitOfWork.LearningClassMember.GetByClassAndUserAsync(learningClass.LearningClassId, userId);
+        if (existingMember != null)
+            return SuccessResponse.Build("You already joined this class", 200, new { learningClass.LearningClassId, learningClass.Name });
+
+        var member = BuildMember(learningClass.LearningClassId, userId, StaticUserRoles.Student, userId);
+        await _unitOfWork.LearningClassMember.AddAsync(member);
+        await _unitOfWork.SaveAsync();
+
+        return SuccessResponse.Build("Joined class successfully", 200, new { learningClass.LearningClassId, learningClass.Name });
+    }
+
+    public async Task<ResponseDto> RegenerateEnrollKey(Guid classId, ClaimsPrincipal user)
+    {
+        var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userId))
+            return ErrorResponse.Build("Unauthorized", 401);
+
+        var learningClass = await _unitOfWork.LearningClass.GetByIdWithMembersAsync(classId);
+        if (learningClass == null)
+            return ErrorResponse.Build("Class not found", 404);
+
+        if (!await CanManageClass(user, learningClass, userId))
+            return ErrorResponse.Build("You do not have permission to regenerate enroll key", 403);
+
+        learningClass.EnrollKey = await GenerateUniqueEnrollKeyAsync();
+        learningClass.UpdatedBy = userId;
+        learningClass.UpdatedTime = StaticOperationStatus.Timezone.Vietnam;
+        _unitOfWork.LearningClass.Update(learningClass);
+        await _unitOfWork.SaveAsync();
+
+        return SuccessResponse.Build("Enroll key regenerated successfully", 200, new
+        {
+            learningClass.LearningClassId,
+            learningClass.EnrollKey
+        });
     }
 
     public async Task<ResponseDto> RemoveMember(Guid classId, string memberUserId, ClaimsPrincipal user)
@@ -579,8 +641,36 @@ public class LearningClassService : ILearningClassService
             Status = NormalizeClassStatus(learningClass.Status),
             StudentCount = learningClass.Members.Count(m => m.Role == StaticUserRoles.Student),
             TeacherCount = learningClass.Members.Count(m => m.Role == StaticUserRoles.Teacher),
-            ExamRoomCount = examRooms.Count()
+            ExamRoomCount = examRooms.Count(),
+            HasEnrollKey = !string.IsNullOrWhiteSpace(learningClass.EnrollKey)
         };
+    }
+
+    private async Task<string> GenerateUniqueEnrollKeyAsync()
+    {
+        for (var i = 0; i < 10; i++)
+        {
+            var candidate = GenerateEnrollKey();
+            var exists = await _unitOfWork.LearningClass.GetAsync(c => c.EnrollKey == candidate);
+            if (exists == null)
+                return candidate;
+        }
+
+        return Guid.NewGuid().ToString("N")[..8].ToUpperInvariant();
+    }
+
+    private static string GenerateEnrollKey()
+    {
+        const string chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+        Span<byte> randomBytes = stackalloc byte[8];
+        RandomNumberGenerator.Fill(randomBytes);
+        var keyChars = new char[8];
+        for (var i = 0; i < 8; i++)
+        {
+            keyChars[i] = chars[randomBytes[i] % chars.Length];
+        }
+
+        return new string(keyChars);
     }
 
     private static string NormalizeClassStatus(string? status)

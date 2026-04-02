@@ -28,4 +28,7 @@ public class LearningClass : BaseEntity<string, string, string>
     public virtual ApplicationUser OwnerUser { get; set; } = null!;
 
     public virtual ICollection<LearningClassMember> Members { get; set; } = new List<LearningClassMember>();
+
+    [StringLength(20)]
+    public string EnrollKey { get; set; } = string.Empty;
 }

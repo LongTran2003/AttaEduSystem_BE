@@ -11,4 +11,5 @@ public class LearningClassSummaryDto
     public int StudentCount { get; set; }
     public int TeacherCount { get; set; }
     public int ExamRoomCount { get; set; }
+    public bool HasEnrollKey { get; set; }
 }
