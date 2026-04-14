@@ -91,6 +91,11 @@ namespace AttaEduSystem.Services.Services
 
         public async Task<ResponseDto> SignUpStudent(SignUpStudentDto signUpStudentDto)
         {
+            NormalizeStudentSignup(signUpStudentDto);
+            var studentValidation = ValidateSignupInput(signUpStudentDto.FullName, signUpStudentDto.Address, signUpStudentDto.Gender);
+            if (studentValidation != null)
+                return studentValidation;
+
             // Kiểm tra email đã tồn tại
             var isEmailExit = await _userManager.FindByEmailAsync(signUpStudentDto.Email);
             if (isEmailExit is not null)
@@ -124,7 +129,15 @@ namespace AttaEduSystem.Services.Services
                 newUser.OtpCode = otp;
                 newUser.OtpExpiry = DateTime.UtcNow.AddMinutes(10); // Hết hạn sau 10 phút
 
-                var createUserResult = await _userManager.CreateAsync(newUser, signUpStudentDto.Password);
+                IdentityResult createUserResult;
+                try
+                {
+                    createUserResult = await _userManager.CreateAsync(newUser, signUpStudentDto.Password);
+                }
+                catch (DbUpdateException ex)
+                {
+                    return ErrorResponse.Build($"Invalid register data: {ExtractDbError(ex)}", 400);
+                }
 
                 if (!createUserResult.Succeeded)
                 {
@@ -198,6 +211,11 @@ namespace AttaEduSystem.Services.Services
 
         public async Task<ResponseDto> SignUpTeacher(SignUpTeacherDto signUpTeacherDto)
         {
+            NormalizeTeacherSignup(signUpTeacherDto);
+            var teacherValidation = ValidateSignupInput(signUpTeacherDto.FullName, signUpTeacherDto.Address, signUpTeacherDto.Gender);
+            if (teacherValidation != null)
+                return teacherValidation;
+
             // Kiểm tra email đã tồn tại
             var isEmailExit = await _userManager.FindByEmailAsync(signUpTeacherDto.Email);
             if (isEmailExit is not null)
@@ -230,7 +248,15 @@ namespace AttaEduSystem.Services.Services
             using (var transaction = await _unitOfWork.BeginTransactionAsync())
             {
                 // Thêm người dùng mới vào database
-                var createUserResult = await _userManager.CreateAsync(newUser, signUpTeacherDto.Password);
+                IdentityResult createUserResult;
+                try
+                {
+                    createUserResult = await _userManager.CreateAsync(newUser, signUpTeacherDto.Password);
+                }
+                catch (DbUpdateException ex)
+                {
+                    return ErrorResponse.Build($"Invalid register data: {ExtractDbError(ex)}", 400);
+                }
 
                 // Kiểm tra lỗi khi tạo
                 if (!createUserResult.Succeeded)
@@ -748,6 +774,41 @@ namespace AttaEduSystem.Services.Services
                 newAccessToken);
         }*/
         
+        private static void NormalizeStudentSignup(SignUpStudentDto dto)
+        {
+            dto.Email = dto.Email.Trim().ToLowerInvariant();
+            dto.PhoneNumber = dto.PhoneNumber.Trim();
+            dto.FullName = dto.FullName.Trim();
+            dto.Address = dto.Address.Trim();
+            dto.Gender = dto.Gender.Trim();
+        }
+
+        private static void NormalizeTeacherSignup(SignUpTeacherDto dto)
+        {
+            dto.Email = dto.Email.Trim().ToLowerInvariant();
+            dto.PhoneNumber = dto.PhoneNumber.Trim();
+            dto.FullName = dto.FullName.Trim();
+            dto.Address = dto.Address.Trim();
+            dto.Gender = dto.Gender.Trim();
+        }
+
+        private static ResponseDto? ValidateSignupInput(string fullName, string address, string gender)
+        {
+            if (fullName.Length > 50)
+                return ErrorResponse.Build("FullName max length is 50", 400);
+            if (address.Length > 100)
+                return ErrorResponse.Build("Address max length is 100", 400);
+            if (gender.Length > 10)
+                return ErrorResponse.Build("Gender max length is 10", 400);
+
+            return null;
+        }
+
+        private static string ExtractDbError(DbUpdateException ex)
+        {
+            return ex.InnerException?.Message ?? ex.Message;
+        }
+
         private string GenerateOtp()
         {
             var randomGenerator = RandomNumberGenerator.Create();
