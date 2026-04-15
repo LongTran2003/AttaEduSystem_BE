@@ -1,22 +1,24 @@
 using AttaEduSystem.Services.IServices;
 using Microsoft.Extensions.Configuration;
 using System.Linq;
+using System.Net;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace AttaEduSystem.Services.Services
 {
     public class GeminiAiService : IGeminiAiService
     {
         private readonly HttpClient _httpClient;
-        private readonly string _apiUrl;
+        private readonly string _apiKey;
+        private readonly string[] _models;
 
         public GeminiAiService(HttpClient httpClient, IConfiguration configuration)
         {
             _httpClient = httpClient;
-            var apiKey = ResolveGeminiApiKey(configuration);
-            _apiUrl =
-                $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={apiKey}";
+            _apiKey = ResolveGeminiApiKey(configuration);
+            _models = ResolveGeminiModels(configuration);
         }
 
         // =========================================================
@@ -216,41 +218,73 @@ namespace AttaEduSystem.Services.Services
         private async Task<string> CallGeminiApi(object payload)
         {
             var jsonPayload = JsonSerializer.Serialize(payload);
-            var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
+            var lastError = "Unknown Gemini error";
 
-            try
+            foreach (var model in _models)
             {
-                var response = await _httpClient.PostAsync(_apiUrl, content);
+                var apiUrl = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={_apiKey}";
 
-                if (!response.IsSuccessStatusCode)
+                for (var attempt = 1; attempt <= 3; attempt++)
                 {
+                    using var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
+                    var response = await _httpClient.PostAsync(apiUrl, content);
+
+                    if (response.IsSuccessStatusCode)
+                    {
+                        var responseString = await response.Content.ReadAsStringAsync();
+                        using var doc = JsonDocument.Parse(responseString);
+                        var text = doc.RootElement.GetProperty("candidates")[0]
+                            .GetProperty("content").GetProperty("parts")[0].GetProperty("text").GetString();
+                        return text ?? "No content returned";
+                    }
+
                     var errorBody = await response.Content.ReadAsStringAsync();
-                    throw new Exception($"Gemini Error ({response.StatusCode}): {errorBody}");
+                    lastError = $"Gemini Error ({response.StatusCode}): {errorBody}";
+
+                    var isQuota = response.StatusCode == HttpStatusCode.TooManyRequests ||
+                                  errorBody.Contains("RESOURCE_EXHAUSTED", StringComparison.OrdinalIgnoreCase) ||
+                                  errorBody.Contains("quota", StringComparison.OrdinalIgnoreCase);
+                    var isTransient = response.StatusCode == HttpStatusCode.ServiceUnavailable ||
+                                      response.StatusCode == HttpStatusCode.BadGateway ||
+                                      response.StatusCode == HttpStatusCode.GatewayTimeout;
+
+                    if ((isQuota || isTransient) && attempt < 3)
+                    {
+                        var delay = ExtractRetryDelaySeconds(errorBody) ?? (2 * attempt);
+                        await Task.Delay(TimeSpan.FromSeconds(Math.Max(1, delay)));
+                        continue;
+                    }
+
+                    if (isQuota)
+                        break;
+
+                    throw new Exception(lastError);
                 }
-
-                var responseString = await response.Content.ReadAsStringAsync();
-
-                // Parse để lấy text nội dung từ cấu trúc phức tạp của Gemini
-                using var doc = JsonDocument.Parse(responseString);
-                var text = doc.RootElement
-                    .GetProperty("candidates")[0]
-                    .GetProperty("content")
-                    .GetProperty("parts")[0]
-                    .GetProperty("text")
-                    .GetString();
-
-                return text ?? "No content returned";
             }
-            catch (Exception)
-            {
-                throw; // Rethrow để Controller xử lý
-            }
+
+            throw new Exception($"GEMINI_QUOTA_EXCEEDED|{lastError}");
+        }
+
+        private static int? ExtractRetryDelaySeconds(string errorBody)
+        {
+            var match = Regex.Match(errorBody, @"retryDelay""\s*:\s*""(?<sec>\d+)s""", RegexOptions.IgnoreCase);
+            if (match.Success && int.TryParse(match.Groups["sec"].Value, out var sec))
+                return sec;
+
+            var fallback = Regex.Match(errorBody, @"retry in\s+(?<sec>\d+(?:\.\d+)?)s", RegexOptions.IgnoreCase);
+            if (fallback.Success && double.TryParse(fallback.Groups["sec"].Value, out var sec2))
+                return (int)Math.Ceiling(sec2);
+
+            return null;
         }
 
         private static string ResolveGeminiApiKey(IConfiguration configuration)
         {
             var apiKey = new[]
             {
+                configuration["Gemini:SolveApiKey"],
+                configuration["Gemini__SolveApiKey"],
+                configuration["Gemini_SolveApiKey"],
                 configuration["Gemini:ApiKey"],
                 configuration["Gemini__ApiKey"],
                 configuration["Gemini_ApiKey"],
@@ -258,11 +292,19 @@ namespace AttaEduSystem.Services.Services
             }.FirstOrDefault(v => !string.IsNullOrWhiteSpace(v));
 
             if (string.IsNullOrWhiteSpace(apiKey))
-            {
                 throw new InvalidOperationException("Gemini API key missing");
-            }
 
             return apiKey;
+        }
+
+        private static string[] ResolveGeminiModels(IConfiguration configuration)
+        {
+            var primary = configuration["Gemini:SolveModel"] ?? "gemini-2.5-flash";
+            var fallback = configuration["Gemini:SolveFallbackModel"] ?? "gemini-1.5-flash";
+            return new[] { primary.Trim(), fallback.Trim() }
+                .Where(m => !string.IsNullOrWhiteSpace(m))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
         }
     }
 }

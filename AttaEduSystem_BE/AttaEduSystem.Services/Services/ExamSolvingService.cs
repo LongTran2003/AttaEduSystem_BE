@@ -96,7 +96,16 @@ namespace AttaEduSystem.Services.Services
                 }
                 catch (Exception ex)
                 {
-                    return ErrorResponse.Build("AI Solving Failed: " + ex.Message, 500);
+                    var msg = ex.Message;
+                    var isQuota = msg.Contains("GEMINI_QUOTA_EXCEEDED", StringComparison.OrdinalIgnoreCase) ||
+                                  msg.Contains("RESOURCE_EXHAUSTED", StringComparison.OrdinalIgnoreCase) ||
+                                  msg.Contains("TooManyRequests", StringComparison.OrdinalIgnoreCase) ||
+                                  msg.Contains("429");
+
+                    if (isQuota)
+                        return ErrorResponse.Build("AI provider rate limit reached. Please retry after a short delay.", 429);
+
+                    return ErrorResponse.Build("AI Solving Failed. Please try again in a moment.", 503);
                 }
 
                 // 3. Upsert lời giải (update nếu đã có, tạo mới nếu chưa có)
